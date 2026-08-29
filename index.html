@@ -37,7 +37,7 @@ input[type=range]{accent-color:#17191D;}
       </div>
       <div style="line-height:1.15;">
         <div style="font-weight:800;font-size:15px;color:#17191D;letter-spacing:-.02em;">21</div>
-        <div style="font-size:11px;color:#83868C;">Food, health &amp; fitness — all in one · 49 screens</div>
+        <div style="font-size:11px;color:#83868C;">Food, health &amp; fitness — all in one · 50 screens</div>
       </div>
     </div>
     {{ modeToggleEl }}
@@ -199,7 +199,7 @@ class Component extends DCLogic {
     ['Home & Library',[['library','Recipe Library'],['search','Search'],['collections','Collections'],['tags','Tags']]],
     ['Import & Recipe Detail',[['addMenu','Add Recipe'],['urlImport','URL / Social Import'],['photoImport','Photo / OCR'],['textImport','Text Paste'],['manualEntry','Manual Entry'],['recipeDetail','Recipe Detail'],['editRecipe','Edit Recipe'],['moreMenu','More Menu']]],
     ['Cook Mode',[['cookStep','Guided Step'],['cookIngredients','Ingredients Panel'],['cookTimers','Active Timers'],['cookComplete','Cook Complete']]],
-    ['Health & Fitness',[['healthToday','Today Dashboard'],['mealScan','Meal Scan Camera'],['mealScanAnalyzing','Scan Analysis'],['mealScanResult','Scan Results'],['calorieDiary','Calorie Diary'],['manualFood','Manual Food Entry'],['scanChoice','Scan Choice'],['goalEdit','Calorie Goal'],['fitness','Fitness Hub'],['logWorkout','Log Workout'],['workoutTimer','Timer & Stopwatch'],['weight','Weight Tracker'],['steps','Step History'],['heartRate','Heart Rate'],['sleep','Sleep']]],
+    ['Health & Fitness',[['healthToday','Today Dashboard'],['mealScan','Meal Scan Camera'],['mealScanAnalyzing','Scan Analysis'],['mealScanResult','Scan Results'],['calorieDiary','Calorie Diary'],['manualFood','Manual Food Entry'],['scanChoice','Scan Choice'],['goalEdit','Calorie Goal'],['fitness','Fitness Hub'],['logWorkout','Log Workout'],['workoutTimer','Timer & Stopwatch'],['liveWorkout','Live Workout'],['weight','Weight Tracker'],['steps','Step History'],['heartRate','Heart Rate'],['sleep','Sleep']]],
     ['Medical',[['medicalProfile','Medical Profile']]],
     ['Meal Planning',[['mealPlan','Meal Plan'],['addMeal','Add Meal'],['planPick','Add to Plan']]],
     ['Grocery',[['grocery','Grocery List'],['addToGrocery','Add to List'],['grocerySettings','List Settings']]],
@@ -209,7 +209,7 @@ class Component extends DCLogic {
   ];
   DARKS=['cookStep','cookIngredients','cookTimers','mealScan','mealScanAnalyzing','scanChoice','sleep'];
   SHEETS=['addMenu','moreMenu','addMeal','addToGrocery','dietaryFilters','manualFood','planPick','goalEdit','logWorkout'];
-  TABMAP={healthToday:0,calorieDiary:0,manualFood:0,planPick:1,library:1,search:1,collections:1,tags:1,mealPlan:1,addMeal:1,grocery:1,addToGrocery:1,grocerySettings:1,fitness:3,weight:3,steps:3,heartRate:3,sleep:3,medicalProfile:3,aiChat:3,logWorkout:3,workoutTimer:3,profile:4,settings:4};
+  TABMAP={healthToday:0,calorieDiary:0,manualFood:0,planPick:1,library:1,search:1,collections:1,tags:1,mealPlan:1,addMeal:1,grocery:1,addToGrocery:1,grocerySettings:1,fitness:3,weight:3,steps:3,heartRate:3,sleep:3,medicalProfile:3,aiChat:3,logWorkout:3,workoutTimer:3,liveWorkout:3,profile:4,settings:4};
   TABSCREENS=['healthToday','calorieDiary','library','mealPlan','grocery','fitness','profile'];
 
   componentDidMount(){ if(this.props.startInGallery)this.setState({mode:'gallery'}); try{const sv=JSON.parse(localStorage.getItem('recisource_v1')||'null');if(sv){this.setState(sv);if(sv.scanRec){const i=this.RECIPES.findIndex(r=>r.id===999);if(i>=0)this.RECIPES[i]=sv.scanRec;else this.RECIPES.push(sv.scanRec);if(sv.scanRec.img)this.WIMG['food-r999']=sv.scanRec.img;}(sv.myRecs||[]).forEach(mr=>{if(!this.RECIPES.some(r=>r.id===mr.id))this.RECIPES.push(mr);if(mr.img)this.WIMG['food-r'+mr.id]=mr.img;});}}catch(e){} const sess=this.loadSess(); if(sess&&sess.user){this.setState({sessEmail:sess.user.email||null});this.cloudSyncOnLogin();} this._tk=setInterval(()=>{const S=this.state;if(S.mode==='phone'&&S.screen==='cookTimers'&&S.t1run&&S.t1>0)this.setState({t1:S.t1-1});
@@ -218,6 +218,21 @@ class Component extends DCLogic {
         if(left<=0){try{if(navigator.vibrate)navigator.vibrate([220,120,220]);}catch(e){}this.setState({tmRun:false,tmLeft:0});this.showToast('⏰ Time’s up — great effort!');}
         else this.setState({tmLeft:left});}
       else this.setState({_swTick:Date.now()});
+    }
+    if(S.screen==='liveWorkout'&&S.lsOn&&S.lsRun&&!S.lsDone){
+      const hi=S.lsHiit?this.HIITS[S.lsHiit]:null;
+      if(hi){const pl=(S.lsPhaseLeft||0)-1;
+        if(pl<=0){
+          if(S.lsPhase==='work'){this.beep(520,0.2,0.16);this.speak('Rest.');this.setState({lsPhase:'rest',lsPhaseLeft:hi.rest});}
+          else{const nr=(S.lsRound||1)+1;
+            if(nr>hi.rounds){this.speak('All rounds done!');this.finishLive();return;}
+            this.beep(1050,0.2,0.2);this.speak('Round '+nr+'. Go!');this.setState({lsPhase:'work',lsPhaseLeft:hi.work,lsRound:nr});}
+        } else {if(pl<=3&&S.lsPhase==='rest')this.beep(700,0.07,0.12);this.setState({lsPhaseLeft:pl});}
+      } else {
+        const mins=Math.floor(this.liveNow()/60000);
+        if(mins>0&&mins%5===0&&S.lsMilestone!==mins){this.setState({lsMilestone:mins});this.speak(this.COACH5[Math.min(this.COACH5.length-1,mins/5-1)]);this.beep(980,0.12,0.12);}
+        else this.setState({_lsTick:Date.now()});
+      }
     } },1000); }
   setState(u,cb){ super.setState(u,cb); clearTimeout(this._sv); this._sv=setTimeout(()=>{try{localStorage.setItem('recisource_v1',JSON.stringify(this.snapshotState()));}catch(e){} clearTimeout(this._cs); this._cs=setTimeout(()=>this.cloudPush(),2500); },250); }
 
@@ -280,6 +295,78 @@ class Component extends DCLogic {
   swLap=()=>this.setState({swLaps:(this.state.swLaps||[]).concat(this.swNow()).slice(-8)});
   tmSet=(sec)=>this.setState({tmTotal:sec,tmLeft:sec,tmRun:false});
   tmToggle=()=>{const S=this.state;if(S.tmRun)this.setState({tmRun:false,tmTotal:S.tmLeft});else if(S.tmLeft>0)this.setState({tmRun:true,tmTotal:S.tmLeft,tmStart:Date.now()});};
+
+  // ---- Live workout engine: sound, voice, motion, GPS, clap, wake lock ----
+  audioCtx=()=>{try{if(!this._ac)this._ac=new (window.AudioContext||window.webkitAudioContext)();if(this._ac.state==='suspended')this._ac.resume();return this._ac;}catch(e){return null;}};
+  beep=(freq,dur,vol)=>{try{const ac=this.audioCtx();if(!ac)return;const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=freq||880;g.gain.value=vol||0.15;o.connect(g);g.connect(ac.destination);o.start();g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+(dur||0.12));o.stop(ac.currentTime+(dur||0.12));}catch(e){}};
+  chime=()=>{[523,659,784,1047].forEach((f,i)=>setTimeout(()=>this.beep(f,0.18,0.18),i*110));};
+  speak=(txt)=>{try{if(!this.state.lsCoach)return;if(!window.speechSynthesis)return;const u=new SpeechSynthesisUtterance(txt);u.rate=1.05;u.pitch=1.05;window.speechSynthesis.speak(u);this._spoke=(this._spoke||0)+1;}catch(e){}};
+  HIITS={'Tabata 20/10 ×8':{work:20,rest:10,rounds:8},'Intervals 30/15 ×10':{work:30,rest:15,rounds:10}};
+  COACH5=['5 minutes in — you’re moving beautifully!','That’s 10 — momentum is yours!','15 minutes — stronger than you started!','20 minutes! This is dedication.','25 in — legend behaviour.','Half an hour. Incredible work!'];
+  onMotion=(e)=>{try{const a=e.accelerationIncludingGravity||e.acceleration;if(!a)return;const m=Math.sqrt((a.x||0)*(a.x||0)+(a.y||0)*(a.y||0)+(a.z||0)*(a.z||0));const now=Date.now();if(this._mBase===undefined)this._mBase=m;this._mBase=this._mBase*0.95+m*0.05;const dev=Math.abs(m-this._mBase);
+    if(dev>2.2&&(!this._mLast||now-this._mLast>280)){this._mLast=now;if(this.state.lsRun)this.setState({lsSteps:(this.state.lsSteps||0)+1});}}catch(err){}};
+  startMotion=async()=>{try{if(window.DeviceMotionEvent&&typeof DeviceMotionEvent.requestPermission==='function'){const p=await DeviceMotionEvent.requestPermission();if(p!=='granted'){this.showToast('Motion access declined — counting is off');return false;}}
+    window.addEventListener('devicemotion',this.onMotion);this._motionOn=true;return true;}catch(e){return false;}};
+  stopMotion=()=>{try{window.removeEventListener('devicemotion',this.onMotion);}catch(e){}this._motionOn=false;};
+  hav=(a,b)=>{const R=6371000,dLa=(b.lat-a.lat)*Math.PI/180,dLo=(b.lon-a.lon)*Math.PI/180;const x=Math.sin(dLa/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLo/2)**2;return 2*R*Math.asin(Math.sqrt(x));};
+  startGPS=()=>{try{if(!navigator.geolocation){this.showToast('No GPS here');return;}this._gw=navigator.geolocation.watchPosition(p=>{const c={lat:p.coords.latitude,lon:p.coords.longitude};if(p.coords.accuracy>60)return;if(this._gLast&&this.state.lsRun){const d=this.hav(this._gLast,c);if(d>1&&d<200)this.setState({lsDist:(this.state.lsDist||0)+d});}this._gLast=c;},()=>this.showToast('GPS unavailable — distance off'),{enableHighAccuracy:true,maximumAge:2000});}catch(e){}};
+  stopGPS=()=>{try{if(this._gw!==undefined)navigator.geolocation.clearWatch(this._gw);}catch(e){}this._gw=undefined;this._gLast=null;};
+  startClap=async()=>{try{const st=await navigator.mediaDevices.getUserMedia({audio:true});this._clapStream=st;const ac=this.audioCtx();const src=ac.createMediaStreamSource(st);const an=ac.createAnalyser();an.fftSize=512;src.connect(an);const buf=new Uint8Array(an.fftSize);
+    this._clapIv=setInterval(()=>{an.getByteTimeDomainData(buf);let pk=0;for(let i=0;i<buf.length;i++){const d=Math.abs(buf[i]-128);if(d>pk)pk=d;}
+      const now=Date.now();
+      if(pk>46&&(!this._clapT||now-this._clapT>160)){
+        if(this._clapT&&now-this._clapT<700){this._clapT=0;if(now-(this._clapAct||0)>1500){this._clapAct=now;this.liveToggle();this.beep(1200,0.1,0.2);}}
+        else this._clapT=now;
+      }},90);
+    this.showToast('👏👏 Double-clap to pause or resume');return true;}catch(e){this.showToast('Mic declined — clap control off');return false;}};
+  stopClap=()=>{try{clearInterval(this._clapIv);if(this._clapStream)this._clapStream.getTracks().forEach(tr=>tr.stop());}catch(e){}this._clapStream=null;};
+  startBeat=()=>{clearInterval(this._beatIv);const bpm=this.state.lsBpm;if(!bpm)return;let n=0;this._beatIv=setInterval(()=>{if(!this.state.lsRun)return;this.beep(n%4===0?1100:820,0.05,n%4===0?0.16:0.09);n++;},Math.round(60000/bpm));};
+  stopBeat=()=>{clearInterval(this._beatIv);};
+  grabWake=async()=>{try{if(navigator.wakeLock)this._wake=await navigator.wakeLock.request('screen');}catch(e){}};
+  dropWake=()=>{try{if(this._wake)this._wake.release();}catch(e){}this._wake=null;};
+  startLive=async()=>{const S=this.state;this.audioCtx();
+    const hi=S.lsHiit?this.HIITS[S.lsHiit]:null;
+    this.setState({lsOn:true,lsDone:false,lsRun:true,lsAcc:0,lsStart:Date.now(),lsSteps:0,lsDist:0,lsRound:1,lsPhase:'work',lsPhaseLeft:hi?hi.work:0,lsMilestone:0});
+    this._mBase=undefined;this._mLast=0;
+    await this.startMotion();
+    if(S.lsGps)this.startGPS();
+    if(S.lsClap)await this.startClap();
+    this.startBeat();
+    this.grabWake();
+    [['3',0],['2',700],['1',1400]].forEach(([n2,d])=>setTimeout(()=>this.beep(700,0.09,0.14),d));
+    setTimeout(()=>{this.beep(1050,0.25,0.2);this.speak(hi?('Round 1 — '+hi.work+' seconds. Go!'):('Let’s go — enjoy your '+(S.lsTy||'Walk').toLowerCase()+'!'));},2100);};
+  liveNow=()=>this.state.lsAcc+(this.state.lsRun?(Date.now()-this.state.lsStart):0);
+  liveToggle=()=>{const S=this.state;if(!S.lsOn)return;if(S.lsRun){this.setState({lsRun:false,lsAcc:this.liveNow()});this.speak('Paused. Double clap or tap when ready.');}else{this.setState({lsRun:true,lsStart:Date.now()});this.speak('Back at it!');}};
+  finishLive=()=>{const el=this.liveNow();this.stopMotion();this.stopGPS();this.stopClap();this.stopBeat();this.dropWake();try{if(navigator.vibrate)navigator.vibrate([150,80,150]);}catch(e){}
+    this.chime();this.setState({lsOn:true,lsRun:false,lsDone:true,lsAcc:el});this.speak('Session complete. Fantastic work!');};
+  exitLive=()=>{this.stopMotion();this.stopGPS();this.stopClap();this.stopBeat();this.dropWake();this.setState({lsOn:false,lsRun:false,lsDone:false,lsAcc:0,lsSteps:0,lsDist:0});};
+  saveLive=()=>{const S=this.state;const mins=Math.max(1,Math.round(this.liveNow()/60000));const entry={day:4,ty:S.lsTy||'Walk',mins,kcal:this.wkKcal(S.lsTy||'Walk',mins,'Moderate')};
+    if((S.lsSteps||0)>0)entry.steps=S.lsSteps;if((S.lsDist||0)>50)entry.dist=Math.round(S.lsDist);
+    this.setState({wlog:(S.wlog||[]).concat(entry)});this.exitLive();this.showToast(this.PRAISE[(S.wlog||[]).length%this.PRAISE.length]+' ~'+entry.kcal+' kcal');this.jump('fitness');};
+
+  // ---- Camera pulse check (fun estimate — brightness of fingertip pulses with heartbeat) ----
+  hrFromSamples=(vals,ms)=>{if(!vals||vals.length<40)return null;const n=vals.length;const win=Math.max(3,Math.round(n/20));const sm=vals.map((v,i)=>{let s2=0,c2=0;for(let j2=Math.max(0,i-win);j2<Math.min(n,i+win);j2++){s2+=vals[j2];c2++;}return v-s2/c2;});
+    const sd=Math.sqrt(sm.reduce((a,v)=>a+v*v,0)/n);if(sd<0.15)return null;
+    const minGap=Math.round(n*(350/ms));let peaks=0,last=-minGap;
+    for(let i=1;i<n-1;i++){if(sm[i]>sd*0.6&&sm[i]>=sm[i-1]&&sm[i]>sm[i+1]&&i-last>=minGap){peaks++;last=i;}}
+    const bpm=Math.round(peaks*60000/ms);return (bpm>=42&&bpm<=190)?bpm:null;};
+  measureHR=async()=>{if(this.state.hrMeas)return;
+    try{
+      const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:320}}});
+      this.setState({hrMeas:'go',hrWave:[]});
+      const v=document.createElement('video');v.srcObject=st;v.muted=true;v.playsInline=true;await v.play();
+      const c=document.createElement('canvas');c.width=64;c.height=64;const cx=c.getContext('2d',{willReadFrequently:true});
+      const vals=[];const t0=Date.now();const DUR=15000;
+      this._hrIv=setInterval(()=>{try{
+        cx.drawImage(v,0,0,64,64);const d=cx.getImageData(16,16,32,32).data;let r=0;for(let i=0;i<d.length;i+=4)r+=d[i];vals.push(r/(d.length/4));
+        const left=Math.max(0,DUR-(Date.now()-t0));
+        this.setState({hrWave:vals.slice(-60),hrLeft:Math.ceil(left/1000)});
+        if(left<=0){clearInterval(this._hrIv);st.getTracks().forEach(tr=>tr.stop());
+          const bpm=this.hrFromSamples(vals,Date.now()-t0);
+          this.setState({hrMeas:bpm?'done':'fail',hrResult:bpm});if(bpm)this.beep(880,0.15,0.15);}
+      }catch(e2){}},50);
+    }catch(e){this.showToast('Camera declined — you can still log manually');this.setState({hrMeas:null});}};
+  cancelHR=()=>{try{clearInterval(this._hrIv);}catch(e){}this.setState({hrMeas:null,hrResult:null,hrWave:[]});};
 
   // ---- Accounts & cloud sync (Supabase Auth + user_state table, RLS-isolated) ----
   AUTH_URL='https://czbetvehfqqfhggqlqfp.supabase.co/auth/v1';
@@ -1220,14 +1307,15 @@ class Component extends DCLogic {
           ]),
           this.e('div',{key:'wk',background:'#17191D',borderRadius:20,padding:'16px 18px',marginBottom:14},[
             this.e('div',{display:'flex',alignItems:'center',gap:8,marginBottom:10},[this.ic('dumbbell',18,{color:t.accent}),this.e('span',{color:t.accent,fontSize:11,fontWeight:800,letterSpacing:'.05em'},'MOVE TODAY')]),
-            this.e('div',{color:'#fff',fontWeight:800,fontSize:16,marginBottom:12},'Every minute counts — log it or time it'),
-            this.e('div',{display:'flex',gap:10},[this.btn('Log a workout',()=>this.openLogWorkout(),{sm:true,icon:'plus'}),this.btn('Timer & stopwatch',()=>this.nav('workoutTimer'),{variant:'secondary',sm:true})])
+            this.e('div',{color:'#fff',fontWeight:800,fontSize:16,marginBottom:12},'Every minute counts — go live, log it, or time it'),
+            this.btn('▶ Start live workout — coach, beats & auto-count',()=>this.nav('liveWorkout'),{sm:true,style:{marginBottom:8,width:'100%'}}),
+            this.e('div',{display:'flex',gap:10},[this.btn('Log a workout',()=>this.openLogWorkout(),{variant:'secondary',sm:true}),this.btn('Timer & stopwatch',()=>this.nav('workoutTimer'),{variant:'secondary',sm:true})])
           ]),
           this.h('This week’s workouts',this.e('span',{fontSize:12,fontWeight:800,color:t.text},totKcal+' kcal')),
           wl.length===0?this.e('div',{key:'none',padding:'16px',borderRadius:14,border:'2px dashed '+t.border,textAlign:'center',color:t.muted,fontWeight:700,fontSize:13,cursor:'pointer',marginBottom:6},'No workouts yet — log your first one 💪',{onClick:()=>this.openLogWorkout()}):null,
           ...wl.map((w,wi)=>{const em=(this.WTYPES.find(x=>x[1]===w.ty)||['🏃'])[0];return this.e('div',{key:'w'+wi,display:'flex',alignItems:'center',gap:12,padding:'11px 0',borderBottom:'1px solid '+t.border},[
             this.e('div',{width:38,height:38,borderRadius:12,background:t.soft,display:'flex',alignItems:'center',justifyContent:'center',fontSize:19},em),
-            this.e('div',{flex:1},[this.e('div',{fontSize:13.5,fontWeight:800,color:t.text},w.ty+' · '+w.mins+' min'),this.e('div',{fontSize:11.5,color:t.muted},['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][w.day]+(w.day===4?' (today)':'')+' · ~'+w.kcal+' kcal')]),
+            this.e('div',{flex:1},[this.e('div',{fontSize:13.5,fontWeight:800,color:t.text},w.ty+' · '+w.mins+' min'),this.e('div',{fontSize:11.5,color:t.muted},['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][w.day]+(w.day===4?' (today)':'')+' · ~'+w.kcal+' kcal'+(w.steps?' · 👟 '+w.steps:'')+(w.dist?' · '+(w.dist/1000).toFixed(1)+' km':''))]),
             this.e('button',{style:{width:26,height:26,borderRadius:8,border:'none',background:t.soft,color:t.muted,cursor:'pointer',fontWeight:800,fontSize:13,lineHeight:'1',padding:0}},'×',{onClick:()=>{const nl=(this.state.wlog||[]).slice();nl.splice(wi,1);this.setState({wlog:nl});this.showToast('Workout removed');}})
           ]);}),
           this.h('Your health'),
@@ -1257,6 +1345,48 @@ class Component extends DCLogic {
             this.showToast(this.PRAISE[(st.wlog||[]).length%this.PRAISE.length]+' ~'+entry.kcal+' kcal');
             this.back();},{style:{marginBottom:8}}),
           this.e('div',{key:'hint',fontSize:12,color:t.muted,textAlign:'center'},'Tip: time it live with the stopwatch and log it in one tap.')
+        ]);}
+
+      case 'liveWorkout': {const ty2=S.lsTy||'Walk';const em2=(this.WTYPES.find(x=>x[1]===ty2)||['🏃'])[0];const el2=this.liveNow();const mins2=Math.max(1,Math.round(el2/60000));const hi2=S.lsHiit?this.HIITS[S.lsHiit]:null;
+        const tog=(lab,on,fn)=>this.e('button',{key:lab,style:{flex:1,padding:'9px 4px',borderRadius:12,border:on?'2px solid '+t.accent:'1px solid '+t.border,background:on?'rgba(198,241,53,.15)':t.card,color:t.text,cursor:'pointer',fontSize:11,fontWeight:800,textAlign:'center'}},lab,{onClick:fn});
+        if(!S.lsOn) return this.e('div',{key:'lw0',flex:1,minHeight:0,display:'flex',flexDirection:'column',padding:'4px 20px 26px',overflowY:'auto'},[
+          this.e('div',{key:'top',display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12},[this.circBtn('close',this.back,{bg:t.card,color:t.text}),this.e('div',{fontWeight:800,fontSize:15,color:t.text},'Live workout'),this.e('div',{width:38,height:38})]),
+          this.e('div',{key:'ty',display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:14},this.WTYPES.map(([em,nm])=>this.e('button',{key:nm,style:{padding:'10px 4px',borderRadius:13,border:ty2===nm?'2px solid '+t.accent:'1px solid '+t.border,background:ty2===nm?'rgba(198,241,53,.15)':t.card,cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:4}},[this.e('span',{fontSize:20},em),this.e('span',{fontSize:11,fontWeight:800,color:t.text},nm)],{onClick:()=>this.setState({lsTy:nm})}))),
+          this.e('div',{key:'hih',fontSize:12,fontWeight:800,color:t.muted,marginBottom:8},'INTERVALS (OPTIONAL)'),
+          this.e('div',{key:'hi',display:'flex',gap:8,marginBottom:14,flexWrap:'wrap'},[null].concat(Object.keys(this.HIITS)).map(k=>this.chip(k||'Free session',(S.lsHiit||null)===k,()=>this.setState({lsHiit:k}),{sm:true}))),
+          this.e('div',{key:'exh',fontSize:12,fontWeight:800,color:t.muted,marginBottom:8},'EXTRAS'),
+          this.e('div',{key:'tg',display:'flex',gap:8,marginBottom:10},[
+            tog('🎙 Voice coach',!!S.lsCoach,()=>this.setState({lsCoach:!S.lsCoach})),
+            tog('👏 Clap control',!!S.lsClap,()=>this.setState({lsClap:!S.lsClap})),
+            tog('📍 GPS distance',!!S.lsGps,()=>this.setState({lsGps:!S.lsGps}))
+          ]),
+          this.e('div',{key:'bt',display:'flex',gap:8,marginBottom:18,flexWrap:'wrap'},[0,110,125,140,155].map(b=>this.chip(b?('🥁 '+b+' bpm'):'No beat',(S.lsBpm||0)===b,()=>this.setState({lsBpm:b}),{sm:true}))),
+          this.btn('Start '+ty2.toLowerCase()+' →',()=>this.startLive(),{style:{marginBottom:10}}),
+          this.e('div',{key:'note',fontSize:11.5,color:t.faint,textAlign:'center',lineHeight:1.5},'Movement counting uses your phone’s motion sensor while the app is open. Voice, claps and GPS ask permission once. Keep the phone with you and have fun!')
+        ]);
+        if(S.lsDone) return this.e('div',{key:'lw2',flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'0 26px',textAlign:'center'},[
+          this.e('div',{key:'em',fontSize:64,animation:'float 2.2s ease-in-out infinite'},'🎉'),
+          this.sectionTitle('Session complete!',{m:'10px 0 4px'}),
+          this.e('div',{key:'pr',fontSize:13.5,color:t.muted,marginBottom:18},this.PRAISE[mins2%this.PRAISE.length]),
+          this.e('div',{key:'st',display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,width:'100%',maxWidth:300,marginBottom:20},[[this.fmtSW(el2),'time'],[String(S.lsSteps||0),'movements'],['~'+this.wkKcal(ty2,mins2,'Moderate'),'kcal'],[(S.lsDist||0)>50?((S.lsDist/1000).toFixed(2)+' km'):'—','distance']].map(([v,l])=>this.e('div',{key:l,background:t.card,border:'1px solid '+t.border,borderRadius:14,padding:'12px 8px'},[this.e('div',{fontSize:19,fontWeight:800,color:t.text},v),this.e('div',{fontSize:11,color:t.muted,marginTop:2},l)]))),
+          this.btn('Save workout ✓',this.saveLive,{style:{width:'100%',maxWidth:300,marginBottom:10}}),
+          this.btn('Discard',()=>{this.exitLive();this.back();},{variant:'secondary',style:{width:'100%',maxWidth:300}})
+        ]);
+        return this.e('div',{key:'lw1',flex:1,display:'flex',flexDirection:'column',padding:'4px 20px 26px'},[
+          this.e('div',{key:'top',display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10},[this.circBtn('close',()=>{this.finishLive();},{bg:t.card,color:t.text}),this.e('div',{fontWeight:800,fontSize:15,color:t.text},em2+' '+ty2),this.e('div',{width:38,height:38})]),
+          hi2?this.e('div',{key:'hi',textAlign:'center',marginBottom:8,padding:'9px',borderRadius:14,background:S.lsPhase==='work'?'rgba(198,241,53,.2)':t.card,border:'1px solid '+(S.lsPhase==='work'?t.accent:t.border)},[this.e('div',{fontSize:11,fontWeight:800,letterSpacing:'.06em',color:t.muted},'ROUND '+(S.lsRound||1)+' / '+hi2.rounds),this.e('div',{fontSize:22,fontWeight:800,color:t.text},(S.lsPhase==='work'?'WORK ':'REST ')+this.fmtSW((S.lsPhaseLeft||0)*1000))]):null,
+          this.e('div',{key:'disp',flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16},[
+            this.e('div',{width:210,height:210,borderRadius:999,border:'6px solid '+(S.lsRun?t.accent:t.card),display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:2,animation:S.lsRun?'pulse 2s infinite':'none'},[
+              this.e('div',{fontSize:46,fontWeight:800,color:t.text,fontVariantNumeric:'tabular-nums'},this.fmtSW(el2)),
+              this.e('div',{fontSize:12,color:t.muted,fontWeight:700},S.lsRun?'keep moving!':'paused')
+            ]),
+            this.e('div',{key:'st',display:'flex',gap:10},[['👟',String(S.lsSteps||0),'moves'],['🔥','~'+this.wkKcal(ty2,mins2,'Moderate'),'kcal']].concat(S.lsGps?[['📍',(((S.lsDist||0))/1000).toFixed(2),'km']]:[]).map(([em3,v,l])=>this.e('div',{key:l,background:t.card,border:'1px solid '+t.border,borderRadius:14,padding:'10px 14px',textAlign:'center',minWidth:76},[this.e('div',{fontSize:16,fontWeight:800,color:t.text},em3+' '+v),this.e('div',{fontSize:10.5,color:t.muted},l)])))
+          ]),
+          this.e('div',{key:'ctl',display:'flex',gap:10,marginTop:14},[
+            this.btn(S.lsRun?'Pause':'Resume',this.liveToggle,{variant:'secondary',style:{flex:1}}),
+            this.btn('Finish ✓',this.finishLive,{style:{flex:1}})
+          ]),
+          this.e('div',{key:'enc',textAlign:'center',marginTop:10,fontSize:11.5,color:t.faint},S.lsClap?'👏👏 double-clap to pause / resume':'Every minute is a win 💚')
         ]);}
 
       case 'workoutTimer': {const sw=S.twMode!=='tm';const el=this.swNow();const tl=S.tmLeft;
@@ -1292,6 +1422,22 @@ class Component extends DCLogic {
             this.e('div',{display:'inline-flex',alignItems:'center',gap:10},[this.e('button',{style:{width:32,height:32,borderRadius:999,border:'1px solid '+t.border,background:t.card,color:t.text,cursor:'pointer',fontWeight:800,fontSize:16,lineHeight:'1',padding:0}},'−',{onClick:()=>this.setState({hr:Math.max(40,((this.state.hr!==undefined)?this.state.hr:68)-1)})}),this.ic('heart',30,{fill:'#FF5B62',color:'#FF5B62',style:{animation:'pulse 1s infinite'}}),this.e('span',{fontSize:52,fontWeight:800,color:t.text,letterSpacing:'-.03em'},String((S.hr!==undefined)?S.hr:68)),this.e('span',{fontSize:15,color:t.muted,fontWeight:700,alignSelf:'flex-end',paddingBottom:10},'bpm'),this.e('button',{style:{width:32,height:32,borderRadius:999,border:'1px solid '+t.border,background:t.card,color:t.text,cursor:'pointer',fontWeight:800,fontSize:16,lineHeight:'1',padding:0}},'+',{onClick:()=>this.setState({hr:Math.min(220,((this.state.hr!==undefined)?this.state.hr:68)+1)})})]),
             this.e('div',{fontSize:12.5,color:t.muted,marginTop:2},'Right now · tap − / + to log a manual reading')
           ]),
+          this.e('div',{key:'cam',background:'#17191D',borderRadius:18,padding:'14px 16px',marginBottom:14},
+            S.hrMeas==='go'?[
+              this.e('div',{key:'a',color:'#fff',fontWeight:800,fontSize:14,marginBottom:4},'Reading your pulse… '+(S.hrLeft||15)+'s'),
+              this.e('div',{key:'b',color:'#B7BAC0',fontSize:12,marginBottom:10},'Cover the back camera fully with your fingertip — gentle pressure, hold still.'),
+              React.createElement('svg',{key:'w',width:'100%',height:44,viewBox:'0 0 240 44',preserveAspectRatio:'none'},React.createElement('polyline',{points:(S.hrWave||[]).map((v,i,arr)=>{const mn=Math.min(...arr),mx=Math.max(...arr)||1;return (i*(240/Math.max(1,arr.length-1)))+','+(40-((v-mn)/Math.max(0.001,mx-mn))*36+2);}).join(' '),fill:'none',stroke:'#C6F135',strokeWidth:2})),
+              this.e('div',{key:'c',marginTop:8},this.btn('Cancel',this.cancelHR,{variant:'secondary',sm:true,auto:true}))
+            ]:S.hrMeas==='done'?[
+              this.e('div',{key:'a',color:'#fff',fontWeight:800,fontSize:16,marginBottom:6},'💓 We read ~'+S.hrResult+' bpm'),
+              this.e('div',{key:'b',display:'flex',gap:8},[this.btn('Save '+S.hrResult+' bpm',()=>{this.setState({hr:S.hrResult,hrMeas:null,hrResult:null});this.showToast('Heart rate updated ✓');},{sm:true,auto:true}),this.btn('Retry',()=>{this.setState({hrMeas:null});this.measureHR();},{variant:'secondary',sm:true,auto:true}),this.btn('Dismiss',this.cancelHR,{variant:'secondary',sm:true,auto:true})])
+            ]:S.hrMeas==='fail'?[
+              this.e('div',{key:'a',color:'#fff',fontWeight:800,fontSize:14,marginBottom:6},'Couldn’t get a clean read'),
+              this.e('div',{key:'b',color:'#B7BAC0',fontSize:12,marginBottom:10},'Try again in brighter light, fingertip flat over the whole lens.'),
+              this.e('div',{key:'c',display:'flex',gap:8},[this.btn('Try again',()=>{this.setState({hrMeas:null});this.measureHR();},{sm:true,auto:true}),this.btn('Dismiss',this.cancelHR,{variant:'secondary',sm:true,auto:true})])
+            ]:[
+              this.e('div',{key:'a',display:'flex',alignItems:'center',gap:12},[this.e('div',{fontSize:26},'📸'),this.e('div',{flex:1},[this.e('div',{color:'#fff',fontWeight:800,fontSize:14},'Measure with your camera'),this.e('div',{color:'#B7BAC0',fontSize:11.5,marginTop:2},'Fingertip over the lens · 15 seconds · fun estimate, not medical advice')]),this.btn('Start',this.measureHR,{sm:true,auto:true})])
+            ]),
           this.e('div',{key:'stats',display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16},[['Resting','62 bpm','↓ 3 vs last month'],['Walking avg','98 bpm','Steady'],['HRV','45 ms','Good recovery'],['Cardio fitness','38.2 VO₂max','Above average']].map(([l,v,sub])=>this.e('div',{key:l,background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'12px 14px'},[this.e('div',{fontSize:11,color:t.muted,marginBottom:3},l),this.e('div',{fontSize:17,fontWeight:800,color:t.text},v),this.e('div',{fontSize:11,color:t.muted,marginTop:2},sub)]))),
           this.e('div',{key:'chart',background:t.card,border:'1px solid '+t.border,borderRadius:18,padding:'14px 16px',marginBottom:14},[
             this.e('div',{fontSize:12.5,fontWeight:800,color:t.text,marginBottom:10},'Last 24 hours'),
