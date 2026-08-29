@@ -210,8 +210,8 @@ class Component extends DCLogic {
   TABMAP={healthToday:0,calorieDiary:0,manualFood:0,planPick:1,library:1,search:1,collections:1,tags:1,mealPlan:1,addMeal:1,grocery:1,addToGrocery:1,grocerySettings:1,fitness:3,weight:3,steps:3,heartRate:3,sleep:3,medicalProfile:3,aiChat:3,profile:4,settings:4};
   TABSCREENS=['healthToday','calorieDiary','library','mealPlan','grocery','fitness','profile'];
 
-  componentDidMount(){ if(this.props.startInGallery)this.setState({mode:'gallery'}); try{const sv=JSON.parse(localStorage.getItem('recisource_v1')||'null');if(sv){this.setState(sv);if(sv.scanRec){const i=this.RECIPES.findIndex(r=>r.id===999);if(i>=0)this.RECIPES[i]=sv.scanRec;else this.RECIPES.push(sv.scanRec);if(sv.scanRec.img)this.WIMG['food-r999']=sv.scanRec.img;}(sv.myRecs||[]).forEach(mr=>{if(!this.RECIPES.some(r=>r.id===mr.id))this.RECIPES.push(mr);if(mr.img)this.WIMG['food-r'+mr.id]=mr.img;});}}catch(e){} this._tk=setInterval(()=>{const S=this.state;if(S.mode==='phone'&&S.screen==='cookTimers'&&S.t1run&&S.t1>0)this.setState({t1:S.t1-1});},1000); }
-  setState(u,cb){ super.setState(u,cb); clearTimeout(this._sv); this._sv=setTimeout(()=>{try{const S=this.state;localStorage.setItem('recisource_v1',JSON.stringify({favs:S.favs,water:S.water,servings:S.servings,curW:S.curW,notes:S.notes,diet:S.diet,plan:S.plan,unit:S.unit,aiPrefs:S.aiPrefs,gchecked:S.gchecked,wextra:S.wextra||[],dlog:S.dlog||[],dhide:S.dhide||[],hr:S.hr,sleepH:S.sleepH,sleepM:S.sleepM,stepsToday:S.stepsToday,stepGoal:S.stepGoal,sleepLog:S.sleepLog,stepsLog:S.stepsLog,bpLog:S.bpLog,wGoal:S.wGoal,conds:S.conds,meds:S.meds,notif:S.notif,appearance:S.appearance,ahealth:S.ahealth,records:S.records,gExtra:S.gExtra,userName:S.userName,scanRec:S.scanRec,recipeLive:S.recipeLive,planX:S.planX,myRecs:S.myRecs,kcalGoal:S.kcalGoal}));}catch(e){}},250); }
+  componentDidMount(){ if(this.props.startInGallery)this.setState({mode:'gallery'}); try{const sv=JSON.parse(localStorage.getItem('recisource_v1')||'null');if(sv){this.setState(sv);if(sv.scanRec){const i=this.RECIPES.findIndex(r=>r.id===999);if(i>=0)this.RECIPES[i]=sv.scanRec;else this.RECIPES.push(sv.scanRec);if(sv.scanRec.img)this.WIMG['food-r999']=sv.scanRec.img;}(sv.myRecs||[]).forEach(mr=>{if(!this.RECIPES.some(r=>r.id===mr.id))this.RECIPES.push(mr);if(mr.img)this.WIMG['food-r'+mr.id]=mr.img;});}}catch(e){} const sess=this.loadSess(); if(sess&&sess.user){this.setState({sessEmail:sess.user.email||null});this.cloudSyncOnLogin();} this._tk=setInterval(()=>{const S=this.state;if(S.mode==='phone'&&S.screen==='cookTimers'&&S.t1run&&S.t1>0)this.setState({t1:S.t1-1});},1000); }
+  setState(u,cb){ super.setState(u,cb); clearTimeout(this._sv); this._sv=setTimeout(()=>{try{localStorage.setItem('recisource_v1',JSON.stringify(this.snapshotState()));}catch(e){} clearTimeout(this._cs); this._cs=setTimeout(()=>this.cloudPush(),2500); },250); }
 
   e=(t,s,c,m)=>{
     s=s||{};
@@ -256,6 +256,62 @@ class Component extends DCLogic {
   SCAN_URL='https://czbetvehfqqfhggqlqfp.supabase.co/functions/v1/scan';
   SCAN_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6YmV0dmVoZnFxZmhnZ3FscWZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyMTgyNjgsImV4cCI6MjEwMTc5NDI2OH0.-KN-sJllx8QOfFBCkx-YD3M_k8YrXgOKeTn44o88p5M';
   openLogFood=(name,kcal,slot)=>{this.setState({mfName:name||'',mfKcal:kcal?String(Math.round(kcal)):'',mfSlot:slot||'Snack',mfDay:undefined});this.nav('manualFood');};
+
+  // ---- Accounts & cloud sync (Supabase Auth + user_state table, RLS-isolated) ----
+  AUTH_URL='https://czbetvehfqqfhggqlqfp.supabase.co/auth/v1';
+  REST_URL='https://czbetvehfqqfhggqlqfp.supabase.co/rest/v1';
+  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal'];
+  snapshotState=()=>{const S=this.state;const o={_ts:Date.now()};this.SYNC_KEYS.forEach(k=>{o[k]=S[k];});return o;};
+  loadSess=()=>{try{return JSON.parse(localStorage.getItem('recisource_auth')||'null');}catch(e){return null;}};
+  saveSess=(s)=>{try{if(s)localStorage.setItem('recisource_auth',JSON.stringify(s));else localStorage.removeItem('recisource_auth');}catch(e){}};
+  ensureSession=async()=>{let s=this.loadSess();if(!s||!s.access_token)return null;
+    const exp=s.expires_at||0;
+    if(exp&&(Date.now()/1000)>(exp-90)){
+      try{const r=await fetch(this.AUTH_URL+'/token?grant_type=refresh_token',{method:'POST',headers:{apikey:this.SCAN_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:s.refresh_token})});
+        const j=await r.json();
+        if(j&&j.access_token){s=j;this.saveSess(s);}
+        else{this.saveSess(null);this.setState({sessEmail:null});return null;}
+      }catch(e){/* offline — use the old token and let the call fail softly */}
+    }
+    return s;};
+  doAuth=async(login)=>{const em=(this.state.authEmail||'').trim();const pw=this.state.authPwd||'';
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){this.showToast('Enter a valid email address');return;}
+    if(pw.length<6){this.showToast('Password needs at least 6 characters');return;}
+    this.setState({authBusy:true});
+    try{
+      if(!login){
+        const rs=await fetch(this.SCAN_URL,{method:'POST',headers:{apikey:this.SCAN_KEY,Authorization:'Bearer '+this.SCAN_KEY,'Content-Type':'application/json'},body:JSON.stringify({mode:'signup',email:em,password:pw})});
+        const js=await rs.json();
+        if(!js||!js.ok){this.setState({authBusy:false});this.showToast(String((js&&js.error)||'Couldn’t create the account — try again').slice(0,90));return;}
+      }
+      const r=await fetch(this.AUTH_URL+'/token?grant_type=password',{method:'POST',headers:{apikey:this.SCAN_KEY,'Content-Type':'application/json'},body:JSON.stringify({email:em,password:pw})});
+      const j=await r.json();
+      if(j&&j.access_token){this.saveSess(j);this.setState({authBusy:false,sessEmail:em,authPwd:''});this.showToast(login?'Welcome back — syncing…':'Account created ✓ syncing…');await this.cloudSyncOnLogin();this.jump('healthToday');}
+      else{this.setState({authBusy:false});this.showToast(String((j&&(j.error_description||j.msg||j.error))||'That didn’t work — check your details').slice(0,90));}
+    }catch(e){this.setState({authBusy:false});this.showToast('No connection — try again');}};
+  logOut=()=>{this.saveSess(null);this.setState({sessEmail:null});this.showToast('Logged out — your data stays on this device');};
+  cloudPush=async()=>{if(!this._syncReady)return false;const s=await this.ensureSession();if(!s)return false;
+    try{const r=await fetch(this.REST_URL+'/user_state',{method:'POST',headers:{apikey:this.SCAN_KEY,Authorization:'Bearer '+s.access_token,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},body:JSON.stringify({user_id:s.user.id,state:this.snapshotState()})});
+      if(r.ok){this._lastSync=Date.now();return true;}
+      return false;
+    }catch(e){return false;}};
+  cloudPull=async()=>{const s=await this.ensureSession();if(!s)return null;
+    try{const r=await fetch(this.REST_URL+'/user_state?select=state&user_id=eq.'+s.user.id,{headers:{apikey:this.SCAN_KEY,Authorization:'Bearer '+s.access_token}});
+      const rows=await r.json();return (Array.isArray(rows)&&rows[0]&&rows[0].state)?rows[0].state:null;
+    }catch(e){return null;}};
+  applyCloud=(st)=>{if(!st)return;const upd={};this.SYNC_KEYS.forEach(k=>{if(st[k]!==undefined)upd[k]=st[k];});this.setState(upd);
+    if(st.scanRec){const i=this.RECIPES.findIndex(r=>r.id===999);if(i>=0)this.RECIPES[i]=st.scanRec;else this.RECIPES.push(st.scanRec);if(st.scanRec.img)this.WIMG['food-r999']=st.scanRec.img;}
+    (st.myRecs||[]).forEach(mr=>{if(!this.RECIPES.some(r=>r.id===mr.id))this.RECIPES.push(mr);if(mr.img)this.WIMG['food-r'+mr.id]=mr.img;});};
+  cloudSyncOnLogin=async()=>{const s=await this.ensureSession();if(!s){this._syncReady=true;return;}
+    const uid=s.user&&s.user.id;let prevAcct=null;try{prevAcct=localStorage.getItem('recisource_acct');}catch(e){}
+    const cloud=await this.cloudPull();
+    let localTs=0;try{localTs=(JSON.parse(localStorage.getItem('recisource_v1')||'{}')._ts)||0;}catch(e){}
+    this._syncReady=true;
+    // A device that has never synced this account must never overwrite the cloud:
+    // cloud wins outright there; returning devices reconcile by timestamp.
+    if(cloud&&(prevAcct!==uid||(cloud._ts||0)>localTs)){this.applyCloud(cloud);this._lastSync=Date.now();this.showToast('Synced from your account ✓');}
+    else{await this.cloudPush();}
+    try{localStorage.setItem('recisource_acct',uid);}catch(e){}};
   captureScan=(mode,fromLib)=>{const inp=document.createElement('input');inp.type='file';inp.accept='image/*';if(!fromLib)inp.setAttribute('capture','environment');inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');const sc=Math.min(1,900/im.width);c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);c.getContext('2d').drawImage(im,0,0,c.width,c.height);const durl=c.toDataURL('image/jpeg',0.72);this.WIMG['scan-photo']=durl;this.WIMG['scan-live']=durl;this.setState({scanImg:durl,scanB64:durl.split(',')[1]});this.nav('scanChoice');};im.src=rd.result;};rd.readAsDataURL(f);};inp.click();};
   goScan=(mode,b64)=>{this.setState({scanMode:mode});this.nav('mealScanAnalyzing');this.runScan(mode,b64);};
   nextMyId=()=>{const mr=this.state.myRecs||[];return 1000+mr.reduce((a,r)=>Math.max(a,(r.id||999)-999),0);};
@@ -433,13 +489,11 @@ class Component extends DCLogic {
 
       case 'auth': {const login=S.authMode==='login';return this.wrap([
         this.e('div',{key:'top',paddingTop:14,textAlign:'center'},[this.e('div',{width:66,height:66,borderRadius:20,margin:'0 auto 16px',background:'#17191D',display:'flex',alignItems:'center',justifyContent:'center'},this.e('div',{width:28,height:28,borderRadius:9,background:t.accent})),this.sectionTitle(login?'Welcome back':'Create your account',{m:'0 0 6px'}),this.e('div',{fontSize:14,color:t.muted,marginBottom:22},login?'Log in to your recipe library':'Save your first recipe in seconds')]),
-        this.e('button',{key:'apple',style:{width:'100%',padding:15,borderRadius:999,border:'none',cursor:'pointer',background:'#141210',color:'#fff',fontWeight:800,fontSize:15,display:'flex',alignItems:'center',justifyContent:'center',gap:9}},[this.ic('apple',20,{fill:'#fff'}),(login?'Sign in':'Sign up')+' with Apple'],{onClick:()=>this.nav(login?'healthToday':'dietary')}),
-        this.e('button',{key:'g',style:{width:'100%',marginTop:10,padding:15,borderRadius:999,cursor:'pointer',background:'#fff',color:t.text,border:'1px solid '+t.border,fontWeight:800,fontSize:15,display:'flex',alignItems:'center',justifyContent:'center',gap:9}},[this.ic('google',20),'Continue with Google'],{onClick:()=>this.nav(login?'healthToday':'dietary')}),
-        this.e('div',{key:'or',display:'flex',alignItems:'center',gap:12,margin:'20px 0',color:t.faint,fontSize:12,fontWeight:700},[this.e('div',{flex:1,height:1,background:t.border}),'or',this.e('div',{flex:1,height:1,background:t.border})]),
-        this.e('div',{key:'em',display:'flex',alignItems:'center',gap:9,background:t.card,border:'1px solid '+t.border,borderRadius:14,padding:'13px 14px'},[this.ic('user',17,{color:t.muted}),React.createElement('input',{key:'i',value:S.authEmail!==undefined?S.authEmail:'sofia@example.com',onChange:e=>this.setState({authEmail:e.target.value}),placeholder:'Email address',style:{flex:1,minWidth:0,border:'none',outline:'none',background:'none',fontSize:14.5,color:t.text,fontFamily:'inherit'}})]),
+        this.e('div',{key:'em',display:'flex',alignItems:'center',gap:9,background:t.card,border:'1px solid '+t.border,borderRadius:14,padding:'13px 14px'},[this.ic('user',17,{color:t.muted}),React.createElement('input',{key:'i',value:S.authEmail||'',onChange:e=>this.setState({authEmail:e.target.value}),placeholder:'Email address',inputMode:'email',autoCapitalize:'none',style:{flex:1,minWidth:0,border:'none',outline:'none',background:'none',fontSize:14.5,color:t.text,fontFamily:'inherit'}})]),
         this.e('div',{key:'sp',height:12}),
         this.e('div',{key:'pw',display:'flex',alignItems:'center',gap:9,background:t.card,border:'1px solid '+t.border,borderRadius:14,padding:'13px 14px'},[this.ic('lock',17,{color:t.muted}),React.createElement('input',{key:'i',type:'password',value:S.authPwd||'',onChange:e=>this.setState({authPwd:e.target.value}),placeholder:login?'Password':'Create password',style:{flex:1,minWidth:0,border:'none',outline:'none',background:'none',fontSize:14.5,color:t.text,fontFamily:'inherit'}})]),
-        this.e('div',{key:'sub',marginTop:18},this.btn(login?'Log In':'Create Account',()=>this.nav(login?'healthToday':'dietary'))),
+        this.e('div',{key:'sub',marginTop:18},this.btn(S.authBusy?'One moment…':(login?'Log In':'Create Account'),()=>{if(!S.authBusy)this.doAuth(login);})),
+        this.e('div',{key:'why',marginTop:14,display:'flex',gap:10,background:t.soft,borderRadius:14,padding:'12px 14px'},[this.ic('lock',17,{color:t.muted}),this.e('div',{fontSize:11.5,color:t.muted,lineHeight:1.45},'Your diary, recipes, plan and health data sync to your private account and follow you to any device. Everything also keeps working offline on this one.')]),
         this.e('div',{key:'tog',textAlign:'center',marginTop:18,fontSize:13.5,color:t.muted},[login?'New here? ':'Already have an account? ',this.e('span',{fontWeight:800,cursor:'pointer',textDecoration:'underline'},login?'Sign up':'Log in',{onClick:()=>this.setState({authMode:login?'signup':'login'})})])
       ]);}
 
@@ -940,6 +994,9 @@ class Component extends DCLogic {
       case 'profile': return this.wrap([
         this.e('div',{key:'top',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 0 16px'},[this.sectionTitle('Profile',{m:0,sm:true}),this.circBtn('gear',()=>this.nav('settings'))]),
         this.e('div',{key:'hd',style:{display:'flex',alignItems:'center',gap:14,marginBottom:20}},[this.e('div',{width:72,height:72,borderRadius:999,background:this.GRADS[5],flexShrink:0}),this.e('div',{flex:1},[S.nameEdit?React.createElement('input',{key:'ne',value:S.userName||'',onChange:e=>this.setState({userName:e.target.value}),autoFocus:true,style:{fontSize:18,fontWeight:800,color:t.text,border:'1px solid '+t.border,borderRadius:10,padding:'6px 10px',background:t.card,outline:'none',width:'100%',boxSizing:'border-box',fontFamily:'inherit'}}):this.e('div',{fontSize:18,fontWeight:800,color:t.text},(S.userName||'Sofia')+' Green'),this.e('div',{fontSize:13,color:t.muted,marginTop:2},'@wholefoodsofia'),this.e('div',{fontSize:12,fontWeight:800,color:t.text,marginTop:6,cursor:'pointer'},S.nameEdit?'Save name':'Edit profile',{onClick:()=>{if(this.state.nameEdit&&!(this.state.userName||'').trim()){this.setState({userName:'Sofia'});}this.setState({nameEdit:!this.state.nameEdit});if(this.state.nameEdit)this.showToast('Name saved — used across the app');}})])]),
+        S.sessEmail
+          ?this.e('div',{key:'acct',display:'flex',alignItems:'center',gap:12,background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'13px 14px',marginBottom:18},[this.e('div',{width:38,height:38,borderRadius:12,background:'rgba(198,241,53,.25)',display:'flex',alignItems:'center',justifyContent:'center'},this.ic('check',18,{color:t.text})),this.e('div',{flex:1,minWidth:0},[this.e('div',{fontSize:13.5,fontWeight:800,color:t.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'},S.sessEmail),this.e('div',{fontSize:11.5,color:t.muted},this._lastSync?'Cloud sync on · last synced just now':'Cloud sync on')]),this.e('button',{style:{border:'1px solid '+t.border,background:t.soft,color:t.text,fontWeight:800,fontSize:11.5,padding:'8px 11px',borderRadius:999,cursor:'pointer',flexShrink:0}},'Sync now',{onClick:async()=>{this.showToast('Syncing…');const ok=await this.cloudPush();this.showToast(ok?'Synced ✓':'Sync failed — check connection');}}),this.e('button',{style:{border:'none',background:'none',color:'#D0453A',fontWeight:800,fontSize:11.5,padding:'8px 6px',cursor:'pointer',flexShrink:0}},'Log out',{onClick:this.logOut})])
+          :this.e('div',{key:'acct',onClick:()=>{this.setState({authMode:'signup'});this.nav('auth');},style:{display:'flex',alignItems:'center',gap:13,background:'#17191D',borderRadius:18,padding:'15px 16px',marginBottom:18,cursor:'pointer'}},[this.e('div',{width:42,height:42,borderRadius:13,background:t.accent,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic('user',22,{color:'#17191D'})),this.e('div',{flex:1},[this.e('div',{fontSize:14.5,fontWeight:800,color:'#fff'},'Create your free account'),this.e('div',{fontSize:12,color:'rgba(255,255,255,.6)',marginTop:2},'Back up & sync your data across devices')]),this.ic('chev',18,{color:'rgba(255,255,255,.55)'})]),
         this.e('div',{key:'stats',display:'flex',gap:10,marginBottom:8},[[String(Object.keys(S.favs||{}).filter(k=>S.favs[k]).length),'Saved'],['31','Cooked'],['6','Collections']].map(([v,l])=>this.e('div',{key:l,style:{flex:1,background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'14px 6px',textAlign:'center'}},[this.e('div',{fontSize:20,fontWeight:800,color:t.text},v),this.e('div',{fontSize:11.5,color:t.muted,marginTop:2},l)]))),
         this.h('My kitchen'),
         ...[['shield','Medical profile','medicalProfile'],['spark','AI assistant','aiChat'],['calendar','Meal plans','mealPlan'],['bag','Grocery lists','grocery'],['grid','My recipes','library']].map(([ic,l,go])=>this.e('div',{key:l,display:'flex',alignItems:'center',gap:14,padding:'14px 4px',borderBottom:'1px solid '+t.border,cursor:'pointer'},[this.e('div',{width:38,height:38,borderRadius:12,background:t.soft,display:'flex',alignItems:'center',justifyContent:'center'},this.ic(ic,19,{color:t.text})),this.e('span',{flex:1,fontSize:14.5,fontWeight:600,color:t.text},l),this.ic('chev',17,{color:t.faint})],{onClick:()=>this.nav(go)}))
@@ -958,7 +1015,7 @@ class Component extends DCLogic {
           if(l==='Units'){const u2=this.state.unit==='metric'?'imperial':'metric';this.setState({unit:u2});this.showToast('Units switched to '+(u2==='metric'?'Metric':'Imperial')+' everywhere');return;}
           if(l==='Notifications'){const on=!this.state.notif;this.setState({notif:on});this.showToast(on?'Notifications on \u2014 meal & med reminders active':'Notifications muted');return;}
           if(l==='Appearance'){const ap=this.state.appearance==='Dark'?'Light':'Dark';this.setState({appearance:ap});this.showToast(ap+' mode on');return;}
-          if(l==='Password'){this.showToast('Password reset link sent to sofia@example.com');return;}
+          if(l==='Password'){const em=this.state.sessEmail;if(!em){this.showToast('Sign in first — Profile → Create your free account');return;}fetch(this.AUTH_URL+'/recover',{method:'POST',headers:{apikey:this.SCAN_KEY,'Content-Type':'application/json'},body:JSON.stringify({email:em})}).then(()=>this.showToast('Password reset link sent to '+em)).catch(()=>this.showToast('Couldn’t send — try again'));return;}
           if(l==='Sign out'){this.showToast('Signed out (demo keeps you in)');return;}
           if(l==='Delete account'){this.showToast('Deletion needs email confirmation \u2014 check your inbox');return;}
           if(l==='Help & Support'){this.showToast('Support chat opens in the full release');return;}
