@@ -82,15 +82,9 @@ class Component extends DCLogic {
   };
   WLOG=[78.4,78.1,77.6,77.8,77.2,76.5,76.0,76.2,75.4,74.8,74.9,74.1,73.6,73.8,73.1,72.6,72.8,72.2,71.9,72.0,71.6,71.4,71.3,71.2];
   WSTART=['Sep ’24','Mar ’25','Sep ’25','Jun ’26'];
-  STEPD={
-    W:{cap:'This week · 55,000 steps · avg 7,857/day',data:[['M',6.2],['T',8.1],['W',7.4],['T',9.2],['F',7.8],['S',10.4],['S',5.9]]},
-    M:{cap:'This month · 214,300 steps · avg 7,650/day',data:[['W1',48.2],['W2',52.6],['W3',55.1],['W4',58.4]]},
-    '6M':{cap:'Daily average per month · trending up',data:[['Mar',6.8],['Apr',7.2],['May',7.9],['Jun',7.4],['Jul',8.1],['Aug',8.4]]},
-    Y:{cap:'Daily average per month · up 34% vs last year',data:[['S',5.9],['O',6.1],['N',6.4],['D',6.8],['J',6.6],['F',7.0],['M',6.8],['A',7.2],['M',7.9],['J',7.4],['J',8.1],['A',8.4]]}
-  };
-  tplKey=(r)=>{const tg=(r.tags||[]).join(' ').toLowerCase();const ti=r.title.toLowerCase();if(/pasta/.test(tg))return 'pasta';if(/pizza/.test(tg))return 'pizza';if(/burger/.test(tg))return 'burger';if(/dosa|idli/.test(ti))return 'batter';if(/samosa|pastry/.test(ti))return 'pastry';if(/biryani|curry|rice/.test(tg))return 'spice';if(/drinks|latte|smoothie/.test(tg+' '+ti))return 'blend';return 'sweet';};
-  recIng=(r)=>(r.live&&r.live.ingredients&&r.live.ingredients.length)?r.live.ingredients:((r.id===999&&this.state.recipeLive&&this.state.recipeLive.ingredients&&this.state.recipeLive.ingredients.length)?this.state.recipeLive.ingredients:(r.id===1?this.ING:this.TPLS[this.tplKey(r)].ing));
-  recSteps=(r)=>(r.live&&r.live.steps&&r.live.steps.length)?r.live.steps:((r.id===999&&this.state.recipeLive&&this.state.recipeLive.steps&&this.state.recipeLive.steps.length)?this.state.recipeLive.steps:(r.id===1?this.STEPS:this.TPLS[this.tplKey(r)].steps));
+  tplKey=(r)=>{const tg=(r.tags||[]).join(' ').toLowerCase();const ti=(r.title||'').toLowerCase();if(/pasta/.test(tg))return 'pasta';if(/pizza/.test(tg))return 'pizza';if(/burger/.test(tg))return 'burger';if(/dosa|idli/.test(ti))return 'batter';if(/samosa|pastry/.test(ti))return 'pastry';if(/biryani|curry|rice/.test(tg))return 'spice';if(/drinks|latte|smoothie/.test(tg+' '+ti))return 'blend';return 'sweet';};
+  recIng=(r)=>(r.live&&r.live.ingredients&&r.live.ingredients.length)?r.live.ingredients:((r.id===999&&this.state.recipeLive&&this.state.recipeLive.ingredients&&this.state.recipeLive.ingredients.length)?this.state.recipeLive.ingredients:(r.id===1?this.ING:((this.TPLS[this.tplKey(r)]||this.TPLS.sweet||{ing:[]}).ing||[])));
+  recSteps=(r)=>(r.live&&r.live.steps&&r.live.steps.length)?r.live.steps:((r.id===999&&this.state.recipeLive&&this.state.recipeLive.steps&&this.state.recipeLive.steps.length)?this.state.recipeLive.steps:(r.id===1?this.STEPS:((this.TPLS[this.tplKey(r)]||this.TPLS.sweet||{steps:[]}).steps||[])));
 
   ICONS={
     home:'<path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
@@ -215,7 +209,7 @@ class Component extends DCLogic {
   TABMAP={healthToday:0,calorieDiary:0,manualFood:0,planPick:1,library:1,search:1,collections:1,tags:1,mealPlan:1,addMeal:1,grocery:1,addToGrocery:1,grocerySettings:1,fitness:3,weight:3,steps:3,heartRate:3,sleep:3,medicalProfile:3,aiChat:3,logWorkout:3,workoutTimer:3,liveWorkout:3,profile:4,settings:4};
   TABSCREENS=['healthToday','calorieDiary','library','mealPlan','grocery','fitness','profile'];
 
-  componentDidMount(){ if(this.props.startInGallery)this.setState({mode:'gallery'}); try{const sv=JSON.parse(localStorage.getItem('recisource_v1')||'null');if(sv){this.setState(sv);if(sv.scanRec){const i=this.RECIPES.findIndex(r=>r.id===999);if(i>=0)this.RECIPES[i]=sv.scanRec;else this.RECIPES.push(sv.scanRec);if(sv.scanRec.img)this.WIMG['food-r999']=sv.scanRec.img;}(sv.myRecs||[]).forEach(mr=>{if(!this.RECIPES.some(r=>r.id===mr.id))this.RECIPES.push(mr);if(mr.img)this.WIMG['food-r'+mr.id]=mr.img;});}}catch(e){} try{const lv=JSON.parse(localStorage.getItem('recisource_live')||'null');if(lv&&lv.lsOn){this.setState(lv);}}catch(e){} this.checkUpdate(); const sess=this.loadSess(); if(sess&&sess.user){this.setState({sessEmail:sess.user.email||null});this.cloudSyncOnLogin();} this._tk=setInterval(()=>{const S=this.state;if(S.mode==='phone'&&S.screen==='cookTimers'&&S.t1run&&S.t1>0)this.setState({t1:S.t1-1});
+  componentDidMount(){ if(this.props.startInGallery)this.setState({mode:'gallery'}); try{const sv=JSON.parse(localStorage.getItem('recisource_v1')||'null');if(sv){this.setState(sv);if(sv.scanRec){const i=this.RECIPES.findIndex(r=>r.id===999);if(i>=0)this.RECIPES[i]=sv.scanRec;else this.RECIPES.push(sv.scanRec);if(sv.scanRec.img)this.WIMG['food-r999']=sv.scanRec.img;}(sv.myRecs||[]).forEach(mr=>{if(!this.RECIPES.some(r=>r.id===mr.id))this.RECIPES.push(mr);if(mr.img)this.WIMG['food-r'+mr.id]=mr.img;});}}catch(e){} try{const lv=JSON.parse(localStorage.getItem('recisource_live')||'null');if(lv&&lv.lsOn){this.setState(lv);}}catch(e){} this.rollover(); this.checkUpdate(); const sess=this.loadSess(); if(sess&&sess.user){this.setState({sessEmail:sess.user.email||null});this.cloudSyncOnLogin();} this._tk=setInterval(()=>{const S=this.state;if(S.mode==='phone'&&S.screen==='cookTimers'&&S.t1run&&S.t1>0)this.setState({t1:S.t1-1});
     if(S.screen==='workoutTimer'&&(S.swRun||S.tmRun)){
       if(S.tmRun){const left=Math.max(0,S.tmTotal-Math.floor((Date.now()-S.tmStart)/1000));
         if(left<=0){try{if(navigator.vibrate)navigator.vibrate([220,120,220]);}catch(e){}this.setState({tmRun:false,tmLeft:0});this.showToast('⏰ Time’s up — great effort!');}
@@ -288,11 +282,30 @@ class Component extends DCLogic {
   WTYPES=[['🚶','Walk',120],['🏃','Run',320],['🚴','Cycle',250],['🏊','Swim',300],['🏋️','Strength',180],['🧘','Yoga',120],['🔥','HIIT',350],['⚽','Sport',250]];
   wkKcal=(ty,mins,intens)=>{const t2=this.WTYPES.find(w=>w[1]===ty);const per30=t2?t2[2]:200;const m={Easy:0.8,Moderate:1,Hard:1.2}[intens]||1;return Math.max(5,Math.round(per30*mins/30*m/5)*5);};
   todayIdx=()=>((new Date().getDay()+6)%7);
+  dkey=(d)=>{const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());};
+  dkToday=()=>this.dkey(new Date());
+  dkOfIdx=(i)=>{const n=new Date();const mon=new Date(n);mon.setDate(n.getDate()-this.todayIdx());const d=new Date(mon);d.setDate(mon.getDate()+i);return this.dkey(d);};
+  // Daily rollover: archive yesterday's steps into dated history, reset water.
+  rollover=()=>{const S=this.state;const today=this.dkToday();const upd={};
+    if(S.stepsDate&&S.stepsDate!==today){const h={...(S.stepsHist||{})};h[S.stepsDate]=S.stepsToday||0;upd.stepsHist=h;upd.stepsToday=0;}
+    if(S.stepsDate!==today)upd.stepsDate=today;
+    if(S.waterDate&&S.waterDate!==today)upd.water=0;
+    if(S.waterDate!==today)upd.waterDate=today;
+    if(Object.keys(upd).length)this.setState(upd);};
+  histStats=()=>{const S=this.state;const h=S.stepsHist||{};const wk=[0,1,2,3,4,5,6].map(i=>this.dkOfIdx(i));
+    const sLog6=(S.stepsLog&&S.stepsLog.length===6)?S.stepsLog:[6200,8100,7400,9200,7800,10400];
+    const weekSum=sLog6.reduce((a,b)=>a+b,0)+((S.stepsToday!==undefined)?S.stepsToday:7842);
+    const now=new Date();let m30=0,all=0;
+    Object.keys(h).forEach(k=>{if(wk.includes(k))return;all+=h[k]||0;const d=new Date(k);if((now-d)/864e5<=30)m30+=h[k]||0;});
+    return {weekSum,monthSum:m30+weekSum,allSum:all+weekSum};};
   weekDates=()=>{const n=new Date();const mon=new Date(n);mon.setDate(n.getDate()-this.todayIdx());return [0,1,2,3,4,5,6].map(i=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return d.getDate();});};
   fmtTs=(ts)=>{const d=new Date(ts);return d.toLocaleDateString(undefined,{month:'short',day:'numeric'})+' '+d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});};
-  wkFor=(day)=>(this.state.wlog||[]).filter(w=>w.day===day);
+  wkFor=(day)=>(this.state.wlog||[]).filter(w=>w.dt?w.dt===this.dkOfIdx(day):w.day===day);
   wkBurn=(day)=>this.wkFor(day).reduce((a,w)=>a+(w.kcal||0),0);
-  activeDays=()=>{const ds=new Set();(this.state.wlog||[]).forEach(w=>ds.add(w.day));(this.state.dlog||[]).forEach(m=>ds.add((m.day!==undefined)?m.day:4));if(!(this.state.dhide||[]).length)ds.add(4);return ds.size;};
+  activeDays=()=>{const ds=new Set();const inWeek=(e,d)=>!e.dt||e.dt===this.dkOfIdx(d);
+    (this.state.wlog||[]).forEach(w=>{if(inWeek(w,w.day))ds.add(w.day);});
+    (this.state.dlog||[]).forEach(m=>{const d=(m.day!==undefined)?m.day:4;if(inWeek(m,d))ds.add(d);});
+    if(!(this.state.dhide||[]).length)ds.add(4);return ds.size;};
   PRAISE=['Nice work! 🔥','You showed up — that’s the win 💪','Strong effort, keep the streak alive ⚡','Your future self says thanks 🌱','Movement logged — momentum built 🚀'];
   openLogWorkout=(mins,day)=>{this.setState({lwTy:this.state.lwTy||'Walk',lwMins:mins?String(mins):'30',lwInt:'Moderate',lwDay:(day!==undefined)?day:((this.state.diaryDay!==undefined)?this.state.diaryDay:this.todayIdx())});this.nav('logWorkout');};
   fmtSW=(ms)=>{const s2=Math.floor(ms/1000);return Math.floor(s2/60)+':'+String(s2%60).padStart(2,'0');};
@@ -418,7 +431,7 @@ class Component extends DCLogic {
   finishLive=()=>{const el=this.liveNow();this.stopMotion();this.stopGPS();this.stopClap();this.stopVoice();this.stopBeat();this.stopGroove();this.dropWake();try{if(navigator.vibrate)navigator.vibrate([150,80,150]);}catch(e){}
     this.fanfare();this.setState({lsOn:true,lsRun:false,lsDone:true,lsAcc:el});this.persistLive({lsOn:true,lsRun:false,lsDone:true,lsAcc:el});this.speak('Session complete. Fantastic work!');};
   exitLive=()=>{this.stopMotion();this.stopGPS();this.stopClap();this.stopVoice();this.stopBeat();this.stopGroove();this.dropWake();this.clearLive();this.setState({lsOn:false,lsRun:false,lsDone:false,lsAcc:0,lsSteps:0,lsDist:0,lsDiscArm:0});};
-  saveLive=()=>{const S=this.state;const mins=Math.max(1,Math.round(this.liveNow()/60000));const entry={day:this.todayIdx(),ty:S.lsTy||'Walk',mins,kcal:this.wkKcal(S.lsTy||'Walk',mins,'Moderate')};
+  saveLive=()=>{const S=this.state;const mins=Math.max(1,Math.round(this.liveNow()/60000));const entry={day:this.todayIdx(),dt:this.dkToday(),ty:S.lsTy||'Walk',mins,kcal:this.wkKcal(S.lsTy||'Walk',mins,'Moderate')};
     if((S.lsSteps||0)>0)entry.steps=S.lsSteps;if((S.lsDist||0)>50)entry.dist=Math.round(S.lsDist);
     const newLog=(S.wlog||[]).concat(entry);
     this.setState({wlog:newLog,
@@ -490,7 +503,7 @@ class Component extends DCLogic {
   cancelHR=()=>{try{clearInterval(this._hrIv);}catch(e){}this.setState({hrMeas:null,hrResult:null,hrWave:[]});};
 
   // ---- Accounts & cloud sync (Supabase Auth + user_state table, RLS-isolated) ----
-  VERSION='20260829.1825';
+  VERSION='20260829.1849';
   checkUpdate=async()=>{try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();
     if(j&&j.v&&this.VERSION!=='__BUILD'+'_TS__'&&j.v!==this.VERSION){
       if(!this.state.lsOn){this.showToast('Updating to the latest version…');setTimeout(()=>{try{location.replace(location.pathname+'?v='+encodeURIComponent(j.v));}catch(e){location.reload();}},900);}
@@ -498,7 +511,7 @@ class Component extends DCLogic {
     }}catch(e){}};
   AUTH_URL='https://czbetvehfqqfhggqlqfp.supabase.co/auth/v1';
   REST_URL='https://czbetvehfqqfhggqlqfp.supabase.co/rest/v1';
-  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn'];
+  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate'];
   snapshotState=()=>{const S=this.state;const o={_ts:Date.now()};this.SYNC_KEYS.forEach(k=>{o[k]=S[k];});return o;};
   loadSess=()=>{try{return JSON.parse(localStorage.getItem('recisource_auth')||'null');}catch(e){return null;}};
   saveSess=(s)=>{try{if(s)localStorage.setItem('recisource_auth',JSON.stringify(s));else localStorage.removeItem('recisource_auth');}catch(e){}};
@@ -547,7 +560,7 @@ class Component extends DCLogic {
     this._syncReady=true;
     // A device that has never synced this account must never overwrite the cloud:
     // cloud wins outright there; returning devices reconcile by timestamp.
-    if(cloud&&(prevAcct!==uid||(cloud._ts||0)>localTs)){this.applyCloud(cloud);this._lastSync=Date.now();this.showToast('Synced from your account ✓');}
+    if(cloud&&(prevAcct!==uid||(cloud._ts||0)>localTs)){this.applyCloud(cloud);this._lastSync=Date.now();this.showToast('Synced from your account ✓');this.rollover();}
     else{await this.cloudPush();}
     try{localStorage.setItem('recisource_acct',uid);}catch(e){}};
   captureScan=(mode,fromLib)=>{const inp=document.createElement('input');inp.type='file';inp.accept='image/*';if(!fromLib)inp.setAttribute('capture','environment');inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');const sc=Math.min(1,900/im.width);c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);c.getContext('2d').drawImage(im,0,0,c.width,c.height);const durl=c.toDataURL('image/jpeg',0.72);this.WIMG['scan-photo']=durl;this.WIMG['scan-live']=durl;this.setState({scanImg:durl,scanB64:durl.split(',')[1]});this.nav('scanChoice');};im.src=rd.result;};rd.readAsDataURL(f);};inp.click();};
@@ -706,7 +719,7 @@ class Component extends DCLogic {
     this.e('div',{key:'s',background:t.card,borderRadius:'28px 28px 0 0',padding:'12px 20px 24px',maxHeight:'88%',display:'flex',flexDirection:'column',animation:'fadeUp .28s ease'},[
       this.e('div',{key:'h',width:42,height:5,borderRadius:999,background:t.border,margin:'0 auto 14px'}),
       title?this.e('div',{key:'t',display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14},[this.e('div',{fontWeight:800,fontSize:19,color:t.text},title),this.circBtn('close',this.back,{sz:32,bg:t.soft,border:t.soft,color:t.muted,icsz:16})]):null,
-      this.e('div',{key:'c',className:'scr',style:{overflowY:'auto'}},children),
+      this.e('div',{key:'c',className:'scr',style:{minHeight:0,overflowY:'auto'}},children),
       o.footer||null
     ])
   ]);}
@@ -911,8 +924,8 @@ class Component extends DCLogic {
       ]);}
 
       case 'recipeDetail': {const r=this.curRec();const M=this.macros(r);const fav=S.favs[r.id];const mine=S.activeVer==='mine';const acts=[['heart','Save','fav'],['calendar','Plan','planPick'],['check','Log','logFood'],['cart','List','addToGrocery'],['share','Share','shareGo']];
-        return this.e('div',{flex:1,display:'flex',flexDirection:'column',position:'relative'},[
-          this.e('div',{key:'body',className:'scr',style:{flex:1,overflowY:'auto',overflowX:'hidden'}},[
+        return this.e('div',{flex:1,minHeight:0,display:'flex',flexDirection:'column',position:'relative'},[
+          this.e('div',{key:'body',className:'scr',style:{flex:1,minHeight:0,overflowY:'auto',overflowX:'hidden'}},[
             this.e('div',{key:'hero',position:'relative',height:288,background:'linear-gradient(180deg,#EFE5D0,#F7F1E8)'},[
               this.e('div',{position:'absolute',top:10,left:16,right:16,display:'flex',justifyContent:'space-between',alignItems:'center',zIndex:2},[this.circBtn('back',this.back,{bg:'rgba(255,255,255,.9)',border:'transparent',shadow:'0 4px 12px rgba(0,0,0,.1)'}),this.e('div',{fontWeight:800,fontSize:15,color:t.text},'Details'),this.circBtn('dots',()=>this.nav('moreMenu'),{bg:'rgba(255,255,255,.9)',border:'transparent',shadow:'0 4px 12px rgba(0,0,0,.1)'})]),
               this.photo(r.seed,230,{position:'absolute',left:'50%',top:52,transform:'translateX(-50%)',width:230,borderRadius:999,boxShadow:'0 30px 50px -18px rgba(20,22,26,.4)'},'food-r'+r.id,'circle')
@@ -1166,7 +1179,7 @@ class Component extends DCLogic {
       case 'aiChat': return this.e('div',{flex:1,minHeight:0,display:'flex',flexDirection:'column'},[
         this.topbar('Cooking Assistant'),
         this.e('div',{key:'ctx',style:{margin:'0 18px 10px',display:'flex',alignItems:'center',gap:8,background:t.soft,borderRadius:999,padding:'7px 13px',fontSize:12,fontWeight:700,color:t.text,alignSelf:'flex-start'}},[this.ic('tm',14),'Cooking: '+this.curRec().title]),
-        this.e('div',{key:'msgs',className:'scr',style:{flex:1,overflowY:'auto',padding:'4px 18px',display:'flex',flexDirection:'column',gap:12}},[
+        this.e('div',{key:'msgs',className:'scr',style:{flex:1,minHeight:0,overflowY:'auto',padding:'4px 18px',display:'flex',flexDirection:'column',gap:12}},[
           (S.chatLog||[]).length===0?this.chatBubble('Hi! Ask me anything about cooking, substitutions, portions or macros — I answer live.',false):null,
           ...(S.chatLog||[]).map((m,ci)=>this.e(React.Fragment,{key:'cl'+ci},this.chatBubble(m.txt,m.me))),
           S.chatBusy?this.e('div',{key:'busy',display:'flex',alignItems:'center',gap:8,color:t.muted,fontSize:12.5,fontWeight:700},[this.e('div',{width:18,height:18,borderRadius:999,border:'3px solid '+t.soft,borderTopColor:t.ink,animation:'spin 1s linear infinite'}),'Thinking…']):null
@@ -1206,8 +1219,8 @@ class Component extends DCLogic {
         ])
       ]);
 
-      case 'publicRecipe': {const r=this.curRec();const pm=this.macros(r);return this.e('div',{flex:1,display:'flex',flexDirection:'column',position:'relative'},[
-        this.e('div',{key:'body',className:'scr',style:{flex:1,overflowY:'auto'}},[
+      case 'publicRecipe': {const r=this.curRec();const pm=this.macros(r);return this.e('div',{flex:1,minHeight:0,display:'flex',flexDirection:'column',position:'relative'},[
+        this.e('div',{key:'body',className:'scr',style:{flex:1,minHeight:0,overflowY:'auto'}},[
           this.e('div',{key:'hero',position:'relative'},[this.photo(r.seed,240,{},'food-r'+r.id),this.e('div',{position:'absolute',top:10,left:16,right:16,display:'flex',justifyContent:'space-between'},[this.circBtn('back',this.back,{bg:'rgba(255,255,255,.9)',border:'transparent'}),this.circBtn('share',()=>this.nav('shareSheet'),{bg:'rgba(255,255,255,.9)',border:'transparent'})])]),
           this.e('div',{key:'c',style:{padding:'18px 18px 110px'}},[
             this.e('div',{display:'inline-flex',alignItems:'center',gap:5,background:t.soft,padding:'5px 11px',borderRadius:999,fontSize:11.5,fontWeight:700,color:t.text,marginBottom:12},[this.ic('tm',13),'Public recipe · free to view']),
@@ -1248,12 +1261,14 @@ class Component extends DCLogic {
       case 'settings': return this.wrap([
         this.topbar('Settings'),
         ...(()=>{const dsel=Object.keys(S.diet||{}).filter(k=>S.diet[k]);const dietV=dsel.length?(dsel[0]+(dsel.length>1?' +'+(dsel.length-1):'')):'None set';
-        return [['Account',[['Email','sofia@example.com'],['Password','Change'],['Sign out',''],['Delete account','']]],['Health & Data',[['Apple Health sync',S.ahealth?'On':'Off'],['Connected records',S.records||'None'],['Medical profile',((S.conds||[]).length)+' conditions'],['Export my data','JSON']]],['Preferences',[['Dietary & allergens',dietV],['Units',S.unit==='imperial'?'Imperial':'Metric'],['Notifications',S.notif?'On':'Off'],['Appearance',S.appearance||'Light']]],['More',[['About','v '+(this.VERSION.indexOf('BUILD')>=0?'dev':this.VERSION)],['Privacy & Terms',''],['Help & Support','']]]].map(([grp,rows])=>this.e('div',{key:grp},[this.h(grp),this.e('div',{style:{background:t.card,border:'1px solid '+t.border,borderRadius:16,overflow:'hidden'}},rows.map(([l,v],i)=>this.e('div',{key:l,style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 15px',borderBottom:i<rows.length-1?'1px solid '+t.border:'none',cursor:'pointer',color:l.match(/Delete|Sign out/)?'#D0453A':t.text}},[this.e('span',{fontSize:14.5,fontWeight:l.match(/Delete|Sign out/)?700:500},l),this.e('span',{fontSize:13.5,color:t.muted,display:'flex',alignItems:'center',gap:6},[v,v?this.ic('chev',15,{color:t.faint}):null])],{onClick:()=>{
+        return [['Account',[['Email',S.sessEmail||'Not signed in'],['Password','Change'],['Sign out',''],['Delete account','']]],['Health & Data',[['Apple Health sync',S.ahealth?'On':'Off'],['Connected records',S.records||'None'],['Medical profile',((S.conds||[]).length)+' conditions'],['Export my data','JSON'],['Start fresh',S.confirmFresh?'Tap again to confirm':'Clear demo data']]],['Preferences',[['Dietary & allergens',dietV],['Units',S.unit==='imperial'?'Imperial':'Metric'],['Notifications',S.notif?'On':'Off'],['Appearance',S.appearance||'Light']]],['More',[['About','v '+(this.VERSION.indexOf('BUILD')>=0?'dev':this.VERSION)],['Privacy & Terms',''],['Help & Support','']]]].map(([grp,rows])=>this.e('div',{key:grp},[this.h(grp),this.e('div',{style:{background:t.card,border:'1px solid '+t.border,borderRadius:16,overflow:'hidden'}},rows.map(([l,v],i)=>this.e('div',{key:l,style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 15px',borderBottom:i<rows.length-1?'1px solid '+t.border:'none',cursor:'pointer',color:l.match(/Delete|Sign out/)?'#D0453A':t.text}},[this.e('span',{fontSize:14.5,fontWeight:l.match(/Delete|Sign out/)?700:500},l),this.e('span',{fontSize:13.5,color:t.muted,display:'flex',alignItems:'center',gap:6},[v,v?this.ic('chev',15,{color:t.faint}):null])],{onClick:()=>{
           if(l==='Privacy & Terms'){this.openLegal('privacy');return;}
           if(l==='Medical profile'){this.nav('medicalProfile');return;}
           if(l==='Apple Health sync'){const on=!this.state.ahealth;this.setState({ahealth:on});this.showToast(on?'Apple Health connected \u2014 HR, sleep & steps syncing':'Apple Health sync paused');return;}
           if(l==='Connected records'){const nx=this.state.records==='MyChart'?'None':'MyChart';this.setState({records:nx});this.showToast(nx==='MyChart'?'MyChart connected \u2014 labs & conditions will sync':'MyChart disconnected');return;}
           if(l==='Export my data'){try{const S2=this.state;const data=JSON.stringify({exported:'21 data export',diary:S2.dlog,weightLog:S2.wextra,goalWeight:S2.wGoal,heartRate:S2.hr,bloodPressure:S2.bpLog,sleepLogMinutes:S2.sleepLog,stepsByDay:S2.stepsLog,stepsToday:S2.stepsToday,stepGoal:S2.stepGoal,conditions:S2.conds,medications:S2.meds,water:S2.water},null,2);const b=new Blob([data],{type:'application/json'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='21-data.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);this.showToast('Your data file is downloading');}catch(e){this.showToast('Export not supported in this browser');}return;}
+          if(l==='Start fresh'){if(!this.state.confirmFresh){this.setState({confirmFresh:true});this.showToast('This zeroes the sample steps, sleep, weight & workouts — tap again to confirm');setTimeout(()=>{if(this._mounted!==false)this.setState({confirmFresh:false});},5000);return;}
+            this.setState({confirmFresh:false,dhide:['latte','rice','avoc'],wlog:[],wextra:[],bpLog:[],stepsLog:[0,0,0,0,0,0],stepsToday:0,sleepLog:[0,0,0,0,0,0],stepsHist:{}});this.showToast('Demo data cleared — 21 now shows only what you really log');return;}
           if(l==='Dietary & allergens'){this.nav('dietary');return;}
           if(l==='Units'){const u2=this.state.unit==='metric'?'imperial':'metric';this.setState({unit:u2});this.showToast('Units switched to '+(u2==='metric'?'Metric':'Imperial')+' everywhere');return;}
           if(l==='Notifications'){const on=!this.state.notif;this.setState({notif:on});this.showToast(on?'Notifications on \u2014 meal & med reminders active':'Notifications muted');return;}
@@ -1270,7 +1285,7 @@ class Component extends DCLogic {
         const feat=(txt)=>this.e('div',{key:txt,display:'flex',alignItems:'center',gap:12,padding:'9px 0'},[this.e('div',{width:26,height:26,borderRadius:999,background:'rgba(52,211,153,.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic('check',15,{color:A})),this.e('span',{fontSize:14.5,color:'#EAEBEC',fontWeight:600},txt)]);
         const planCard=(id,title,price,sub,badge)=>{const on=plan===id;return this.e('button',{key:id,style:{width:'100%',textAlign:'left',display:'flex',alignItems:'center',gap:13,padding:'15px 16px',borderRadius:18,cursor:'pointer',background:on?'rgba(52,211,153,.10)':'#1A1C21',border:'1.5px solid '+(on?A:'#2A2D34')}},[this.e('div',{width:22,height:22,borderRadius:999,border:'2px solid '+(on?A:'#4A4D55'),background:on?A:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},on?this.ic('check',13,{color:'#0E0F12'}):null),this.e('div',{flex:1},[this.e('div',{fontSize:15,fontWeight:800,color:'#fff'},title),this.e('div',{fontSize:12.5,color:'#9A9DA4',marginTop:2},sub)]),this.e('div',{style:{textAlign:'right'}},[this.e('div',{fontSize:15,fontWeight:800,color:'#fff'},price),badge?this.e('div',{fontSize:10.5,fontWeight:800,color:'#0E0F12',background:A,borderRadius:999,padding:'2px 7px',marginTop:4,display:'inline-block'},badge):null])],{onClick:()=>this.setState({plan:id})});};
         return this.e('div',{flex:1,display:'flex',flexDirection:'column',background:'#0E0F12',overflow:'hidden'},[
-          this.e('div',{key:'body',className:'scr',style:{flex:1,overflowY:'auto',padding:'2px 22px 18px'}},[
+          this.e('div',{key:'body',className:'scr',style:{flex:1,minHeight:0,overflowY:'auto',padding:'2px 22px 18px'}},[
             this.e('div',{key:'x',display:'flex',justifyContent:'flex-end',marginBottom:4},this.circBtn('close',()=>this.back(),{bg:'#1E2025',border:'#2A2D34',color:'#fff'})),
             this.e('div',{key:'crown',width:62,height:62,borderRadius:19,background:A,display:'flex',alignItems:'center',justifyContent:'center',margin:'4px 0 18px'},this.ic('crown',31,{color:'#0E0F12'})),
             this.e('div',{key:'t',style:{fontSize:30,fontWeight:800,color:'#fff',letterSpacing:'-.02em',lineHeight:1.05}},['21 ',this.e('span',{style:{color:A}},'Pro')]),
@@ -1285,7 +1300,7 @@ class Component extends DCLogic {
         ]);
       }
 
-      case 'healthToday': {const hide=S.dhide||[];const demoSum=this.todayIdx()===4?((hide.includes('latte')?0:210)+(hide.includes('rice')?0:380)+(hide.includes('avoc')?0:550)):0;const extra=(S.dlog||[]).filter(m=>((m.day!==undefined)?m.day:4)===this.todayIdx()).reduce((a,x)=>a+x.kcal,0);const eaten=demoSum+extra,goal=S.kcalGoal||1900,burned=this.wkBurn(this.todayIdx()),left=goal-eaten+burned;const curw=(S.wextra&&S.wextra.length)?S.wextra[S.wextra.length-1]:71.2;const R=52,C=2*Math.PI*R;const p=Math.min(1,eaten/goal);
+      case 'healthToday': {const hide=S.dhide||[];const demoSum=this.todayIdx()===4?((hide.includes('latte')?0:210)+(hide.includes('rice')?0:380)+(hide.includes('avoc')?0:550)):0;const extra=(S.dlog||[]).filter(m=>m.dt?m.dt===this.dkToday():((m.day!==undefined)?m.day:4)===this.todayIdx()).reduce((a,x)=>a+x.kcal,0);const eaten=demoSum+extra,goal=S.kcalGoal||1900,burned=this.wkBurn(this.todayIdx()),left=goal-eaten+burned;const curw=(S.wextra&&S.wextra.length)?S.wextra[S.wextra.length-1]:71.2;const R=52,C=2*Math.PI*R;const p=Math.min(1,eaten/goal);
         return this.wrap([
           this.e('div',{key:'top',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 0 14px'},[
             this.e('div',{},[this.e('div',{fontSize:13,color:t.muted},new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})),this.sectionTitle('Good morning, '+(S.userName||'Sofia'),{m:0,sm:true})]),
@@ -1309,7 +1324,7 @@ class Component extends DCLogic {
           this.e('div',{key:'ah',display:'flex',alignItems:'center',justifyContent:'center',gap:6,fontSize:11,color:t.faint,marginBottom:14},[this.ic('heart',12,{color:'#FF5B62',fill:'#FF5B62'}),this.isNative()?'Tap here to sync steps, sleep & heart rate from Apple Health':'Tap any tile to edit · Apple Health sync lives in the iOS app'],{onClick:()=>this.syncHealth()}),
           this.e('div',{key:'coach',onClick:()=>this.nav('aiChat'),style:{background:'rgba(52,211,153,.14)',border:'1px solid '+t.accent,borderRadius:18,padding:'14px 15px',display:'flex',gap:12,alignItems:'center',cursor:'pointer',marginBottom:6}},[this.e('div',{width:40,height:40,borderRadius:12,background:t.accent,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic('spark',20,{color:'#17191D'})),this.e('div',{flex:1},[this.e('div',{fontWeight:800,fontSize:13.5,color:t.text},'Ask the AI assistant'),this.e('div',{fontSize:12,color:t.muted,marginTop:2},'Meal ideas, swaps, portions & macros — live answers')]),this.ic('chev',17,{color:t.muted})]),
           this.h('Today’s meals',this.e('span',{fontSize:12,fontWeight:700,color:t.text,cursor:'pointer'},'Open diary',{onClick:()=>this.nav('calorieDiary')})),
-          ...(this.todayIdx()===4?[['latte','Breakfast','Cinnamon Oat Latte · logged 8:10',210,2],['rice','Lunch','Golden Turmeric Fried Rice',380,0],['avoc','Snack','Scanned · chicken, rice & avocado',550,4]]:[]).filter(x=>!hide.includes(x[0])).map(x=>x.slice(1)).concat((S.dlog||[]).filter(m=>((m.day!==undefined)?m.day:4)===this.todayIdx()).map((m,i)=>[m.slot||'Snack',m.n+' · logged just now',m.kcal,(i+1)%6])).map(([slot,d,k,g],ri)=>this.e('div',{key:slot+'-'+ri,display:'flex',alignItems:'center',gap:12,padding:'10px 0',borderBottom:'1px solid '+t.border,cursor:'pointer'},[this.e('div',{width:38,height:38,borderRadius:12,background:this.GRADS[g],flexShrink:0}),this.e('div',{flex:1},[this.e('div',{fontSize:13.5,fontWeight:700,color:t.text},slot),this.e('div',{fontSize:12,color:t.muted},d)]),this.e('span',{fontSize:13,fontWeight:800,color:t.text},k+' kcal'),this.ic('chev',15,{color:t.faint})],{onClick:()=>this.nav('calorieDiary')}))
+          ...(this.todayIdx()===4?[['latte','Breakfast','Cinnamon Oat Latte · logged 8:10',210,2],['rice','Lunch','Golden Turmeric Fried Rice',380,0],['avoc','Snack','Scanned · chicken, rice & avocado',550,4]]:[]).filter(x=>!hide.includes(x[0])).map(x=>x.slice(1)).concat((S.dlog||[]).filter(m=>m.dt?m.dt===this.dkToday():((m.day!==undefined)?m.day:4)===this.todayIdx()).map((m,i)=>[m.slot||'Snack',m.n+' · logged just now',m.kcal,(i+1)%6])).map(([slot,d,k,g],ri)=>this.e('div',{key:slot+'-'+ri,display:'flex',alignItems:'center',gap:12,padding:'10px 0',borderBottom:'1px solid '+t.border,cursor:'pointer'},[this.e('div',{width:38,height:38,borderRadius:12,background:this.GRADS[g],flexShrink:0}),this.e('div',{flex:1},[this.e('div',{fontSize:13.5,fontWeight:700,color:t.text},slot),this.e('div',{fontSize:12,color:t.muted},d)]),this.e('span',{fontSize:13,fontWeight:800,color:t.text},k+' kcal'),this.ic('chev',15,{color:t.faint})],{onClick:()=>this.nav('calorieDiary')}))
         ]);
       }
 
@@ -1362,12 +1377,12 @@ class Component extends DCLogic {
             this.e('div',{key:'slot',display:'flex',gap:8},['Breakfast','Lunch','Snack','Dinner'].map(m=>this.chip(m,(S.mealSlot||'Snack')===m,()=>this.setState({mealSlot:m}),{sm:true}))),
             S.scanB64?this.e('div',{key:'xmode',display:'flex',alignItems:'center',gap:10,background:t.soft,borderRadius:14,padding:'11px 13px',marginTop:14,cursor:'pointer'},[this.ic('tm',18,{color:t.text}),this.e('div',{flex:1},[this.e('div',{fontSize:13,fontWeight:800,color:t.text},'Cooked dish or cookbook page?'),this.e('div',{fontSize:11.5,color:t.muted},'Turn this same photo into a full recipe with steps')]),this.ic('chev',16,{color:t.muted})],{onClick:()=>{this.setState({scanMode:'recipe'});this.nav('mealScanAnalyzing');this.runScan('recipe',this.state.scanB64);}}):null
           ]),
-          this.e('div',{key:'f',padding:'12px 18px 22px',borderTop:'1px solid '+t.border,display:'flex',gap:10},[this.btn('Retake',()=>this.nav('mealScan'),{variant:'secondary'}),this.btn('Log '+tot.kcal+' kcal',()=>{const tday=(S.scanDay!==undefined)?S.scanDay:((S.diaryDay!==undefined)?S.diaryDay:this.todayIdx());this.setState({dlog:(S.dlog||[]).concat({n:'Scanned: '+items.slice(0,2).map(x=>x.n).join(', ')+(items.length>2?' +'+(items.length-2)+' more':''),kcal:tot.kcal,p:tot.p,f:tot.f,c:tot.c,day:tday,slot:S.mealSlot||'Snack'}),diaryDay:tday,scanDay:undefined});this.beep(660,0.12,0.16);this.showToast('Logged '+tot.kcal+' kcal — nice tracking! 🥗');this.jump('calorieDiary');},{icon:'check'})])
+          this.e('div',{key:'f',padding:'12px 18px 22px',borderTop:'1px solid '+t.border,display:'flex',gap:10},[this.btn('Retake',()=>this.nav('mealScan'),{variant:'secondary'}),this.btn('Log '+tot.kcal+' kcal',()=>{const tday=(S.scanDay!==undefined)?S.scanDay:((S.diaryDay!==undefined)?S.diaryDay:this.todayIdx());this.setState({dlog:(S.dlog||[]).concat({n:'Scanned: '+items.slice(0,2).map(x=>x.n).join(', ')+(items.length>2?' +'+(items.length-2)+' more':''),kcal:tot.kcal,p:tot.p,f:tot.f,c:tot.c,day:tday,dt:this.dkOfIdx(tday),slot:S.mealSlot||'Snack'}),diaryDay:tday,scanDay:undefined});this.beep(660,0.12,0.16);this.showToast('Logged '+tot.kcal+' kcal — nice tracking! 🥗');this.jump('calorieDiary');},{icon:'check'})])
         ]);
       }
 
       case 'calorieDiary': {const goal=S.kcalGoal||1900;const day=(S.diaryDay!==undefined)?S.diaryDay:this.todayIdx();const hide=S.dhide||[];
-        const logs=(S.dlog||[]).map((m,i)=>({n:m.n,k:m.kcal,p:m.p,f:m.f,c:m.c,idx:i,day:(m.day!==undefined)?m.day:4,slot:m.slot||'Snack'})).filter(x=>x.day===day);
+        const logs=(S.dlog||[]).map((m,i)=>({n:m.n,k:m.kcal,p:m.p,f:m.f,c:m.c,idx:i,dt:m.dt,day:(m.day!==undefined)?m.day:4,slot:m.slot||'Snack'})).filter(x=>x.dt?x.dt===this.dkOfIdx(day):x.day===day);
         const dm=(id,n,k,mac)=>(day===4&&!hide.includes(id))?[{id,n,k,p:mac.p,f:mac.f,c:mac.c}]:[];
         const bySlot=(sl)=>logs.filter(x=>x.slot===sl);
         const meals=[['Breakfast',dm('latte','Cinnamon Oat Latte',210,{p:6,f:8,c:27}).concat(bySlot('Breakfast'))],['Lunch',dm('rice','Golden Turmeric Fried Rice',380,{p:10,f:12,c:56}).concat(bySlot('Lunch'))],['Snack',dm('avoc','Chicken, rice & avocado · scanned',550,{p:48,f:18,c:49}).concat(bySlot('Snack'))],['Dinner',bySlot('Dinner')]];
@@ -1428,7 +1443,7 @@ class Component extends DCLogic {
             this.e('button',{style:{width:38,height:38,borderRadius:11,border:'1px solid '+t.border,background:t.card,color:t.text,cursor:'pointer',fontWeight:800,fontSize:17,lineHeight:'1',padding:0}},'+',{onClick:()=>{const v=parseInt(this.state.mfKcal,10)||0;this.setState({mfKcal:String(Math.min(2000,v+25))});}})
           ]),
           this.e('div',{key:'qk',display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'},[150,250,400,550].map(v=>this.chip(v+' kcal',false,()=>this.setState({mfKcal:String(v)}),{sm:true}))),
-          this.btn('Add to diary',()=>{const st=this.state;const nm=(st.mfName||'').trim();const kv=parseInt(st.mfKcal,10);if(!nm){this.showToast('Give it a name first');return;}if(!kv||kv<=0){this.showToast('Enter the calories');return;}const tday=(st.mfDay!==undefined)?st.mfDay:((st.diaryDay!==undefined)?st.diaryDay:this.todayIdx());const dl=(st.dlog||[]).concat({day:tday,n:nm,kcal:kv,p:Math.round(kv*0.2/4),f:Math.round(kv*0.3/9),c:Math.round(kv*0.5/4),slot:st.mfSlot||'Snack'});this.setState({dlog:dl,diaryDay:tday});this.beep(660,0.12,0.16);this.showToast('Added to '+['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][tday]+' '+(st.mfSlot||'Snack').toLowerCase());this.back();},{style:{marginBottom:10},disabled:false}),
+          this.btn('Add to diary',()=>{const st=this.state;const nm=(st.mfName||'').trim();const kv=parseInt(st.mfKcal,10);if(!nm){this.showToast('Give it a name first');return;}if(!kv||kv<=0){this.showToast('Enter the calories');return;}const tday=(st.mfDay!==undefined)?st.mfDay:((st.diaryDay!==undefined)?st.diaryDay:this.todayIdx());const dl=(st.dlog||[]).concat({day:tday,dt:this.dkOfIdx(tday),n:nm,kcal:kv,p:Math.round(kv*0.2/4),f:Math.round(kv*0.3/9),c:Math.round(kv*0.5/4),slot:st.mfSlot||'Snack'});this.setState({dlog:dl,diaryDay:tday});this.beep(660,0.12,0.16);this.showToast('Added to '+['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][tday]+' '+(st.mfSlot||'Snack').toLowerCase());this.back();},{style:{marginBottom:10},disabled:false}),
           this.e('div',{key:'hint',fontSize:12,color:t.muted,textAlign:'center',marginBottom:6},'Tip: you can also scan a photo for automatic calories & macros.')
         ]);}
 
@@ -1475,7 +1490,7 @@ class Component extends DCLogic {
           this.e('div',{key:'it',display:'flex',gap:8,marginBottom:16},['Easy','Moderate','Hard'].map(x=>this.chip(x,intens===x,()=>this.setState({lwInt:x}),{sm:true}))),
           this.e('div',{key:'est',display:'flex',alignItems:'center',gap:10,background:t.soft,borderRadius:14,padding:'12px 14px',marginBottom:16},[this.ic('flame',18,{color:t.text}),this.e('div',{flex:1},[this.e('div',{fontSize:13.5,fontWeight:800,color:t.text},'~'+est+' kcal burned'),this.e('div',{fontSize:11.5,color:t.muted},'Estimate from activity, minutes & effort — counted in your diary')])]),
           this.btn('Save workout',()=>{const st=this.state;const m2=parseInt(st.lwMins,10);if(!m2||m2<1){this.showToast('How many minutes?');return;}
-            const entry={day:(st.lwDay!==undefined)?st.lwDay:this.todayIdx(),ty:st.lwTy||'Walk',mins:m2,kcal:this.wkKcal(st.lwTy||'Walk',m2,st.lwInt||'Moderate')};
+            const d9=(st.lwDay!==undefined)?st.lwDay:this.todayIdx();const entry={day:d9,dt:this.dkOfIdx(d9),ty:st.lwTy||'Walk',mins:m2,kcal:this.wkKcal(st.lwTy||'Walk',m2,st.lwInt||'Moderate')};
             this.setState({wlog:(st.wlog||[]).concat(entry),totMins:(st.totMins||0)+m2,totKcalBurn:(st.totKcalBurn||0)+entry.kcal});
             this.showToast(this.PRAISE[(st.wlog||[]).length%this.PRAISE.length]+' ~'+entry.kcal+' kcal');
             this.back();},{style:{marginBottom:8}}),
@@ -1753,10 +1768,24 @@ class Component extends DCLogic {
         const week=sLog6.concat([stpToday]);
         const wkSum=week.reduce((a,b)=>a+b,0);
         const ssel=(S.stepsSel!==undefined)?S.stepsSel:6;
-        const totalsRow=this.e('div',{key:'tots',display:'flex',gap:8,marginBottom:12},[['This week',wkSum.toLocaleString()],['Daily avg',Math.round(wkSum/7).toLocaleString()],['Workout moves',(S.totSteps||0).toLocaleString()]].map(([l,v])=>this.e('div',{key:l,flex:1,background:t.card,border:'1px solid '+t.border,borderRadius:13,padding:'9px 10px',textAlign:'center'},[this.e('div',{fontSize:14,fontWeight:800,color:t.text},v),this.e('div',{fontSize:10,color:t.muted,marginTop:1},l)])));
+        const hst=this.histStats();
+        const totalsRow=this.e('div',{key:'tots',display:'flex',gap:8,marginBottom:12},[['This week',hst.weekSum.toLocaleString()],['This month',hst.monthSum.toLocaleString()],['All time tracked',hst.allSum.toLocaleString()]].map(([l,v])=>this.e('div',{key:l,flex:1,background:t.card,border:'1px solid '+t.border,borderRadius:13,padding:'9px 10px',textAlign:'center'},[this.e('div',{fontSize:14,fontWeight:800,color:t.text},v),this.e('div',{fontSize:10,color:t.muted,marginTop:1},l)])));
         const wTot=week.reduce((a,b)=>a+b,0);
-        const DS=key==='W'?{cap:'This week · '+wTot.toLocaleString()+' steps · avg '+Math.round(wTot/7).toLocaleString()+'/day · tap a bar to edit that day',data:week.map((v,i)=>[['M','T','W','T','F','S','S'][i],Math.round(v/100)/10])}:this.STEPD[key];
-        const mxv=Math.max.apply(null,DS.data.map(d=>d[1]));
+        const DS=key==='W'?{cap:'This week · '+wTot.toLocaleString()+' steps · avg '+Math.round(wTot/7).toLocaleString()+'/day · tap a bar to edit that day',data:week.map((v,i)=>[['M','T','W','T','F','S','S'][i],Math.round(v/100)/10])}
+          :key==='M'?(()=>{const h=this.state.stepsHist||{};const wk=[0,1,2,3,4,5,6].map(i=>this.dkOfIdx(i));const now=new Date();const buckets=[0,0,0,0];
+            Object.keys(h).forEach(k=>{if(wk.includes(k))return;const age=(now-new Date(k))/864e5;if(age<=28)buckets[3-Math.min(3,Math.floor(age/7))]+=h[k]||0;});
+            buckets[3]+=this.histStats().weekSum;
+            const tot=buckets.reduce((a,b)=>a+b,0);
+            return {cap:'Last 4 weeks · '+tot.toLocaleString()+' steps · builds from your real daily history',data:buckets.map((v,i)=>[['W1','W2','W3','This wk'][i],Math.round(v/1000)])};})()
+          :(()=>{const h={...(this.state.stepsHist||{})};const wk=[0,1,2,3,4,5,6].map(i=>this.dkOfIdx(i));
+            wk.forEach((k,i)=>{h[k]=week[i]||0;});
+            const now=new Date();const nM=(key==='6M')?6:12;const rows=[];let tracked=0;
+            for(let j=nM-1;j>=0;j--){const d=new Date(now.getFullYear(),now.getMonth()-j,1);const mk=this.dkey(d).slice(0,7);
+              let sum=0,days=0;Object.keys(h).forEach(k=>{if(k.slice(0,7)===mk&&h[k]){sum+=h[k];days++;}});
+              if(days)tracked++;
+              rows.push([key==='6M'?d.toLocaleString('en',{month:'short'}):'JFMAMJJASOND'[d.getMonth()],days?Math.round(sum/days/100)/10:0]);}
+            return {cap:tracked?('Daily average per month (thousands) · '+tracked+' of '+nM+' months tracked · builds from your real history'):('No step history yet — bars fill in as you log steps each day'),data:rows};})();
+        const mxv=Math.max.apply(null,DS.data.map(d=>d[1]).concat([1]));
         return this.e('div',{flex:1,minHeight:0,display:'flex',flexDirection:'column'},[
           this.topbar('Steps'),
           this.wrap([
@@ -1776,9 +1805,22 @@ class Component extends DCLogic {
               this.e('div',{fontSize:11.5,color:t.muted,marginBottom:12},DS.cap),
               this.e('div',{display:'flex',alignItems:'flex-end',gap:7,height:86},DS.data.map(([d,v],i)=>this.e('div',{key:i,flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:5,cursor:key==='W'?'pointer':'default'},[this.e('div',{fontSize:9,color:(key==='W'&&i===ssel)?t.text:t.muted,fontWeight:700},this.fmt(v)),this.e('div',{width:'100%',height:Math.max(5,Math.round(v/mxv*58)),borderRadius:7,background:(key==='W'?i===ssel:i===DS.data.length-1)?t.accent:t.soft}),this.e('span',{fontSize:10,color:(key==='W'&&i===ssel)?t.text:t.muted,fontWeight:(key==='W'&&i===ssel)?800:400},d)],key==='W'?{onClick:()=>this.setState({stepsSel:i})}:undefined)))
             ]),
-            this.h('Lifetime records'),
-            this.e('div',{key:'rec',display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14},[['Best day',(()=>{const mx=Math.max.apply(null,week.concat([18234]));return mx.toLocaleString();})(),(Math.max.apply(null,week)>18234?'this week!':'Mar 14, 2026')],['Longest streak','21 days','10k+ every day'],['All-time steps','2.1M','since Sep 2024'],['Distance walked','1,480 km','Melbourne → Cairns']].map(([l,v,sub])=>this.e('div',{key:l,background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'12px 14px'},[this.e('div',{fontSize:11,color:t.muted,marginBottom:3},l),this.e('div',{fontSize:17,fontWeight:800,color:t.text},v),this.e('div',{fontSize:11,color:t.muted,marginTop:2},sub)]))),
-            this.e('div',{key:'mot',display:'flex',gap:10,background:'rgba(52,211,153,.14)',border:'1px solid '+t.accent,borderRadius:14,padding:'12px 14px',marginBottom:10},[this.ic('spark',17,{color:t.text}),this.e('div',{fontSize:12.5,color:t.text,lineHeight:1.45},[this.e('b',{},'Keep it up: '),'your daily average is up 34% vs last year, and deep sleep is 12% higher on 8k+ step days. Two short walks today keep the streak alive.'])]),
+            this.h('Your records'),
+            this.e('div',{key:'rec',display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14},(()=>{
+              const h={...(S.stepsHist||{})};const wk7=[0,1,2,3,4,5,6].map(i=>this.dkOfIdx(i));wk7.forEach((k,i)=>{h[k]=week[i]||0;});
+              let bestV=0,bestK='';Object.keys(h).forEach(k=>{if((h[k]||0)>bestV){bestV=h[k];bestK=k;}});
+              const gl=S.stepGoal||10000;let streak=0;
+              for(let j=this.todayIdx();j>=-60;j--){const d=new Date();d.setDate(d.getDate()-(this.todayIdx()-j));const k=this.dkey(d);if((h[k]||0)>=gl)streak++;else break;}
+              const allS=hst.allSum;const km=Math.round(allS*0.00076);
+              const bestSub=bestV?(wk7.includes(bestK)?'this week!':new Date(bestK).toLocaleDateString('en',{month:'short',day:'numeric'})):'log steps to set one';
+              return [['Best day',bestV?bestV.toLocaleString():'—',bestSub],
+                ['Goal streak',streak+(streak===1?' day':' days'),gl.toLocaleString()+'+ steps in a row'],
+                ['All-time steps',allS>=1e6?(Math.round(allS/1e5)/10)+'M':allS.toLocaleString(),'everything you’ve tracked'],
+                ['Distance walked',km.toLocaleString()+' km','est. from your step count']];})().map(([l,v,sub])=>this.e('div',{key:l,background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'12px 14px'},[this.e('div',{fontSize:11,color:t.muted,marginBottom:3},l),this.e('div',{fontSize:17,fontWeight:800,color:t.text},v),this.e('div',{fontSize:11,color:t.muted,marginTop:2},sub)]))),
+            this.e('div',{key:'mot',display:'flex',gap:10,background:'rgba(52,211,153,.14)',border:'1px solid '+t.accent,borderRadius:14,padding:'12px 14px',marginBottom:10},[this.ic('spark',17,{color:t.text}),this.e('div',{fontSize:12.5,color:t.text,lineHeight:1.45},(()=>{
+              const gl=S.stepGoal||10000;const stpT=week[6]||0;const left=gl-stpT;
+              if(left<=0)return [this.e('b',{},'Goal hit: '),'you’ve passed '+gl.toLocaleString()+' steps today. A cool-down stroll banks tomorrow’s streak.'];
+              return [this.e('b',{},'Keep moving: '),left.toLocaleString()+' steps to today’s goal — about a '+Math.max(5,Math.round(left/100)*1)+'-minute walk. Your chart builds from every real day you log.'];})())]),
             this.e('div',{key:'sync',fontSize:11.5,color:t.faint,textAlign:'center'},S.ahealth?'Counted automatically via Apple Health · history kept forever':'Apple Health sync is off — logging manually')
           ])
         ]);
