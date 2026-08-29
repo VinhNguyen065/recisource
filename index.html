@@ -541,7 +541,7 @@ class Component extends DCLogic {
   cancelHR=()=>{try{clearInterval(this._hrIv);}catch(e){}this.setState({hrMeas:null,hrResult:null,hrWave:[]});};
 
   // ---- Accounts & cloud sync (Supabase Auth + user_state table, RLS-isolated) ----
-  VERSION='20260829.2042';
+  VERSION='20260829.2103';
   checkUpdate=async()=>{try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();
     if(j&&j.v&&this.VERSION!=='__BUILD'+'_TS__'&&j.v!==this.VERSION){
       if(!this.state.lsOn){this.showToast('Updating to the latest version…');setTimeout(()=>{try{location.replace(location.pathname+'?v='+encodeURIComponent(j.v));}catch(e){location.reload();}},900);}
@@ -549,7 +549,7 @@ class Component extends DCLogic {
     }}catch(e){}};
   AUTH_URL='https://czbetvehfqqfhggqlqfp.supabase.co/auth/v1';
   REST_URL='https://czbetvehfqqfhggqlqfp.supabase.co/rest/v1';
-  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog','planFilter','planTier','hhMembers'];
+  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog','planFilter','planTier','hhMembers','myTpls'];
   snapshotState=()=>{const S=this.state;const o={_ts:Date.now()};this.SYNC_KEYS.forEach(k=>{o[k]=S[k];});return o;};
   loadSess=()=>{try{return JSON.parse(localStorage.getItem('recisource_auth')||'null');}catch(e){return null;}};
   saveSess=(s)=>{try{if(s)localStorage.setItem('recisource_auth',JSON.stringify(s));else localStorage.removeItem('recisource_auth');}catch(e){}};
@@ -627,6 +627,19 @@ class Component extends DCLogic {
   }).catch(()=>{if(this._scanSeq!==seq)return;const h=this.state.history.slice(0,-1);this.setState({screen:h[h.length-1]||'mealScan',history:h.length?h:['mealScan']});this.showToast('Scan failed — check connection & try again');});};
   slug=(s)=>s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
   SLOT_TIMES={Breakfast:[8,0],Lunch:[12,30],Dinner:[18,30],Snack:[15,0]};
+  getAlerts=()=>{const S=this.state;const out=[];
+    const hr=(S.hr!==undefined)?S.hr:68;
+    if(hr>100)out.push(['pulse','High heart rate reading',hr+' bpm at rest is above 100 — re-measure sitting calmly; talk to a professional if it persists','heartRate','warn']);
+    const bp=(S.bpLog||[])[((S.bpLog||[]).length-1)];
+    if(bp&&(bp.s>=140||bp.d>=90))out.push(['pulse','Blood pressure was high',bp.s+'/'+bp.d+' on your last reading — worth re-checking','heartRate','warn']);
+    const eaten=(S.dlog||[]).filter(m=>m.dt?m.dt===this.dkToday():((m.day!==undefined)?m.day:4)===this.todayIdx()).reduce((a,x)=>a+x.kcal,0);
+    const gl=S.kcalGoal||1900;
+    if(eaten>gl)out.push(['flame','Over today’s calorie goal',eaten.toLocaleString()+' of '+gl.toLocaleString()+' kcal — a walk or a lighter dinner balances it','calorieDiary','warn']);
+    if((S.stepsToday||0)>=(S.stepGoal||10000))out.push(['check','Step goal smashed',(S.stepsToday||0).toLocaleString()+' steps today — nice!','steps','good']);
+    if((S.water||0)>=8)out.push(['check','Hydration goal hit','8 cups today 💧','healthToday','good']);
+    const wl=this.WLOG.concat(S.wextra||[]);const wg=(S.wGoal!==undefined)?S.wGoal:70;
+    if(wl.length&&((wg<=wl[0]&&wl[wl.length-1]<=wg)||(wg>wl[0]&&wl[wl.length-1]>=wg)))out.push(['check','Weight goal reached',this.fmt(wl[wl.length-1])+' kg — set your next goal on the Weight page','weight','good']);
+    return out;};
   openQa=(r)=>this.setState({qaRec:r.id,qaDay:this.todayIdx(),qaSlot:'Dinner'});
   closeQa=()=>this.setState({qaRec:null});
   downloadIcs=(r,day,slot)=>{try{
@@ -722,7 +735,7 @@ class Component extends DCLogic {
   L(){const a=this.props.accentColor||'#E8722E';return {bg:'#F7F1E8',card:'#FFFFFF',soft:'#F1E7D6',text:'#2B2119',muted:'#6B5D4F',faint:'#8A7A69',border:'#E8DCC6',ink:'#A83E1C',inkText:'#FFFFFF',accent:a,accentText:'#3B1505',heart:'#EF4444',shadow:'0 1px 3px rgba(43,33,25,.08)'};}
   SEC_BG={food:'#F2F4E4',health:'#F9ECE1',fit:'#FBF0D9'};
   SEC_FOOD=['library','search','collections','tags','recipeDetail','editRecipe','manualEntry','moreMenu','addMenu','urlImport','photoImport','textImport','importReview','mealPlan','addMeal','planPick','grocery','addToGrocery','grocerySettings','nutrition','dietaryFilters','calorieDiary','manualFood','mealScanResult','goalEdit'];
-  SEC_HEALTH=['weight','steps','heartRate','sleep','medicalProfile','aiChat'];
+  SEC_HEALTH=['weight','steps','heartRate','sleep','medicalProfile','aiChat','alerts'];
   SEC_FIT=['fitness','logWorkout','liveWorkout'];
   secBg=(id)=>this.SEC_FOOD.includes(id)?this.SEC_BG.food:(this.SEC_HEALTH.includes(id)?this.SEC_BG.health:(this.SEC_FIT.includes(id)?this.SEC_BG.fit:'#F7F1E8'));
   D(){const a=this.props.accentColor||'#E8722E';return {bg:'#231C15',card:'#2E251C',soft:'#3A2F24',text:'#FAF6EF',muted:'#CDBFAE',faint:'#93857A',border:'#463A2D',ink:a,inkText:'#3B1505',accent:a,accentText:'#3B1505',heart:'#F87171',shadow:'0 2px 6px rgba(0,0,0,.5)'};}
@@ -804,7 +817,7 @@ class Component extends DCLogic {
     const ratePill=this.e('div',{position:'absolute',top:9,left:9,display:'flex',alignItems:'center',gap:4,background:'rgba(255,255,255,.92)',borderRadius:999,padding:'3px 8px',fontSize:11,fontWeight:800,color:t.text},[this.ic('star',12,{fill:'#F2B01E'}),r.rating]);
     const addBtn=this.e('button',{width:34,height:34,borderRadius:999,border:'none',background:t.accent,color:t.accentText,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:'0 6px 12px -4px '+t.accent},this.ic('plus',19,{color:t.accentText,sw:2.6}),{onClick:(ev)=>{ev.stopPropagation();this.openQa(r);}});
     const metaPill=this.e('div',{position:'absolute',bottom:9,left:9,display:'flex',alignItems:'center',gap:5,background:'rgba(255,255,255,.94)',borderRadius:999,padding:'4px 10px',fontSize:11,fontWeight:800,color:t.text},[this.ic('flame',12,{color:'#E8722E'}),r.kcal,this.e('span',{opacity:.45,margin:'0 1px'},'·'),this.ic('clock',12,{color:'#6B5D4F'}),r.time+'m']);
-    if(list) return this.e('div',{display:'flex',background:t.card,borderRadius:18,border:'1px solid '+t.border,boxShadow:t.shadow,overflow:'hidden',cursor:'pointer'},[this.e('div',{position:'relative'},[this.photo(r.seed,'',{width:122,height:96},'food-r'+r.id),heart]),this.e('div',{padding:'10px 13px',flex:1,minWidth:0,display:'flex',flexDirection:'column',justifyContent:'space-between'},[this.e('div',{fontWeight:800,fontSize:14.5,color:t.text,lineHeight:1.25},r.title),this.e('div',{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:6},[this.e('div',{fontSize:12,color:t.muted,display:'flex',alignItems:'center',gap:10},[this.e('span',{display:'flex',alignItems:'center',gap:4},[this.ic('flame',13,{color:'#E8722E'}),this.e('b',{color:t.text,fontWeight:800},r.kcal)]),this.e('span',{display:'flex',alignItems:'center',gap:4},[this.ic('clock',13,{color:t.muted}),r.time+'m'])]),addBtn])])],{onClick:()=>this.openRecipe(r)});
+    if(list) return this.e('div',{display:'flex',background:t.card,borderRadius:20,border:'1px solid '+t.border,boxShadow:t.shadow,overflow:'hidden',cursor:'pointer'},[this.e('div',{position:'relative',flexShrink:0},[this.photo(r.seed,'',{width:132,height:132},'food-r'+r.id),heart,this.e('div',{position:'absolute',bottom:7,left:7,display:'flex',alignItems:'center',gap:4,background:'rgba(255,255,255,.94)',borderRadius:999,padding:'3px 8px',fontSize:10,fontWeight:800,color:t.text},[this.ic('star',11,{fill:'#F2B01E'}),r.rating])]),this.e('div',{padding:'12px 14px',flex:1,minWidth:0,display:'flex',flexDirection:'column',justifyContent:'space-between'},[this.e('div',{fontWeight:800,fontSize:15.5,color:t.text,lineHeight:1.25,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'},r.title),this.e('div',{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:8},[this.e('div',{fontSize:12.5,color:t.muted,display:'flex',alignItems:'center',gap:11},[this.e('span',{display:'flex',alignItems:'center',gap:4},[this.ic('flame',14,{color:'#E8722E'}),this.e('b',{color:t.text,fontWeight:800},r.kcal)]),this.e('span',{display:'flex',alignItems:'center',gap:4},[this.ic('clock',14,{color:t.muted}),r.time+'m'])]),addBtn])])],{onClick:()=>this.openRecipe(r)});
     return this.e('div',{background:t.card,borderRadius:20,border:'1px solid '+t.border,boxShadow:t.shadow,overflow:'hidden',cursor:'pointer'},[this.e('div',{position:'relative'},[this.photo(r.seed,150,{},'food-r'+r.id),heart,ratePill,metaPill]),this.e('div',{padding:'9px 11px 10px',display:'flex',alignItems:'center',gap:8},[this.e('div',{fontWeight:800,fontSize:13.5,color:t.text,lineHeight:1.25,flex:1,minWidth:0,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden',minHeight:34},r.title),addBtn])],{onClick:()=>this.openRecipe(r)});
   }
   tmPill(label,val){const t=this.T();return this.e('div',{display:'flex',flexDirection:'column',gap:1,padding:'6px 12px',borderRadius:11,background:t.soft,color:t.text,minWidth:52,alignItems:'center'},[this.e('span',{fontSize:9,fontWeight:800,textTransform:'uppercase',letterSpacing:'.04em',color:t.muted},label),this.e('span',{fontSize:14,fontWeight:800},val)]);}
@@ -1143,7 +1156,7 @@ class Component extends DCLogic {
           ]),
           this.h('All timers'),
           ...timers.map(([name,p,run],i)=>this.e('div',{key:i,display:'flex',alignItems:'center',gap:12,padding:'12px 14px',background:t.card,border:'1px solid '+t.border,borderRadius:14,marginBottom:10},[this.e('div',{width:40,height:40,borderRadius:12,background:t.soft,display:'flex',alignItems:'center',justifyContent:'center',color:run?t.accent:t.muted},this.ic('timer',20,{color:run?t.accent:t.muted})),this.e('div',{flex:1},[this.e('div',{fontSize:14,fontWeight:700,color:t.text},name),this.e('div',{fontSize:12,color:t.muted},run?this.mmss(S.t1)+' remaining':'3:00 · not started')]),this.e('div',{fontSize:11,fontWeight:800,color:run?t.accent:t.muted,textTransform:'uppercase'},run?'Running':'Queued')])),
-          this.btn('Add a timer',()=>this.showToast('New timer'),{variant:'secondary',icon:'plus',style:{marginTop:6}})
+          this.e('div',{key:'addt',display:'flex',gap:8,marginTop:6},[3,5,10,15].map(mn=>this.e('button',{key:mn,style:{flex:1,padding:'11px 0',borderRadius:12,border:'1px solid '+t.border,background:t.card,cursor:'pointer',fontWeight:800,fontSize:12.5,color:t.text}},'+ '+mn+' min',{onClick:()=>{this.setState({t1:mn*60,t1run:true});this.showToast(mn+'-minute timer running');}})))
         ])
       ]);}
 
@@ -1239,8 +1252,14 @@ class Component extends DCLogic {
 
       case 'mealTemplates': return this.wrap([
         this.topbar('Meal Plan Templates'),
-        this.btn('Save current week as template',()=>this.showToast('Template saved'),{variant:'dark',icon:'plus',style:{marginBottom:8}}),
+        this.btn('Save current week as template',()=>{const px=this.state.planX||{};const wkKeys=Object.keys(px).filter(k=>k.startsWith('0-'));
+          if(!wkKeys.length){this.showToast('Lock in some meals on the plan first — then save the week');return;}
+          const snap={};wkKeys.forEach(k=>snap[k]=px[k]);
+          const tpls=(this.state.myTpls||[]);
+          this.setState({myTpls:tpls.concat({name:'My week '+(tpls.length+1),snap:snap,n:wkKeys.length})});
+          this.showToast('Saved — '+wkKeys.length+' planned meals as "My week '+(tpls.length+1)+'"');},{variant:'dark',icon:'plus',style:{marginBottom:8}}),
         this.h('Your templates'),
+        ...(S.myTpls||[]).map((tp,i)=>this.e('div',{key:'tp'+i,display:'flex',alignItems:'center',gap:12,padding:'11px 12px',background:t.card,border:'1.5px solid '+t.accent,borderRadius:16,marginBottom:10,boxShadow:t.shadow},[this.e('div',{width:48,height:48,borderRadius:13,background:t.accent,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:16,color:t.accentText},tp.n),this.e('div',{flex:1},[this.e('div',{fontWeight:800,fontSize:14,color:t.text},tp.name),this.e('div',{fontSize:12,color:t.muted,marginTop:2},tp.n+' planned meals · saved by you')]),this.btn('Apply',()=>{this.setState({planX:{...(this.state.planX||{}),...tp.snap},planWeek:0});this.showToast(tp.name+' applied to this week');this.nav('mealPlan');},{variant:'soft',sm:true,auto:true}),this.e('button',{style:{width:28,height:28,borderRadius:9,border:'none',background:t.soft,color:t.muted,cursor:'pointer',fontWeight:800,fontSize:13,lineHeight:'1',padding:0}},'×',{onClick:()=>{this.setState({myTpls:(this.state.myTpls||[]).filter((_,x)=>x!==i)});this.showToast(tp.name+' deleted');}})])),
         ...[['Balanced Week','21 meals · omnivore',0],['Quick & Easy','15 meals · under 20 min',1],['Vegan Reset','21 meals · plant-based',5],['High-Protein','18 meals · fitness',3]].map(([n,d,g])=>this.e('div',{key:n,display:'flex',alignItems:'center',gap:12,padding:'11px 12px',background:t.card,border:'1px solid '+t.border,borderRadius:16,marginBottom:10,boxShadow:t.shadow},[this.e('div',{width:48,height:48,borderRadius:13,background:this.GRADS[g]}),this.e('div',{flex:1},[this.e('div',{fontWeight:800,fontSize:14,color:t.text},n),this.e('div',{fontSize:12,color:t.muted,marginTop:2},d)]),this.btn('Apply',()=>{this.setState({planSwap:(this.state.planSwap||0)+g+1});this.showToast(n+' applied — check your meal plan');this.nav('mealPlan');},{variant:'soft',sm:true,auto:true})]))
       ]);
 
@@ -1408,19 +1427,29 @@ class Component extends DCLogic {
         ...[['users','Share with family',(1+(S.hhMembers||[]).length)+' in your household'],['link','Copy link',''],['share','More options','']].map(([ic,l,sub])=>this.e('button',{key:l,style:{width:'100%',display:'flex',alignItems:'center',gap:14,padding:'14px 4px',border:'none',borderTop:'1px solid '+t.border,background:'none',cursor:'pointer',textAlign:'left'}},[this.ic(ic,20,{color:t.text}),this.e('div',{flex:1},[this.e('div',{fontSize:14.5,fontWeight:700,color:t.text},l),sub?this.e('div',{fontSize:12,color:t.muted},sub):null]),this.ic('chev',17,{color:t.faint})],{onClick:()=>{const r9=this.curRec();if(l==='Share with family'){this.back();this.nav('household');return;}if(l==='Copy link'){const u9='https://vinhnguyen065.github.io/recisource/#r/'+this.slug(r9.title);if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(r9.title+' — '+u9).then(()=>this.showToast('Link copied — paste it anywhere'),()=>this.showToast('Couldn’t copy'));}else this.showToast('Copy works on your phone');return;}this.shareRecipe(r9);this.back();}}))
       ]);
 
-      case 'household': {const me=(S.userName||'Sofia');const members=S.hhMembers||[];const nRec=this.RECIPES.length;const nGro=this.gList().length;const nPlan=Object.keys(S.planX||{}).filter(k=>k.startsWith('0-')).length;
+      case 'household': {const me=(S.userName||'Sofia');const members=S.hhMembers||[];const mlist=members.map(m=>typeof m==='string'?{n:m,ph:''}:m);const nRec=this.RECIPES.length;const nGro=this.gList().length;const nPlan=Object.keys(S.planX||{}).filter(k=>k.startsWith('0-')).length;
         const appUrl='https://vinhnguyen065.github.io/recisource/';
-        const invite=()=>{const data={title:'Join my kitchen on 21',text:me+' invited you to 21 — scan meals, share recipes and plan the week together. Open the link, add it to your home screen and create a free account:',url:appUrl};
+        const invText=me+' invited you to 21 — scan meals, share recipes and plan the week together. Open the link, add it to your home screen and create a free account: '+appUrl;
+        const invite=()=>{const data={title:'Join my kitchen on 21',text:invText.replace(appUrl,'').trim(),url:appUrl};
           if(navigator.share){navigator.share(data).catch(()=>{});}
-          else if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(data.text+' '+appUrl).then(()=>this.showToast('Invite copied — paste it into any chat'),()=>this.showToast('Couldn’t copy — sharing works on your phone'));}
+          else if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(invText).then(()=>this.showToast('Invite copied — paste it into any chat'),()=>this.showToast('Couldn’t copy — sharing works on your phone'));}
           else this.showToast('Sharing works on your phone');};
+        const smsInvite=(m)=>{const num=(m.ph||'').replace(/[^+\d]/g,'');
+          if(num){const a=document.createElement('a');a.href='sms:'+num+'?&body='+encodeURIComponent(invText);a.click();this.showToast('Opening Messages to '+m.n+'…');}
+          else invite();};
         return this.wrap([
         this.topbar('Family & sharing'),
         this.e('div',{key:'card',style:{background:'#17191D',borderRadius:20,padding:'18px',marginBottom:18,color:'#fff'}},[this.e('div',{display:'flex',alignItems:'center',gap:10,marginBottom:14},[this.e('div',{width:44,height:44,borderRadius:13,background:t.accent,display:'flex',alignItems:'center',justifyContent:'center'},this.ic('users',22,{color:'#17191D'})),this.e('div',{},[this.e('div',{fontWeight:800,fontSize:16},me+'’s Home'),this.e('div',{fontSize:12,color:'#B7BAC0'},(1+members.length)+' member'+(members.length?'s':'')+' · shared recipes & grocery list')])]),this.e('div',{display:'flex',gap:20},[[String(nRec),'Recipes'],[String(nGro),'On the list'],[String(nPlan),'Planned this wk']].map(([v,l])=>this.e('div',{key:l},[this.e('div',{fontSize:18,fontWeight:800},v),this.e('div',{fontSize:11,color:'#9A9DA4'},l)])))]),
         this.h('Members'),
         this.e('div',{key:'own',display:'flex',alignItems:'center',gap:12,padding:'11px 2px',borderBottom:'1px solid '+t.border},[this.e('div',{width:40,height:40,borderRadius:999,background:this.GRADS[5],display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:800,fontSize:15},me.slice(0,1).toUpperCase()),this.e('div',{flex:1},[this.e('div',{fontWeight:700,fontSize:14,color:t.text},me),this.e('div',{fontSize:12,color:t.muted},'Owner')]),this.e('span',{fontSize:11,fontWeight:800,color:t.accentText,background:t.accent,padding:'3px 9px',borderRadius:999},'YOU')]),
-        ...members.map((n,i)=>this.e('div',{key:'m'+i,display:'flex',alignItems:'center',gap:12,padding:'11px 2px',borderBottom:'1px solid '+t.border},[this.e('div',{width:40,height:40,borderRadius:999,background:this.GRADS[(i+1)%6],display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:800,fontSize:15},String(n).slice(0,1).toUpperCase()),this.e('div',{flex:1},[this.e('div',{fontWeight:700,fontSize:14,color:t.text},n),this.e('div',{fontSize:12,color:t.muted},'Member')]),this.e('button',{style:{width:28,height:28,borderRadius:9,border:'none',background:t.soft,color:t.muted,cursor:'pointer',fontWeight:800,fontSize:13,lineHeight:'1',padding:0}},'×',{onClick:()=>{this.setState({hhMembers:members.filter((_,x)=>x!==i)});this.showToast(n+' removed from your household');}})])),
-        this.e('div',{key:'addm',display:'flex',alignItems:'center',gap:10,background:t.card,border:'1px solid '+t.border,borderRadius:14,padding:'8px 8px 8px 14px',margin:'14px 0 8px'},[this.ic('user',17,{color:t.muted}),React.createElement('input',{key:'hi',value:S.hhDraft||'',onChange:e=>this.setState({hhDraft:e.target.value}),onKeyDown:e=>{if(e.key==='Enter'){const v=(this.state.hhDraft||'').trim();if(v){this.setState({hhMembers:members.concat(v),hhDraft:''});this.showToast(v+' added — send them the invite below');}}},placeholder:'Add a family member’s name…',style:{flex:1,minWidth:0,border:'none',outline:'none',background:'none',fontSize:14,color:t.text,fontFamily:'inherit'}}),this.e('button',{style:{padding:'8px 14px',borderRadius:10,border:'none',background:t.ink,color:t.inkText,fontWeight:800,fontSize:12,cursor:'pointer'}},'Add',{onClick:()=>{const v=(this.state.hhDraft||'').trim();if(!v){this.showToast('Type a name first');return;}this.setState({hhMembers:members.concat(v),hhDraft:''});this.showToast(v+' added — send them the invite below');}})]),
+        ...mlist.map((m,i)=>this.e('div',{key:'m'+i,display:'flex',alignItems:'center',gap:12,padding:'11px 2px',borderBottom:'1px solid '+t.border},[this.e('div',{width:40,height:40,borderRadius:999,background:this.GRADS[(i+1)%6],display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:800,fontSize:15},String(m.n).slice(0,1).toUpperCase()),this.e('div',{flex:1,minWidth:0},[this.e('div',{fontWeight:700,fontSize:14,color:t.text},m.n),this.e('div',{fontSize:12,color:t.muted},m.ph?m.ph:'No number — invite uses the share sheet')]),this.e('button',{style:{padding:'8px 12px',borderRadius:10,border:'none',background:t.accent,color:t.accentText,cursor:'pointer',fontWeight:800,fontSize:11.5,flexShrink:0}},'Send link',{onClick:()=>smsInvite(m)}),this.e('button',{style:{width:28,height:28,borderRadius:9,border:'none',background:t.soft,color:t.muted,cursor:'pointer',fontWeight:800,fontSize:13,lineHeight:'1',padding:0,flexShrink:0}},'×',{onClick:()=>{this.setState({hhMembers:mlist.filter((_,x)=>x!==i)});this.showToast(m.n+' removed from your household');}})])),
+        this.e('div',{key:'addm',background:t.card,border:'1px solid '+t.border,borderRadius:14,padding:'10px 12px',margin:'14px 0 8px'},[
+          this.e('div',{display:'flex',gap:8,marginBottom:8},[
+            React.createElement('input',{key:'hi',value:S.hhDraft||'',onChange:e=>this.setState({hhDraft:e.target.value}),placeholder:'Name',style:{flex:1.2,minWidth:0,border:'1px solid '+t.border,borderRadius:10,padding:'10px 12px',fontSize:14,color:t.text,outline:'none',background:t.bg,fontFamily:'inherit'}}),
+            React.createElement('input',{key:'hp',value:S.hhPhone||'',onChange:e=>this.setState({hhPhone:e.target.value.replace(/[^+\d\s]/g,'')}),inputMode:'tel',placeholder:'Phone (optional)',style:{flex:1,minWidth:0,border:'1px solid '+t.border,borderRadius:10,padding:'10px 12px',fontSize:14,color:t.text,outline:'none',background:t.bg,fontFamily:'inherit'}})
+          ]),
+          this.e('button',{style:{width:'100%',padding:'11px 0',borderRadius:11,border:'none',background:t.ink,color:t.inkText,fontWeight:800,fontSize:13,cursor:'pointer'}},'Add family member',{onClick:()=>{const v=(this.state.hhDraft||'').trim();if(!v){this.showToast('Type their name first');return;}const ph=(this.state.hhPhone||'').trim();this.setState({hhMembers:mlist.concat({n:v,ph:ph}),hhDraft:'',hhPhone:''});this.showToast(v+' added — tap Send link to text them the app');}})
+        ]),
         this.e('div',{key:'inv',marginTop:8},this.btn('Send an invite link',invite,{variant:'dark',icon:'share'})),
         this.e('div',{key:'note',fontSize:11.5,color:t.faint,textAlign:'center',marginTop:12,lineHeight:1.5},'Everyone installs 21 from your link and makes their own free account. Shared household libraries sync in a future update — for now, share any recipe straight from its page or the + button.')
       ]);}
@@ -1454,8 +1483,8 @@ class Component extends DCLogic {
           if(l==='Plan'){this.nav('paywall');return;}
           if(l==='Password'){const em=this.state.sessEmail;if(!em){this.showToast('Sign in first — Profile → Create your free account');return;}fetch(this.AUTH_URL+'/recover',{method:'POST',headers:{apikey:this.SCAN_KEY,'Content-Type':'application/json'},body:JSON.stringify({email:em})}).then(()=>this.showToast('Password reset link sent to '+em)).catch(()=>this.showToast('Couldn’t send — try again'));return;}
           if(l==='Sign out'){if(!this.state.sessEmail){this.showToast('You’re not signed in — create your account from Profile');return;}this.logOut();return;}
-          if(l==='Delete account'){this.showToast('Deletion needs email confirmation \u2014 check your inbox');return;}
-          if(l==='Help & Support'){this.showToast('Support chat opens in the full release');return;}
+          if(l==='Delete account'){const a=document.createElement('a');a.href='mailto:www.vinhnguyen@gmail.com?subject='+encodeURIComponent('Delete my 21 account')+'&body='+encodeURIComponent('Please delete my 21 account: '+(this.state.sessEmail||'(your account email)'));a.click();this.showToast('Email us and we\u2019ll delete it same-day \u2014 in-app deletion ships at launch');return;}
+          if(l==='Help & Support'){{const a=document.createElement('a');a.href='mailto:www.vinhnguyen@gmail.com?subject=21 support';a.click();this.showToast('Opening an email to support');};return;}
           this.showToast(l);}})))]));})(),
         this.e('div',{key:'sp',height:16})
       ]);
@@ -1476,7 +1505,7 @@ class Component extends DCLogic {
           ]),
           this.e('div',{key:'foot',flexShrink:0,padding:'14px 22px 22px',background:'#0E0F12',borderTop:'1px solid #1E2025'},[
             this.btn(plan==='free'?'Continue with Free':(plan==='annual'?'Choose Annual · free in beta':'Choose Monthly · free in beta'),()=>{const p2=this.state.plan||'annual';this.setState({planTier:p2,postAuth:false});if(this.boom)this.boom(2);this.showToast(p2==='free'?'You’re on the Free plan — upgrade any time in Settings':'You’re on '+(p2==='annual'?'Annual':'Monthly')+' Pro — free during beta, nothing charged');this.jump('healthToday');},{style:{marginBottom:10}}),
-            this.e('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',gap:14,fontSize:12,color:'#6E717A'}},[this.e('span',{style:{cursor:'pointer',textDecoration:'underline'}},'Restore',{onClick:()=>this.showToast('Restoring purchases\u2026')}),this.e('span',{},'\u00b7'),this.e('span',{style:{cursor:'pointer',textDecoration:'underline'}},'Terms',{onClick:()=>this.openLegal('terms')}),this.e('span',{},'\u00b7'),this.e('span',{style:{cursor:'pointer',textDecoration:'underline'}},'Privacy',{onClick:()=>this.openLegal('privacy')})])
+            this.e('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',gap:14,fontSize:12,color:'#6E717A'}},[this.e('span',{style:{cursor:'pointer',textDecoration:'underline'}},'Restore',{onClick:()=>this.showToast('Nothing to restore \u2014 everything is free during the beta')}),this.e('span',{},'\u00b7'),this.e('span',{style:{cursor:'pointer',textDecoration:'underline'}},'Terms',{onClick:()=>this.openLegal('terms')}),this.e('span',{},'\u00b7'),this.e('span',{style:{cursor:'pointer',textDecoration:'underline'}},'Privacy',{onClick:()=>this.openLegal('privacy')})])
           ])
         ]);
       }
@@ -1485,7 +1514,7 @@ class Component extends DCLogic {
         return this.wrap([
           this.e('div',{key:'top',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 0 14px'},[
             this.e('div',{},[this.e('div',{fontSize:13,color:t.muted},new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})),this.sectionTitle('Good morning, '+(S.userName||'Sofia'),{m:0,sm:true})]),
-            this.e('div',{display:'flex',alignItems:'center',gap:8},[this.e('button',{style:{display:'flex',alignItems:'center',gap:4,background:t.accent,border:'none',borderRadius:999,padding:'6px 11px',fontSize:11,fontWeight:800,color:'#17191D',cursor:'pointer'}},'🔥 '+this.activeDays(),{onClick:()=>this.nav('fitness')}),this.circBtn('bell',()=>this.showToast('No new alerts'))])
+            this.e('div',{display:'flex',alignItems:'center',gap:8},[this.e('button',{style:{display:'flex',alignItems:'center',gap:4,background:t.accent,border:'none',borderRadius:999,padding:'6px 11px',fontSize:11,fontWeight:800,color:'#17191D',cursor:'pointer'}},'🔥 '+this.activeDays(),{onClick:()=>this.nav('fitness')}),this.e('div',{key:'bellwrap',position:'relative'},[this.circBtn('bell',()=>this.nav('alerts')),this.getAlerts().length?this.e('div',{position:'absolute',top:2,right:2,width:10,height:10,borderRadius:999,background:t.heart,border:'2px solid '+t.bg}):null])])
           ]),
           this.e('div',{key:'cal',onClick:()=>this.nav('calorieDiary'),style:{background:t.card,border:'1px solid '+t.border,borderRadius:22,padding:'16px',boxShadow:t.shadow,display:'flex',alignItems:'center',gap:16,marginBottom:14,cursor:'pointer'}},[
             this.e('div',{position:'relative',width:120,height:120,flexShrink:0},[
@@ -1893,11 +1922,31 @@ class Component extends DCLogic {
         ]);
       }
 
+      case 'alerts': {const al=this.getAlerts();
+        return this.e('div',{flex:1,minHeight:0,display:'flex',flexDirection:'column'},[
+          this.topbar('Alerts'),
+          this.wrap([
+            al.length===0?this.e('div',{key:'empty',textAlign:'center',padding:'44px 20px',background:t.card,border:'1px dashed '+t.border,borderRadius:18},[
+              this.e('div',{fontSize:34,marginBottom:8},'🔔'),
+              this.e('div',{fontSize:15,fontWeight:800,color:t.text,marginBottom:5},'All clear'),
+              this.e('div',{fontSize:12.5,color:t.muted,lineHeight:1.5},'No alerts right now. You’ll see a red dot on the bell when something needs your attention — high heart-rate or blood-pressure readings, going over your calorie goal, or goals you’ve smashed.')
+            ]):null,
+            ...al.map(([icn,ttl,sub,go,kind],i)=>this.e('div',{key:'a'+i,display:'flex',alignItems:'center',gap:12,background:t.card,border:'1.5px solid '+(kind==='warn'?t.heart:t.accent),borderRadius:16,padding:'13px 14px',marginBottom:10,cursor:'pointer'},[
+              this.e('div',{width:40,height:40,borderRadius:13,background:kind==='warn'?'rgba(239,68,68,.12)':'rgba(52,211,153,.16)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic(icn,19,{color:kind==='warn'?t.heart:t.text})),
+              this.e('div',{flex:1,minWidth:0},[this.e('div',{fontSize:13.5,fontWeight:800,color:t.text},ttl),this.e('div',{fontSize:11.5,color:t.muted,marginTop:2,lineHeight:1.4},sub)]),
+              this.ic('chev',16,{color:t.faint})
+            ],{onClick:()=>this.nav(go)})),
+            al.length?this.e('div',{key:'note',fontSize:11.5,color:t.faint,textAlign:'center',marginTop:8,lineHeight:1.5},'Alerts are computed live from your own data on this device. They’re general wellness pointers, not medical advice.'):null
+          ])
+        ]);
+      }
+
       case 'weight': {const LOGALL=this.WLOG.concat(S.wextra||[]);const wr=S.weightRange||'6M';const wlast=LOGALL[LOGALL.length-1];const wprev=LOGALL[LOGALL.length-2]!==undefined?LOGALL[LOGALL.length-2]:wlast;
         let vals;
-        if(wr==='W'){vals=[-0.5,-0.2,-0.4,-0.1,-0.3,-0.1,0].map(d=>Math.round((wlast+d)*10)/10);}
-        else if(wr==='M'){vals=[wprev,Math.round(((wprev*2+wlast)/3)*10)/10,Math.round(((wprev+wlast*2)/3)*10)/10,wlast];}
+        if(wr==='W'){vals=LOGALL.slice(-7);}
+        else if(wr==='M'){vals=LOGALL.slice(-4);}
         else{const RN={'3M':3,'6M':6,'1Y':12,'All':LOGALL.length}[wr]||6;vals=LOGALL.slice(LOGALL.length-RN);}
+        if(vals.length<2)vals=[wlast,wlast];
         const n=Math.max(2,vals.length);const wg=(S.wGoal!==undefined)?S.wGoal:70;
         const mn=Math.min.apply(null,vals.concat([wg]))-0.6;const mx=Math.max.apply(null,vals)+0.6;
         const px=(i)=>Math.round(i/(n-1)*300);const py=(v)=>Math.round(66-(v-mn)/(mx-mn)*56);
@@ -1908,19 +1957,27 @@ class Component extends DCLogic {
           this.wrap([
             this.e('div',{key:'hero',textAlign:'center',padding:'4px 0 14px'},[
               this.e('div',{fontSize:44,fontWeight:800,color:t.text,letterSpacing:'-.03em'},[this.fmt(LOGALL[LOGALL.length-1]),this.e('span',{fontSize:16,color:t.muted,fontWeight:700},' kg')]),
-              this.e('div',{fontSize:12.5,color:t.muted,marginTop:3},'▼ '+this.fmt(Math.round((72.8-LOGALL[LOGALL.length-1])*10)/10)+' kg since January · goal '+this.fmt(wg)+' kg'),
-              this.e('div',{fontSize:11.5,color:t.accent===t.text?t.muted:'#5E9463',fontWeight:700,marginTop:4},wlast<=wg?'Goal reached — nice work! Set a new one below':'On pace to reach goal in ~'+Math.max(1,Math.round((wlast-wg)/0.2))+' weeks')
+              (()=>{const start=LOGALL[0];const tot=Math.round((wlast-start)*10)/10;
+                const recent=LOGALL.slice(-5);const rate=recent.length>=2?(recent[recent.length-1]-recent[0])/(recent.length-1):0;
+                const gap=wlast-wg;const toward=(gap>0&&rate<-0.02)||(gap<0&&rate>0.02);
+                const pace=toward?Math.max(1,Math.round(Math.abs(gap/rate))):null;
+                return [
+                  this.e('div',{key:'d1',fontSize:12.5,color:t.muted,marginTop:3},(tot<0?'▼ ':(tot>0?'▲ ':''))+this.fmt(Math.abs(tot))+' kg since you started ('+this.fmt(start)+' kg) · goal '+this.fmt(wg)+' kg'),
+                  this.e('div',{key:'d2',fontSize:11.5,color:'#5E9463',fontWeight:700,marginTop:4},
+                    (gap<=0&&wg<=start)||(gap>=0&&wg>start)?'Goal reached — nice work! Set a new one below'
+                    :pace?('At your recent pace: goal in about '+pace+' check-in'+(pace>1?'s':''))
+                    :'Log your weight regularly to see your pace toward goal')];})()
             ]),
             this.e('div',{key:'chips',display:'flex',gap:8,marginBottom:12,justifyContent:'center'},['W','M','3M','6M','1Y','All'].map(r=>this.chip(r,wr===r,()=>this.setState({weightRange:r}),{sm:true}))),
             this.e('div',{key:'chart',background:t.card,border:'1px solid '+t.border,borderRadius:18,padding:'14px 16px',marginBottom:14,boxShadow:t.shadow},[
-              this.e('div',{display:'flex',justifyContent:'space-between',fontSize:11.5,color:t.muted,marginBottom:8},[this.e('span',{fontWeight:800,color:t.text},wr==='W'?'Last 7 days':wr==='M'?'Last 30 days':wr==='All'?'2 years of history':'Last '+wr),this.e('span',{},first+' → '+last+' kg')]),
+              this.e('div',{display:'flex',justifyContent:'space-between',fontSize:11.5,color:t.muted,marginBottom:8},[this.e('span',{fontWeight:800,color:t.text},wr==='W'?'Last '+vals.length+' check-ins':wr==='M'?'Last '+vals.length+' check-ins':wr==='All'?'All '+LOGALL.length+' check-ins':'Last '+wr+' of check-ins'),this.e('span',{},first+' → '+last+' kg')]),
               React.createElement('svg',{key:'svg',width:'100%',height:74,viewBox:'0 0 300 74',preserveAspectRatio:'none'},[
                 React.createElement('line',{key:'goal',x1:0,y1:py(wg),x2:300,y2:py(wg),stroke:t.faint,strokeWidth:1,strokeDasharray:'5 4'}),
                 React.createElement('polygon',{key:'area',points:'0,'+py(first)+' '+pts+' 300,74 0,74',fill:'rgba(52,211,153,.18)',stroke:'none'}),
                 React.createElement('polyline',{key:'line',points:pts,fill:'none',stroke:'#5E9463',strokeWidth:2.5,strokeLinejoin:'round',strokeLinecap:'round'}),
                 React.createElement('circle',{key:'dot',cx:300,cy:py(last),r:4,fill:'#5E9463',stroke:'#fff',strokeWidth:2})
               ]),
-              this.e('div',{display:'flex',justifyContent:'space-between',fontSize:10.5,color:t.faint,marginTop:6},[this.e('span',{},wr==='W'?'Mon':wr==='M'?'4 wks ago':wr==='All'?'Sep ’24':(wr==='1Y'?'Sep ’25':'Mar ’26')),this.e('span',{},'goal '+this.fmt(wg)+' kg ---'),this.e('span',{},wr==='W'||wr==='M'?'Today':'Aug ’26')])
+              this.e('div',{display:'flex',justifyContent:'space-between',fontSize:10.5,color:t.faint,marginTop:6},[this.e('span',{},'earlier'),this.e('span',{},'goal '+this.fmt(wg)+' kg ---'),this.e('span',{},'latest')]),
             ]),
             this.e('div',{key:'stats',display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:0,background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'13px 8px',marginBottom:14},[[String(first),'start kg'],[String(last),'now kg'],[(diff>0?'+':'')+diff,'change kg'],[String(Math.round((last-wg)*10)/10),'to goal kg']].map(([v,l],i)=>this.e('div',{key:l,style:{textAlign:'center',borderRight:i<3?'1px solid '+t.border:'none'}},[this.e('div',{fontSize:16,fontWeight:800,color:t.text},v),this.e('div',{fontSize:10,color:t.muted,marginTop:2},l)]))),
             this.e('div',{key:'log',display:'flex',alignItems:'center',gap:12,background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'12px 14px',marginBottom:14},[
@@ -1937,7 +1994,15 @@ class Component extends DCLogic {
               this.e('button',{style:{width:36,height:36,borderRadius:999,border:'1px solid '+t.border,background:t.soft,cursor:'pointer',fontSize:17,color:t.text,lineHeight:1}},'+',{onClick:()=>this.setState({wGoal:Math.min(150,Math.round((((this.state.wGoal!==undefined)?this.state.wGoal:70)+0.5)*10)/10)})})
             ]),
             this.h('Milestones'),
-            ...[['First 2 kg lost','Nov 2024',true],['Below 75 kg','Feb 2025',true],['20-week logging streak','Jun 2026',true],['Goal: '+this.fmt(wg)+' kg',(wlast<=wg?'Reached!':this.fmt(Math.round((wlast-wg)*10)/10)+' kg to go'),wlast<=wg]].map(([m,d,done])=>this.e('div',{key:m,display:'flex',alignItems:'center',gap:12,padding:'11px 0',borderBottom:'1px solid '+t.border},[this.e('div',{width:30,height:30,borderRadius:999,background:done?t.accent:t.soft,display:'flex',alignItems:'center',justifyContent:'center'},done?this.ic('check',15,{color:'#17191D'}):this.ic('pin',14,{color:t.muted})),this.e('div',{flex:1},[this.e('div',{fontSize:13.5,fontWeight:700,color:t.text},m),this.e('div',{fontSize:11.5,color:t.muted},d)])])),
+            ...(()=>{const start=LOGALL[0];const losing=wg<=start;const prog=losing?(start-wlast):(wlast-start);const total=Math.abs(start-wg);
+              const half=total/2;const doneGoal=losing?wlast<=wg:wlast>=wg;
+              const fmtK=(v)=>this.fmt(Math.round(v*10)/10)+' kg';
+              return [
+                ['Started tracking','Baseline '+fmtK(start)+' · '+LOGALL.length+' check-ins so far',true],
+                ['First 2 kg '+(losing?'down':'up'),prog>=2?'Done — '+fmtK(prog)+' so far':fmtK(Math.max(0,2-prog))+' to go',prog>=2],
+                ['Halfway to goal',prog>=half&&total>0?'Done — past '+fmtK(losing?start-half:start+half):fmtK(Math.max(0,half-prog))+' to go',total>0&&prog>=half],
+                ['Goal: '+fmtK(wg),doneGoal?'Reached — set a new goal below!':fmtK(Math.abs(wlast-wg))+' to go',doneGoal]
+              ];})().map(([m,d,done])=>this.e('div',{key:m,display:'flex',alignItems:'center',gap:12,padding:'11px 0',borderBottom:'1px solid '+t.border},[this.e('div',{width:30,height:30,borderRadius:999,background:done?t.accent:t.soft,display:'flex',alignItems:'center',justifyContent:'center'},done?this.ic('check',15,{color:'#17191D'}):this.ic('pin',14,{color:t.muted})),this.e('div',{flex:1},[this.e('div',{fontSize:13.5,fontWeight:700,color:t.text},m),this.e('div',{fontSize:11.5,color:t.muted},d)])])),
             this.e('div',{key:'keep',display:'flex',gap:10,background:t.soft,borderRadius:14,padding:'12px 14px',marginTop:12},[this.ic('lock',16,{color:t.muted}),this.e('div',{fontSize:11.5,color:t.muted,lineHeight:1.5},'Your full history is kept forever and belongs to you — export it anytime from Settings → Health & Data.')])
           ])
         ]);
