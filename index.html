@@ -209,7 +209,10 @@ class Component extends DCLogic {
   TABMAP={healthToday:0,calorieDiary:0,manualFood:0,planPick:1,library:1,search:1,collections:1,tags:1,mealPlan:1,addMeal:1,grocery:1,addToGrocery:1,grocerySettings:1,fitness:3,weight:3,steps:3,heartRate:3,sleep:3,medicalProfile:3,aiChat:3,logWorkout:3,workoutTimer:3,liveWorkout:3,profile:4,settings:4};
   TABSCREENS=['healthToday','calorieDiary','library','mealPlan','grocery','fitness','profile'];
 
-  componentDidMount(){ if(this.props.startInGallery)this.setState({mode:'gallery'}); try{const sv=JSON.parse(localStorage.getItem('recisource_v1')||'null');if(sv){this.setState(sv);if(sv.scanRec){const i=this.RECIPES.findIndex(r=>r.id===999);if(i>=0)this.RECIPES[i]=sv.scanRec;else this.RECIPES.push(sv.scanRec);if(sv.scanRec.img)this.WIMG['food-r999']=sv.scanRec.img;}(sv.myRecs||[]).forEach(mr=>{if(!this.RECIPES.some(r=>r.id===mr.id))this.RECIPES.push(mr);if(mr.img)this.WIMG['food-r'+mr.id]=mr.img;});}}catch(e){} try{const lv=JSON.parse(localStorage.getItem('recisource_live')||'null');if(lv&&lv.lsOn){this.setState(lv);}}catch(e){} this.rollover(); this.checkUpdate(); const sess=this.loadSess(); if(sess&&sess.user){this.setState({sessEmail:sess.user.email||null});this.cloudSyncOnLogin();} this._tk=setInterval(()=>{const S=this.state;if(S.mode==='phone'&&S.screen==='cookTimers'&&S.t1run&&S.t1>0)this.setState({t1:S.t1-1});
+  componentDidMount(){ if(this.props.startInGallery)this.setState({mode:'gallery'}); try{const sv=JSON.parse(localStorage.getItem('recisource_v1')||'null');if(sv){this.setState(sv);if(sv.scanRec){const i=this.RECIPES.findIndex(r=>r.id===999);if(i>=0)this.RECIPES[i]=sv.scanRec;else this.RECIPES.push(sv.scanRec);if(sv.scanRec.img)this.WIMG['food-r999']=sv.scanRec.img;}(sv.myRecs||[]).forEach(mr=>{if(!this.RECIPES.some(r=>r.id===mr.id))this.RECIPES.push(mr);if(mr.img)this.WIMG['food-r'+mr.id]=mr.img;});}}catch(e){} try{const lv=JSON.parse(localStorage.getItem('recisource_live')||'null');if(lv&&lv.lsOn){this.setState(lv);}}catch(e){} this.rollover(); this.checkUpdate(); try{if(this.state.autoSteps&&!(window.DeviceMotionEvent&&typeof DeviceMotionEvent.requestPermission==='function')){window.addEventListener('devicemotion',this.onMotion);this._motionOn=true;}}catch(e){} const sess=this.loadSess(); if(sess&&sess.user){this.setState({sessEmail:sess.user.email||null});this.cloudSyncOnLogin();} this._tk=setInterval(()=>{const S=this.state;
+    if(this._asBuf){const b=this._asBuf;this._asBuf=0;this.setState({stepsToday:((this.state.stepsToday!==undefined)?this.state.stepsToday:0)+b});}
+    this._tkN=(this._tkN||0)+1;if(this._tkN%60===0&&S.stepsDate&&S.stepsDate!==this.dkToday())this.rollover();
+    if(S.mode==='phone'&&S.screen==='cookTimers'&&S.t1run&&S.t1>0)this.setState({t1:S.t1-1});
     if(S.screen==='workoutTimer'&&(S.swRun||S.tmRun)){
       if(S.tmRun){const left=Math.max(0,S.tmTotal-Math.floor((Date.now()-S.tmStart)/1000));
         if(left<=0){try{if(navigator.vibrate)navigator.vibrate([220,120,220]);}catch(e){}this.setState({tmRun:false,tmLeft:0});this.showToast('⏰ Time’s up — great effort!');}
@@ -386,14 +389,14 @@ class Component extends DCLogic {
   HIITS={'Tabata 20/10 ×8':{work:20,rest:10,rounds:8},'Intervals 30/15 ×10':{work:30,rest:15,rounds:10}};
   COACH5=['5 minutes in — you’re moving beautifully!','That’s 10 — momentum is yours!','15 minutes — stronger than you started!','20 minutes! This is dedication.','25 in — legend behaviour.','Half an hour. Incredible work!'];
   onMotion=(e)=>{try{const a=e.accelerationIncludingGravity||e.acceleration;if(!a)return;const m=Math.sqrt((a.x||0)*(a.x||0)+(a.y||0)*(a.y||0)+(a.z||0)*(a.z||0));const now=Date.now();if(this._mBase===undefined)this._mBase=m;this._mBase=this._mBase*0.95+m*0.05;const dev=Math.abs(m-this._mBase);
-    if(dev>2.2&&(!this._mLast||now-this._mLast>280)){this._mLast=now;if(this.state.lsRun){this.setState({lsSteps:(this.state.lsSteps||0)+1});if(this.state.lsTick!==false)this.beep(920,0.05,0.14);}}
+    if(dev>2.2&&(!this._mLast||now-this._mLast>280)){this._mLast=now;if(this.state.lsRun){this.setState({lsSteps:(this.state.lsSteps||0)+1});if(this.state.lsTick!==false)this.beep(920,0.05,0.14);}else if(this.state.autoSteps){this._asBuf=(this._asBuf||0)+1;}}
     // vigorous shake (3 hard spikes inside 0.8 s) toggles pause — no permission beyond motion itself
     if(dev>7){this._shk=(this._shk||[]).filter(t2=>now-t2<800);this._shk.push(now);
       if(this._shk.length>=3&&now-(this._shkAct||0)>2000&&this.state.lsOn&&!this.state.lsDone){this._shkAct=now;this._shk=[];this.setState({lsClapFlash:now});this.beep(1200,0.1,0.2);this.liveToggle();}}
     }catch(err){}};
   startMotion=async()=>{try{if(window.DeviceMotionEvent&&typeof DeviceMotionEvent.requestPermission==='function'){const p=await DeviceMotionEvent.requestPermission();if(p!=='granted'){this.showToast('Motion access declined — counting is off');return false;}}
     window.addEventListener('devicemotion',this.onMotion);this._motionOn=true;this.setState({_mArm:Date.now()});return true;}catch(e){return false;}};
-  stopMotion=()=>{try{window.removeEventListener('devicemotion',this.onMotion);}catch(e){}this._motionOn=false;};
+  stopMotion=(force)=>{if(this.state.autoSteps&&!force)return;try{window.removeEventListener('devicemotion',this.onMotion);}catch(e){}this._motionOn=false;};
   hav=(a,b)=>{const R=6371000,dLa=(b.lat-a.lat)*Math.PI/180,dLo=(b.lon-a.lon)*Math.PI/180;const x=Math.sin(dLa/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLo/2)**2;return 2*R*Math.asin(Math.sqrt(x));};
   startGPS=()=>{try{if(!navigator.geolocation){this.showToast('No GPS here');return;}this._gw=navigator.geolocation.watchPosition(p=>{const c={lat:p.coords.latitude,lon:p.coords.longitude};if(p.coords.accuracy>60)return;if(this._gLast&&this.state.lsRun){const d=this.hav(this._gLast,c);if(d>1&&d<200)this.setState({lsDist:(this.state.lsDist||0)+d});}this._gLast=c;},()=>this.showToast('GPS unavailable — distance off'),{enableHighAccuracy:true,maximumAge:2000});}catch(e){}};
   stopGPS=()=>{try{if(this._gw!==undefined)navigator.geolocation.clearWatch(this._gw);}catch(e){}this._gw=undefined;this._gLast=null;};
@@ -541,7 +544,7 @@ class Component extends DCLogic {
   cancelHR=()=>{try{clearInterval(this._hrIv);}catch(e){}this.setState({hrMeas:null,hrResult:null,hrWave:[]});};
 
   // ---- Accounts & cloud sync (Supabase Auth + user_state table, RLS-isolated) ----
-  VERSION='20260829.2115';
+  VERSION='20260829.2131';
   checkUpdate=async()=>{try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();
     if(j&&j.v&&this.VERSION!=='__BUILD'+'_TS__'&&j.v!==this.VERSION){
       if(!this.state.lsOn){this.showToast('Updating to the latest version…');setTimeout(()=>{try{location.replace(location.pathname+'?v='+encodeURIComponent(j.v));}catch(e){location.reload();}},900);}
@@ -549,7 +552,7 @@ class Component extends DCLogic {
     }}catch(e){}};
   AUTH_URL='https://czbetvehfqqfhggqlqfp.supabase.co/auth/v1';
   REST_URL='https://czbetvehfqqfhggqlqfp.supabase.co/rest/v1';
-  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog','planFilter','planTier','hhMembers','myTpls','wlogD','wDemoOff'];
+  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog','planFilter','planTier','hhMembers','myTpls','wlogD','wDemoOff','autoSteps'];
   snapshotState=()=>{const S=this.state;const o={_ts:Date.now()};this.SYNC_KEYS.forEach(k=>{o[k]=S[k];});return o;};
   loadSess=()=>{try{return JSON.parse(localStorage.getItem('recisource_auth')||'null');}catch(e){return null;}};
   saveSess=(s)=>{try{if(s)localStorage.setItem('recisource_auth',JSON.stringify(s));else localStorage.removeItem('recisource_auth');}catch(e){}};
@@ -627,7 +630,15 @@ class Component extends DCLogic {
   }).catch(()=>{if(this._scanSeq!==seq)return;const h=this.state.history.slice(0,-1);this.setState({screen:h[h.length-1]||'mealScan',history:h.length?h:['mealScan']});this.showToast('Scan failed — check connection & try again');});};
   slug=(s)=>s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
   SLOT_TIMES={Breakfast:[8,0],Lunch:[12,30],Dinner:[18,30],Snack:[15,0]};
+  _hour=()=>new Date().getHours();
+  toggleAutoSteps=async()=>{if(this.state.autoSteps){this.setState({autoSteps:false});this.stopMotion(true);this.showToast('Automatic counting off');return;}
+    const ok=await this.startMotion();if(ok){this.setState({autoSteps:true});this.showToast('Counting steps while 21 is open — they roll into today automatically');}};
   getAlerts=()=>{const S=this.state;const out=[];
+    const h9=this._hour();
+    if(h9>=14&&(S.water||0)<4)out.push(['clock','Hydration check','Only '+(S.water||0)+' of 8 cups so far today — grab a glass now','healthToday','todo']);
+    const mealsToday=(S.dlog||[]).some(m=>m.dt?m.dt===this.dkToday():((m.day!==undefined)?m.day:4)===this.todayIdx())||(this.todayIdx()===4&&(S.dhide||[]).length<3);
+    if(h9>=13&&!mealsToday)out.push(['camera','No meals logged yet','Snap what you’re eating — the scanner does the rest','mealScan','todo']);
+    if(h9>=15&&(S.stepsToday||0)<((S.stepGoal||10000)*0.3))out.push(['flame','Time to move','Only '+((S.stepsToday||0).toLocaleString())+' steps by now — a 10-minute walk changes the day','steps','todo']);
     const hr=(S.hr!==undefined)?S.hr:68;
     if(hr>100)out.push(['pulse','High heart rate reading',hr+' bpm at rest is above 100 — re-measure sitting calmly; talk to a professional if it persists','heartRate','warn']);
     const bp=(S.bpLog||[])[((S.bpLog||[]).length-1)];
@@ -639,7 +650,7 @@ class Component extends DCLogic {
     if((S.water||0)>=8)out.push(['check','Hydration goal hit','8 cups today 💧','healthToday','good']);
     const wl=(S.wDemoOff?[]:this.WLOG).concat(S.wextra||[]);const wg=(S.wGoal!==undefined)?S.wGoal:70;
     if(wl.length&&((wg<=wl[0]&&wl[wl.length-1]<=wg)||(wg>wl[0]&&wl[wl.length-1]>=wg)))out.push(['check','Weight goal reached',this.fmt(wl[wl.length-1])+' kg — set your next goal on the Weight page','weight','good']);
-    if((S.wlogD||[]).length&&!(S.wlogD||[]).some(e=>String(e.ts||'').slice(0,10)===this.dkToday()))out.push(['trend','Weigh-in reminder','Keep the chart honest — log today’s weight (takes 10 seconds)','weight','good']);
+    if((S.wlogD||[]).length&&!(S.wlogD||[]).some(e=>e.ts&&this.dkey(new Date(e.ts))===this.dkToday()))out.push(['trend','Weigh-in reminder','Keep the chart honest — log today’s weight (takes 10 seconds)','weight','good']);
     return out;};
   openQa=(r)=>this.setState({qaRec:r.id,qaDay:this.todayIdx(),qaSlot:'Dinner'});
   closeQa=()=>this.setState({qaRec:null});
@@ -1932,8 +1943,8 @@ class Component extends DCLogic {
               this.e('div',{fontSize:15,fontWeight:800,color:t.text,marginBottom:5},'All clear'),
               this.e('div',{fontSize:12.5,color:t.muted,lineHeight:1.5},'No alerts right now. You’ll see a red dot on the bell when something needs your attention — high heart-rate or blood-pressure readings, going over your calorie goal, or goals you’ve smashed.')
             ]):null,
-            ...al.map(([icn,ttl,sub,go,kind],i)=>this.e('div',{key:'a'+i,display:'flex',alignItems:'center',gap:12,background:t.card,border:'1.5px solid '+(kind==='warn'?t.heart:t.accent),borderRadius:16,padding:'13px 14px',marginBottom:10,cursor:'pointer'},[
-              this.e('div',{width:40,height:40,borderRadius:13,background:kind==='warn'?'rgba(239,68,68,.12)':'rgba(52,211,153,.16)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic(icn,19,{color:kind==='warn'?t.heart:t.text})),
+            ...al.map(([icn,ttl,sub,go,kind],i)=>this.e('div',{key:'a'+i,display:'flex',alignItems:'center',gap:12,background:t.card,border:'1.5px solid '+(kind==='warn'?t.heart:(kind==='todo'?t.border:t.accent)),borderRadius:16,padding:'13px 14px',marginBottom:10,cursor:'pointer'},[
+              this.e('div',{width:40,height:40,borderRadius:13,background:kind==='warn'?'rgba(239,68,68,.12)':(kind==='todo'?t.soft:'rgba(52,211,153,.16)'),display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic(icn,19,{color:kind==='warn'?t.heart:t.text})),
               this.e('div',{flex:1,minWidth:0},[this.e('div',{fontSize:13.5,fontWeight:800,color:t.text},ttl),this.e('div',{fontSize:11.5,color:t.muted,marginTop:2,lineHeight:1.4},sub)]),
               this.ic('chev',16,{color:t.faint})
             ],{onClick:()=>this.nav(go)})),
@@ -1949,7 +1960,7 @@ class Component extends DCLogic {
         const wg=(S.wGoal!==undefined)?S.wGoal:70;
         const start=has?LOGALL[0]:wlast;const losing=wg<=start;
         const tot=Math.round((wlast-start)*10)/10;
-        const dOf=(ts)=>ts?String(ts).slice(0,10):null;
+        const dOf=(ts)=>ts?this.dkey(new Date(ts)):null;
         const loggedToday=wlogD.some(e2=>dOf(e2.ts)===this.dkToday());
         let streak=0;{const sd=new Set(wlogD.map(e2=>dOf(e2.ts)));const d=new Date();if(!sd.has(this.dkey(d)))d.setDate(d.getDate()-1);while(sd.has(this.dkey(d))){streak++;d.setDate(d.getDate()-1);}}
         let ratePerDay=null;{const ds=wlogD.slice(-14);if(ds.length>=2){const span=(new Date(ds[ds.length-1].ts)-new Date(ds[0].ts))/864e5;if(span>=1)ratePerDay=(ds[ds.length-1].w-ds[0].w)/span;}}
@@ -2119,6 +2130,11 @@ class Component extends DCLogic {
               this.e('div',{key:'bar',height:9,borderRadius:999,background:t.soft,margin:'10px 40px 0',overflow:'hidden'},this.e('div',{height:'100%',width:Math.min(100,Math.round(stp/gl*100))+'%',background:t.accent,borderRadius:999})),
               this.e('div',{key:'goal',display:'flex',alignItems:'center',gap:12,background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'11px 14px',margin:'14px 0 0',textAlign:'left'},[this.e('span',{fontSize:13,fontWeight:800,color:t.text,flex:1},'Daily goal'),this.e('button',{style:{width:32,height:32,borderRadius:999,border:'1px solid '+t.border,background:t.soft,cursor:'pointer',fontSize:16,color:t.text,lineHeight:'1',padding:0,fontWeight:800}},'−',{onClick:()=>this.setState({stepGoal:Math.max(2000,(this.state.stepGoal||10000)-500)})}),this.e('span',{fontSize:14,fontWeight:800,minWidth:56,textAlign:'center',color:t.text},gl.toLocaleString()),this.e('button',{style:{width:32,height:32,borderRadius:999,border:'1px solid '+t.border,background:t.soft,cursor:'pointer',fontSize:16,color:t.text,lineHeight:'1',padding:0,fontWeight:800}},'+',{onClick:()=>this.setState({stepGoal:Math.min(40000,(this.state.stepGoal||10000)+500)})})])
             ];})()),
+            this.e('div',{key:'auto',display:'flex',alignItems:'center',gap:12,background:t.card,border:'1.5px solid '+(S.autoSteps?t.accent:t.border),borderRadius:16,padding:'12px 14px',marginBottom:12,boxShadow:t.shadow},[
+              this.e('div',{width:40,height:40,borderRadius:13,background:S.autoSteps?t.accent:t.soft,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic('flame',19,{color:S.autoSteps?t.accentText:t.text})),
+              this.e('div',{flex:1,minWidth:0},[this.e('div',{fontSize:13,fontWeight:800,color:t.text},'Automatic counting'),this.e('div',{fontSize:11,color:t.muted,marginTop:2},S.autoSteps?'On — steps count themselves while 21 is open, and reset into your history at midnight':'Uses your phone’s motion sensor while the app is open · Apple Health covers the rest in the iOS app')]),
+              this.e('button',{style:{padding:'9px 14px',borderRadius:999,border:'none',background:S.autoSteps?t.soft:t.ink,color:S.autoSteps?t.text:t.inkText,fontWeight:800,fontSize:12,cursor:'pointer',flexShrink:0}},S.autoSteps?'Turn off':'Turn on',{onClick:this.toggleAutoSteps})
+            ]),
             this.e('div',{key:'chips',display:'flex',gap:8,marginBottom:12,justifyContent:'center'},[['W','Week'],['M','Month'],['6M','6 months'],['Y','Year']].map(([k,l])=>this.chip(l,key===k,()=>this.setState({stepRange:k}),{sm:true}))),
             this.e('div',{key:'chart',background:t.card,border:'1px solid '+t.border,borderRadius:18,padding:'14px 16px',marginBottom:14,boxShadow:t.shadow},[
               this.e('div',{fontSize:11.5,color:t.muted,marginBottom:12},DS.cap),
