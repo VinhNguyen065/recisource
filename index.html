@@ -280,9 +280,21 @@ class Component extends DCLogic {
     return fresh.length;};
   gDel=(n)=>{this.setState({gItems:this.gList().filter(x=>x.n!==n)});this.showToast(n+' removed');};
   recToG=(r)=>this.recIng(r).map(g=>({n:g.item,q:this.scaleQ(g.q,g.u)+(g.u?' '+g.u:''),src:r.title}));
-  planSlots=(wk,sel)=>{const RR=this.RECIPES;const sw=this.state.planSwap||0;const px=this.state.planX||{};
+  mondayOf=(wk)=>{const n=new Date();const m=new Date(n);m.setDate(n.getDate()-this.todayIdx()+(wk||0)*7);return m;};
+  weekLabel=(wk)=>{const s=this.mondayOf(wk);const e=new Date(s);e.setDate(s.getDate()+6);const f=(d)=>d.toLocaleString('en',{month:'short'})+' '+d.getDate();return f(s)+' – '+(s.getMonth()===e.getMonth()?e.getDate():f(e));};
+  planFilterFn=(r)=>{const f=this.state.planFilter;if(!f||f==='All')return true;
+    const hay=(this.dietLabels(r).join(' ')+' '+(r.tags||[]).join(' ')).toLowerCase();
+    if(f==='Vegetarian')return /veg/.test(hay);
+    if(f==='High-protein')return this.macros(r).p>=25;
+    if(f==='Quick')return r.time<=20;
+    if(f==='Light')return r.kcal<=400;
+    return true;};
+  planSlots=(wk,sel)=>{const RR=this.RECIPES;const pool0=RR.filter(this.planFilterFn);const P=pool0.length?pool0:RR;const sw=this.state.planSwap||0;const px=this.state.planX||{};
     const ovr=(sl)=>{const id=px[wk+'-'+sel+'-'+sl];return id?(RR.find(r=>r.id===id)||null):null;};
-    return [['Breakfast',ovr('Breakfast')||RR[(2+sel*2+(wk+1)*3+sw)%RR.length]],['Lunch',ovr('Lunch')||RR[(sel*3+(wk+1)*5+sw)%RR.length]],['Dinner',ovr('Dinner')||(sel===2&&wk===0?(this.state.planDinner?(RR.find(r=>r.id===this.state.planDinner)||null):null):RR[(11+sel+(wk+1)*7+sw)%RR.length])],['Snack',ovr('Snack')||RR[(9+sel+(wk+1)*2+sw)%RR.length]]];};
+    const pick=(n)=>P[((n%P.length)+P.length)%P.length];
+    return [['Breakfast',ovr('Breakfast')||pick(2+sel*2+(wk+1)*3+sw)],['Lunch',ovr('Lunch')||pick(sel*3+(wk+1)*5+sw)],['Dinner',ovr('Dinner')||pick(11+sel+(wk+1)*7+sw)],['Snack',ovr('Snack')||pick(9+sel+(wk+1)*2+sw)]];};
+  planKey=(wk,sel,sl)=>wk+'-'+sel+'-'+sl;
+  planAccept=(wk,sel,sl,rid)=>{const px={...(this.state.planX||{})};px[this.planKey(wk,sel,sl)]=rid;this.setState({planX:px});};
   addPlanDayToList=(wk,sel,lbl)=>{const recs=this.planSlots(wk,sel).filter(x=>x[1]).map(x=>x[1]);
     let added=0;const cur=this.gList();const names=cur.map(x=>x.n.toLowerCase());const out=[];
     recs.forEach(r=>this.recToG(r).forEach(it=>{if(!names.includes(it.n.toLowerCase())&&!out.some(o=>o.n.toLowerCase()===it.n.toLowerCase())){out.push(it);added++;}}));
@@ -529,7 +541,7 @@ class Component extends DCLogic {
   cancelHR=()=>{try{clearInterval(this._hrIv);}catch(e){}this.setState({hrMeas:null,hrResult:null,hrWave:[]});};
 
   // ---- Accounts & cloud sync (Supabase Auth + user_state table, RLS-isolated) ----
-  VERSION='20260829.1910';
+  VERSION='20260829.1957';
   checkUpdate=async()=>{try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();
     if(j&&j.v&&this.VERSION!=='__BUILD'+'_TS__'&&j.v!==this.VERSION){
       if(!this.state.lsOn){this.showToast('Updating to the latest version…');setTimeout(()=>{try{location.replace(location.pathname+'?v='+encodeURIComponent(j.v));}catch(e){location.reload();}},900);}
@@ -537,7 +549,7 @@ class Component extends DCLogic {
     }}catch(e){}};
   AUTH_URL='https://czbetvehfqqfhggqlqfp.supabase.co/auth/v1';
   REST_URL='https://czbetvehfqqfhggqlqfp.supabase.co/rest/v1';
-  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog'];
+  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog','planFilter'];
   snapshotState=()=>{const S=this.state;const o={_ts:Date.now()};this.SYNC_KEYS.forEach(k=>{o[k]=S[k];});return o;};
   loadSess=()=>{try{return JSON.parse(localStorage.getItem('recisource_auth')||'null');}catch(e){return null;}};
   saveSess=(s)=>{try{if(s)localStorage.setItem('recisource_auth',JSON.stringify(s));else localStorage.removeItem('recisource_auth');}catch(e){}};
@@ -1071,13 +1083,51 @@ class Component extends DCLogic {
         this.e('div',{key:'sh',marginTop:12},this.btn('Share this cook',()=>this.shareRecipe(this.curRec()),{variant:'secondary',icon:'share'}))
       ]);
 
-      case 'mealPlan': {const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];const sel=(S.planDay!==undefined)?S.planDay:this.todayIdx();const wk=S.planWeek||0;const wkLbl=['Jul 7 – 13','Jul 14 – 20','Jul 21 – 27'][wk+1];const RR=this.RECIPES;const sw=S.planSwap||0;const px=S.planX||{};const slots=this.planSlots(wk,sel);
+      case 'mealPlan': {const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];const sel=(S.planDay!==undefined)?S.planDay:this.todayIdx();const wk=S.planWeek||0;const px=S.planX||{};const slots=this.planSlots(wk,sel);
+        const mon=this.mondayOf(wk);const isToday=(i)=>wk===0&&i===this.todayIdx();
+        const plannedCount=slots.filter(x=>px[this.planKey(wk,sel,x[0])]).length;
+        const dayKcal=slots.reduce((a,x)=>a+(x[1]?x[1].kcal:0),0);const gl=S.kcalGoal||1900;const kp=Math.min(100,Math.round(dayKcal/gl*100));
+        if((S.planView||'Week')==='Month'){
+          const wks=[-1,0,1,2,3];
+          return this.wrap([
+            this.e('div',{key:'top',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 0 14px'},[this.e('div',{},[this.e('div',{fontSize:13,color:t.muted},'Next 5 weeks · tap a day to plan it'),this.sectionTitle('Meal Plan',{m:0,sm:true})]),this.e('div',{display:'flex',background:t.soft,borderRadius:999,padding:3},['Week','Month'].map(v=>this.e('button',{key:v,style:{padding:'7px 14px',borderRadius:999,border:'none',cursor:'pointer',fontSize:12.5,fontWeight:800,background:(S.planView||'Week')===v?t.ink:'transparent',color:(S.planView||'Week')===v?t.inkText:t.muted}},v,{onClick:()=>this.setState({planView:v})})))]),
+            this.e('div',{key:'hdr',display:'flex',gap:6,marginBottom:6},days.map(d=>this.e('div',{key:d,flex:1,textAlign:'center',fontSize:10.5,fontWeight:800,color:t.muted},d))),
+            ...wks.map(w2=>this.e('div',{key:'w'+w2,marginBottom:6},[
+              this.e('div',{fontSize:10.5,fontWeight:800,color:t.faint,margin:'4px 0 4px 2px'},this.weekLabel(w2)+(w2===0?' · this week':'')),
+              this.e('div',{display:'flex',gap:6},days.map((d,i)=>{const dt=new Date(this.mondayOf(w2));dt.setDate(dt.getDate()+i);const nPl=['Breakfast','Lunch','Dinner','Snack'].filter(sl=>px[this.planKey(w2,i,sl)]).length;const today=w2===0&&i===this.todayIdx();
+                return this.e('button',{key:i,style:{flex:1,padding:'8px 0 6px',borderRadius:11,border:today?'2px solid '+t.ink:'1px solid '+t.border,background:nPl?t.soft:t.card,cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:3}},[
+                  this.e('span',{fontSize:12,fontWeight:800,color:t.text},dt.getDate()),
+                  this.e('div',{display:'flex',gap:2,height:5},nPl?Array.from({length:Math.min(4,nPl)},(_,k)=>this.e('span',{key:k,width:5,height:5,borderRadius:999,background:t.accent})):[this.e('span',{key:'e',width:5,height:5,borderRadius:999,background:'transparent'})])
+                ],{onClick:()=>this.setState({planView:'Week',planWeek:w2,planDay:i})});}))
+            ])),
+            this.e('div',{key:'lg',fontSize:11.5,color:t.faint,textAlign:'center',marginTop:8},'Dots = meals you’ve planned that day')
+          ]);
+        }
         return this.wrap([
-          this.e('div',{key:'top',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 0 14px'},[this.e('div',{},[this.e('div',{fontSize:13,color:t.muted},wk===0?'This week':wkLbl),this.sectionTitle('Meal Plan',{m:0,sm:true})]),this.e('div',{display:'flex',background:t.soft,borderRadius:999,padding:3},['Week','Month'].map(v=>this.e('button',{key:v,style:{padding:'7px 14px',borderRadius:999,border:'none',cursor:'pointer',fontSize:12.5,fontWeight:800,background:(S.planView||'Week')===v?t.ink:'transparent',color:(S.planView||'Week')===v?t.inkText:t.muted}},v,{onClick:()=>{this.setState({planView:v});if(v==='Month')this.showToast('Month overview — tap a week to zoom in');}})))]),
-          this.e('div',{key:'wk',display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14},[this.circBtn('back',()=>this.setState({planWeek:Math.max(-1,wk-1)}),{sz:34,icsz:16}),this.e('div',{fontSize:13,fontWeight:800,color:t.text},wkLbl),this.circBtn('chev',()=>this.setState({planWeek:Math.min(1,wk+1)}),{sz:34,icsz:16})]),
-          this.e('div',{key:'days',display:'flex',gap:6,marginBottom:18},days.map((d,i)=>this.e('button',{key:d,style:{flex:1,padding:'9px 0',borderRadius:13,border:'none',cursor:'pointer',background:i===sel?t.ink:t.card,color:i===sel?t.inkText:t.text,display:'flex',flexDirection:'column',alignItems:'center',gap:3,boxShadow:i===sel?'none':'0 1px 3px rgba(0,0,0,.04)'}},[this.e('span',{fontSize:10,fontWeight:600,opacity:.7},d),this.e('span',{fontSize:14,fontWeight:800},(wk===0?this.weekDates()[i]:14+i+wk*7))],{onClick:()=>this.setState({planDay:i})}))),
-          ...slots.map(([slot,rec])=>this.e('div',{key:slot,marginBottom:14},[this.e('div',{fontSize:12,fontWeight:800,textTransform:'uppercase',letterSpacing:'.05em',color:t.muted,marginBottom:8},slot),rec?this.e('div',{style:{display:'flex',alignItems:'center',gap:12,background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:8,cursor:'pointer',boxShadow:t.shadow}},[this.photo(rec.seed,'',{width:56,height:56,borderRadius:12},'food-r'+rec.id),this.e('div',{flex:1},[this.e('div',{fontWeight:800,fontSize:13.5,color:t.text},rec.title),this.e('div',{fontSize:12,color:t.muted,marginTop:2},rec.time+' min · '+rec.kcal+' kcal')]),px[wk+'-'+sel+'-'+slot]?this.e('button',{key:'clr',style:{width:34,height:34,borderRadius:10,border:'none',background:t.soft,color:t.muted,cursor:'pointer',fontWeight:800,fontSize:14,lineHeight:'1',padding:0},title:'Remove from plan'},'×',{onClick:(ev)=>{if(ev&&ev.stopPropagation)ev.stopPropagation();const px2={...(this.state.planX||{})};delete px2[wk+'-'+sel+'-'+slot];this.setState({planX:px2});this.showToast(slot+' cleared — showing a suggestion again');}}):null,this.e('button',{style:{width:34,height:34,borderRadius:10,border:'none',background:t.soft,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0}},this.ic('spark',16,{color:t.text}),{onClick:(ev)=>{if(ev&&ev.stopPropagation)ev.stopPropagation();const st=this.state;const off=(st.planSwap||0)+1;this.setState({planSwap:off});this.showToast('Swapped for another '+slot.toLowerCase()+' idea');}})],{onClick:()=>this.openRecipe(rec)}):this.e('button',{style:{width:'100%',padding:'16px',borderRadius:16,border:'2px dashed '+t.border,background:'none',cursor:'pointer',color:t.muted,fontWeight:800,fontSize:13,display:'flex',alignItems:'center',justifyContent:'center',gap:8}},[this.ic('plus',17),'Add meal'],{onClick:()=>{this.setState({amDay:sel,amSlot:slot,amWk:wk});this.nav('addMeal');}})])),
-          this.e('div',{key:'act',display:'flex',gap:10,marginTop:8},[this.btn('Add this day to grocery list',()=>{this.addPlanDayToList(wk,sel,['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][sel]);this.nav('grocery');},{variant:'primary',icon:'cart',sm:true})])
+          this.e('div',{key:'top',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 0 14px'},[this.e('div',{},[this.e('div',{fontSize:13,color:t.muted},wk===0?'This week':this.weekLabel(wk)),this.sectionTitle('Meal Plan',{m:0,sm:true})]),this.e('div',{display:'flex',background:t.soft,borderRadius:999,padding:3},['Week','Month'].map(v=>this.e('button',{key:v,style:{padding:'7px 14px',borderRadius:999,border:'none',cursor:'pointer',fontSize:12.5,fontWeight:800,background:(S.planView||'Week')===v?t.ink:'transparent',color:(S.planView||'Week')===v?t.inkText:t.muted}},v,{onClick:()=>this.setState({planView:v})})))]),
+          this.e('div',{key:'wk',display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12},[this.circBtn('back',()=>this.setState({planWeek:Math.max(-8,wk-1)}),{sz:34,icsz:16}),this.e('div',{fontSize:13,fontWeight:800,color:t.text,cursor:wk!==0?'pointer':'default'},this.weekLabel(wk)+(wk===0?' · this week':' · tap for today'),wk!==0?{onClick:()=>this.setState({planWeek:0,planDay:this.todayIdx()})}:undefined),this.circBtn('chev',()=>this.setState({planWeek:Math.min(8,wk+1)}),{sz:34,icsz:16})]),
+          this.e('div',{key:'days',display:'flex',gap:6,marginBottom:12},days.map((d,i)=>{const dt=new Date(mon);dt.setDate(dt.getDate()+i);
+            return this.e('button',{key:d,style:{flex:1,padding:'9px 0',borderRadius:13,border:isToday(i)&&i!==sel?'2px solid '+t.ink:'none',cursor:'pointer',background:i===sel?t.ink:t.card,color:i===sel?t.inkText:t.text,display:'flex',flexDirection:'column',alignItems:'center',gap:3,boxShadow:i===sel?'none':'0 1px 3px rgba(0,0,0,.04)'}},[this.e('span',{fontSize:10,fontWeight:600,opacity:.7},d),this.e('span',{fontSize:14,fontWeight:800},dt.getDate())],{onClick:()=>this.setState({planDay:i})});})),
+          this.e('div',{key:'filt',className:'scr',style:{display:'flex',gap:8,overflowX:'auto',paddingBottom:10,marginBottom:4}},['All','Vegetarian','High-protein','Quick','Light'].map(f=>this.chip(f,(S.planFilter||'All')===f,()=>this.setState({planFilter:f,planSwap:0}),{sm:true}))),
+          this.e('div',{key:'sum',display:'flex',alignItems:'center',gap:12,background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'11px 14px',marginBottom:14,boxShadow:t.shadow},[
+            this.e('div',{flex:1},[
+              this.e('div',{fontSize:13,fontWeight:800,color:t.text},plannedCount?plannedCount+' of 4 meals locked in':'Nothing locked in yet — suggestions below'),
+              this.e('div',{fontSize:11.5,color:t.muted,marginTop:2},'~'+dayKcal.toLocaleString()+' kcal for the day · '+kp+'% of your '+gl.toLocaleString()+' goal'),
+              this.e('div',{height:6,borderRadius:999,background:t.soft,overflow:'hidden',marginTop:7},this.e('div',{height:'100%',width:kp+'%',background:dayKcal>gl*1.15?t.heart:t.accent,borderRadius:999,transition:'.3s'}))
+            ]),
+            this.e('button',{style:{padding:'9px 13px',borderRadius:12,border:'none',background:t.accent,color:t.accentText,fontWeight:800,fontSize:11.5,cursor:'pointer',whiteSpace:'nowrap'}},'Keep this day',{onClick:()=>{const px2={...(this.state.planX||{})};let n2=0;slots.forEach(([sl,rec])=>{if(rec&&!px2[this.planKey(wk,sel,sl)]){px2[this.planKey(wk,sel,sl)]=rec.id;n2++;}});this.setState({planX:px2});if(n2){if(this.boom)this.boom(2);this.showToast(days[sel]+' is fully planned — nice!');}else this.showToast('Already fully planned');}})
+          ]),
+          ...slots.map(([slot,rec])=>{const isPl=!!px[this.planKey(wk,sel,slot)];
+            return this.e('div',{key:slot,marginBottom:14},[
+            this.e('div',{display:'flex',alignItems:'center',gap:8,marginBottom:8},[this.e('span',{fontSize:12,fontWeight:800,textTransform:'uppercase',letterSpacing:'.05em',color:t.muted},slot),rec?this.e('span',{fontSize:9.5,fontWeight:800,padding:'2px 8px',borderRadius:999,background:isPl?t.accent:t.soft,color:isPl?t.accentText:t.muted},isPl?'PLANNED':'SUGGESTED'):null]),
+            rec?this.e('div',{style:{display:'flex',alignItems:'center',gap:12,background:t.card,border:isPl?'1.5px solid '+t.accent:'1px solid '+t.border,borderRadius:16,padding:8,cursor:'pointer',boxShadow:t.shadow}},[this.photo(rec.seed,'',{width:56,height:56,borderRadius:12},'food-r'+rec.id),this.e('div',{flex:1,minWidth:0},[this.e('div',{fontWeight:800,fontSize:13.5,color:t.text},rec.title),this.e('div',{fontSize:12,color:t.muted,marginTop:2},rec.time+' min · '+rec.kcal+' kcal')]),
+              isPl
+                ?this.e('button',{key:'clr',style:{width:34,height:34,borderRadius:10,border:'none',background:t.soft,color:t.muted,cursor:'pointer',fontWeight:800,fontSize:14,lineHeight:'1',padding:0},title:'Remove from plan'},'×',{onClick:(ev)=>{if(ev&&ev.stopPropagation)ev.stopPropagation();const px2={...(this.state.planX||{})};delete px2[this.planKey(wk,sel,slot)];this.setState({planX:px2});this.showToast(slot+' unlocked — showing suggestions again');}})
+                :this.e('button',{key:'ok',style:{width:34,height:34,borderRadius:10,border:'none',background:t.accent,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0},title:'Keep this meal'},this.ic('check',16,{color:t.accentText}),{onClick:(ev)=>{if(ev&&ev.stopPropagation)ev.stopPropagation();this.planAccept(wk,sel,slot,rec.id);this.showToast(rec.title+' locked in for '+slot.toLowerCase());}}),
+              isPl?null:this.e('button',{style:{width:34,height:34,borderRadius:10,border:'none',background:t.soft,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0},title:'Another idea'},this.ic('spark',16,{color:t.text}),{onClick:(ev)=>{if(ev&&ev.stopPropagation)ev.stopPropagation();this.setState({planSwap:(this.state.planSwap||0)+1});this.showToast('Swapped for another '+slot.toLowerCase()+' idea');}}),
+              this.e('button',{style:{width:34,height:34,borderRadius:10,border:'none',background:t.soft,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0},title:'Choose a different recipe'},this.ic('search',15,{color:t.text}),{onClick:(ev)=>{if(ev&&ev.stopPropagation)ev.stopPropagation();this.setState({amDay:sel,amSlot:slot,amWk:wk});this.nav('addMeal');}})
+            ],{onClick:()=>this.openRecipe(rec)}):this.e('button',{style:{width:'100%',padding:'16px',borderRadius:16,border:'2px dashed '+t.border,background:'none',cursor:'pointer',color:t.muted,fontWeight:800,fontSize:13,display:'flex',alignItems:'center',justifyContent:'center',gap:8}},[this.ic('plus',17),'Add meal'],{onClick:()=>{this.setState({amDay:sel,amSlot:slot,amWk:wk});this.nav('addMeal');}})]);}),
+          this.e('div',{key:'act',display:'flex',gap:10,marginTop:8},[this.btn('Add this day to grocery list',()=>{this.addPlanDayToList(wk,sel,days[sel]);this.nav('grocery');},{variant:'primary',icon:'cart',sm:true})])
         ]);
       }
 
@@ -1125,7 +1175,7 @@ class Component extends DCLogic {
         return this.e('div',{flex:1,display:'flex',flexDirection:'column',minHeight:0},[
           this.e('div',{key:'top',padding:'6px 18px 8px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10},[this.circBtn('back',()=>this.back()),this.e('div',{flex:1},this.sectionTitle('Grocery List',{m:0,sm:true})),this.circBtn('gear',()=>this.nav('grocerySettings')),this.circBtn('share',()=>{const txt=items.map(it=>(S.gchecked[it.n]?'[x] ':'[ ] ')+(it.q?it.q+' ':'')+it.n).join('\n');if(navigator.share)navigator.share({title:'Grocery list · 21',text:txt}).catch(()=>{});else if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(()=>this.showToast('List copied — paste it anywhere'),()=>this.showToast('Sharing works on your phone'));else this.showToast('Sharing works on your phone');})]),
           items.length?this.e('div',{key:'prog',margin:'0 18px 10px',background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'11px 14px',boxShadow:t.shadow},[
-            this.e('div',{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:7},[this.e('span',{fontSize:13,fontWeight:800,color:t.text},pct===100?'All done — great shop! 🧺':done.length+' of '+items.length+' in the basket'),this.e('span',{fontSize:11.5,color:t.muted},srcs.length?('from '+srcs.length+' recipe'+(srcs.length>1?'s':'')):'')]),
+            this.e('div',{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:7},[this.e('span',{fontSize:13,fontWeight:800,color:t.text},pct===100?'All done — great shop! 🧺':(pct===0?'Ready to shop — '+items.length+' item'+(items.length>1?'s':'')+' to grab':(pct>=50?'Almost there! ':'Off to a good start — ')+done.length+' of '+items.length+' in the basket')),this.e('span',{fontSize:11.5,color:t.muted},srcs.length?('from '+srcs.length+' recipe'+(srcs.length>1?'s':'')):'')]),
             this.e('div',{height:8,borderRadius:999,background:t.soft,overflow:'hidden'},this.e('div',{height:'100%',width:pct+'%',background:t.accent,borderRadius:999,transition:'.4s'}))
           ]):null,
           this.wrap([
