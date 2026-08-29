@@ -541,7 +541,7 @@ class Component extends DCLogic {
   cancelHR=()=>{try{clearInterval(this._hrIv);}catch(e){}this.setState({hrMeas:null,hrResult:null,hrWave:[]});};
 
   // ---- Accounts & cloud sync (Supabase Auth + user_state table, RLS-isolated) ----
-  VERSION='20260829.2012';
+  VERSION='20260829.2025';
   checkUpdate=async()=>{try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();
     if(j&&j.v&&this.VERSION!=='__BUILD'+'_TS__'&&j.v!==this.VERSION){
       if(!this.state.lsOn){this.showToast('Updating to the latest version…');setTimeout(()=>{try{location.replace(location.pathname+'?v='+encodeURIComponent(j.v));}catch(e){location.reload();}},900);}
@@ -549,7 +549,7 @@ class Component extends DCLogic {
     }}catch(e){}};
   AUTH_URL='https://czbetvehfqqfhggqlqfp.supabase.co/auth/v1';
   REST_URL='https://czbetvehfqqfhggqlqfp.supabase.co/rest/v1';
-  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog','planFilter'];
+  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog','planFilter','planTier'];
   snapshotState=()=>{const S=this.state;const o={_ts:Date.now()};this.SYNC_KEYS.forEach(k=>{o[k]=S[k];});return o;};
   loadSess=()=>{try{return JSON.parse(localStorage.getItem('recisource_auth')||'null');}catch(e){return null;}};
   saveSess=(s)=>{try{if(s)localStorage.setItem('recisource_auth',JSON.stringify(s));else localStorage.removeItem('recisource_auth');}catch(e){}};
@@ -575,7 +575,7 @@ class Component extends DCLogic {
       }
       const r=await fetch(this.AUTH_URL+'/token?grant_type=password',{method:'POST',headers:{apikey:this.SCAN_KEY,'Content-Type':'application/json'},body:JSON.stringify({email:em,password:pw})});
       const j=await r.json();
-      if(j&&j.access_token){this.saveSess(j);this.setState({authBusy:false,sessEmail:em,authPwd:''});this.showToast(login?'Welcome back — syncing…':'Account created ✓ syncing…');await this.cloudSyncOnLogin();this.jump('healthToday');}
+      if(j&&j.access_token){this.saveSess(j);this.setState({authBusy:false,sessEmail:em,authPwd:''});this.showToast(login?'Welcome back — syncing…':'Account created ✓ syncing…');await this.cloudSyncOnLogin();if(login){this.jump('healthToday');}else{this.setState({postAuth:true});this.jump('paywall');}}
       else{this.setState({authBusy:false});this.showToast(String((j&&(j.error_description||j.msg||j.error))||'That didn’t work — check your details').slice(0,90));}
     }catch(e){this.setState({authBusy:false});this.showToast('No connection — try again');}};
   logOut=()=>{this.saveSess(null);this.setState({sessEmail:null});this.showToast('Logged out — your data stays on this device');};
@@ -801,6 +801,7 @@ class Component extends DCLogic {
       }
 
       case 'auth': {const login=S.authMode==='login';return this.wrap([
+        this.e('div',{key:'nav',display:'flex',alignItems:'center',justifyContent:'space-between',paddingTop:6},[this.circBtn('back',()=>{if((S.history||[]).length>1)this.back();else this.jump('welcome');}),this.e('span',{fontSize:12.5,fontWeight:800,color:t.muted,cursor:'pointer',textDecoration:'underline'},'Skip for now',{onClick:()=>{this.jump('library');this.showToast('Exploring without an account — everything still works on this device');}})]),
         this.e('div',{key:'top',paddingTop:14,textAlign:'center'},[this.e('div',{width:66,height:66,borderRadius:20,margin:'0 auto 16px',background:'#17191D',display:'flex',alignItems:'center',justifyContent:'center'},this.e('div',{width:28,height:28,borderRadius:9,background:t.accent})),this.sectionTitle(login?'Welcome back':'Create your account',{m:'0 0 6px'}),this.e('div',{fontSize:14,color:t.muted,marginBottom:22},login?'Log in to your recipe library':'Save your first recipe in seconds')]),
         this.e('div',{key:'em',display:'flex',alignItems:'center',gap:9,background:t.card,border:'1px solid '+t.border,borderRadius:14,padding:'13px 14px'},[this.ic('user',17,{color:t.muted}),React.createElement('input',{key:'i',value:S.authEmail||'',onChange:e=>this.setState({authEmail:e.target.value}),placeholder:'Email address',inputMode:'email',autoCapitalize:'none',style:{flex:1,minWidth:0,border:'none',outline:'none',background:'none',fontSize:14.5,color:t.text,fontFamily:'inherit'}})]),
         this.e('div',{key:'sp',height:12}),
@@ -1391,7 +1392,7 @@ class Component extends DCLogic {
       case 'settings': return this.wrap([
         this.topbar('Settings'),
         ...(()=>{const dsel=Object.keys(S.diet||{}).filter(k=>S.diet[k]);const dietV=dsel.length?(dsel[0]+(dsel.length>1?' +'+(dsel.length-1):'')):'None set';
-        return [['Account',[['Email',S.sessEmail||'Not signed in'],['Password','Change'],['Sign out',''],['Delete account','']]],['Health & Data',[['Apple Health sync',S.ahealth?'On':'Off'],['Connected records',S.records||'None'],['Medical profile',((S.conds||[]).length)+' conditions'],['Export my data','JSON'],['Start fresh',S.confirmFresh?'Tap again to confirm':'Clear demo data']]],['Preferences',[['Dietary & allergens',dietV],['Units',S.unit==='imperial'?'Imperial':'Metric'],['Notifications',S.notif?'On':'Off'],['Appearance',S.appearance||'Light']]],['More',[['About','v '+(this.VERSION.indexOf('BUILD')>=0?'dev':this.VERSION)],['Privacy & Terms',''],['Help & Support','']]]].map(([grp,rows])=>this.e('div',{key:grp},[this.h(grp),this.e('div',{style:{background:t.card,border:'1px solid '+t.border,borderRadius:16,overflow:'hidden'}},rows.map(([l,v],i)=>this.e('div',{key:l,style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 15px',borderBottom:i<rows.length-1?'1px solid '+t.border:'none',cursor:'pointer',color:l.match(/Delete|Sign out/)?'#D0453A':t.text}},[this.e('span',{fontSize:14.5,fontWeight:l.match(/Delete|Sign out/)?700:500},l),this.e('span',{fontSize:13.5,color:t.muted,display:'flex',alignItems:'center',gap:6},[v,v?this.ic('chev',15,{color:t.faint}):null])],{onClick:()=>{
+        return [['Account',[['Email',S.sessEmail||'Not signed in'],['Plan',S.planTier==='annual'?'Annual Pro (beta)':(S.planTier==='monthly'?'Monthly Pro (beta)':'Free')],['Password','Change'],['Sign out',''],['Delete account','']]],['Health & Data',[['Apple Health sync',S.ahealth?'On':'Off'],['Connected records',S.records||'None'],['Medical profile',((S.conds||[]).length)+' conditions'],['Export my data','JSON'],['Start fresh',S.confirmFresh?'Tap again to confirm':'Clear demo data']]],['Preferences',[['Dietary & allergens',dietV],['Units',S.unit==='imperial'?'Imperial':'Metric'],['Notifications',S.notif?'On':'Off'],['Appearance',S.appearance||'Light']]],['More',[['About','v '+(this.VERSION.indexOf('BUILD')>=0?'dev':this.VERSION)],['Privacy & Terms',''],['Help & Support','']]]].map(([grp,rows])=>this.e('div',{key:grp},[this.h(grp),this.e('div',{style:{background:t.card,border:'1px solid '+t.border,borderRadius:16,overflow:'hidden'}},rows.map(([l,v],i)=>this.e('div',{key:l,style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 15px',borderBottom:i<rows.length-1?'1px solid '+t.border:'none',cursor:'pointer',color:l.match(/Delete|Sign out/)?'#D0453A':t.text}},[this.e('span',{fontSize:14.5,fontWeight:l.match(/Delete|Sign out/)?700:500},l),this.e('span',{fontSize:13.5,color:t.muted,display:'flex',alignItems:'center',gap:6},[v,v?this.ic('chev',15,{color:t.faint}):null])],{onClick:()=>{
           if(l==='Privacy & Terms'){this.openLegal('privacy');return;}
           if(l==='Medical profile'){this.nav('medicalProfile');return;}
           if(l==='Apple Health sync'){const on=!this.state.ahealth;this.setState({ahealth:on});this.showToast(on?'Apple Health connected \u2014 HR, sleep & steps syncing':'Apple Health sync paused');return;}
@@ -1403,28 +1404,31 @@ class Component extends DCLogic {
           if(l==='Units'){const u2=this.state.unit==='metric'?'imperial':'metric';this.setState({unit:u2});this.showToast('Units switched to '+(u2==='metric'?'Metric':'Imperial')+' everywhere');return;}
           if(l==='Notifications'){const on=!this.state.notif;this.setState({notif:on});this.showToast(on?'Notifications on \u2014 meal & med reminders active':'Notifications muted');return;}
           if(l==='Appearance'){const ap=this.state.appearance==='Dark'?'Light':'Dark';this.setState({appearance:ap});this.showToast(ap+' mode on');return;}
+          if(l==='Plan'){this.nav('paywall');return;}
           if(l==='Password'){const em=this.state.sessEmail;if(!em){this.showToast('Sign in first — Profile → Create your free account');return;}fetch(this.AUTH_URL+'/recover',{method:'POST',headers:{apikey:this.SCAN_KEY,'Content-Type':'application/json'},body:JSON.stringify({email:em})}).then(()=>this.showToast('Password reset link sent to '+em)).catch(()=>this.showToast('Couldn’t send — try again'));return;}
-          if(l==='Sign out'){this.showToast('Signed out (demo keeps you in)');return;}
+          if(l==='Sign out'){if(!this.state.sessEmail){this.showToast('You’re not signed in — create your account from Profile');return;}this.logOut();return;}
           if(l==='Delete account'){this.showToast('Deletion needs email confirmation \u2014 check your inbox');return;}
           if(l==='Help & Support'){this.showToast('Support chat opens in the full release');return;}
           this.showToast(l);}})))]));})(),
         this.e('div',{key:'sp',height:16})
       ]);
 
-      case 'paywall': {const plan=S.plan||'annual';const A=this.props.accentColor||'#34D399';
+      case 'paywall': {const plan=S.plan||'annual';const A=this.props.accentColor||'#34D399';const leave=()=>{if(this.state.postAuth){this.setState({postAuth:false});this.jump('healthToday');}else this.back();};
         const feat=(txt)=>this.e('div',{key:txt,display:'flex',alignItems:'center',gap:12,padding:'9px 0'},[this.e('div',{width:26,height:26,borderRadius:999,background:'rgba(52,211,153,.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic('check',15,{color:A})),this.e('span',{fontSize:14.5,color:'#EAEBEC',fontWeight:600},txt)]);
         const planCard=(id,title,price,sub,badge)=>{const on=plan===id;return this.e('button',{key:id,style:{width:'100%',textAlign:'left',display:'flex',alignItems:'center',gap:13,padding:'15px 16px',borderRadius:18,cursor:'pointer',background:on?'rgba(52,211,153,.10)':'#1A1C21',border:'1.5px solid '+(on?A:'#2A2D34')}},[this.e('div',{width:22,height:22,borderRadius:999,border:'2px solid '+(on?A:'#4A4D55'),background:on?A:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},on?this.ic('check',13,{color:'#0E0F12'}):null),this.e('div',{flex:1},[this.e('div',{fontSize:15,fontWeight:800,color:'#fff'},title),this.e('div',{fontSize:12.5,color:'#9A9DA4',marginTop:2},sub)]),this.e('div',{style:{textAlign:'right'}},[this.e('div',{fontSize:15,fontWeight:800,color:'#fff'},price),badge?this.e('div',{fontSize:10.5,fontWeight:800,color:'#0E0F12',background:A,borderRadius:999,padding:'2px 7px',marginTop:4,display:'inline-block'},badge):null])],{onClick:()=>this.setState({plan:id})});};
         return this.e('div',{flex:1,display:'flex',flexDirection:'column',background:'#0E0F12',overflow:'hidden'},[
           this.e('div',{key:'body',className:'scr',style:{flex:1,minHeight:0,overflowY:'auto',padding:'2px 22px 18px'}},[
-            this.e('div',{key:'x',display:'flex',justifyContent:'flex-end',marginBottom:4},this.circBtn('close',()=>this.back(),{bg:'#1E2025',border:'#2A2D34',color:'#fff'})),
+            this.e('div',{key:'x',display:'flex',justifyContent:'flex-end',marginBottom:4},this.circBtn('close',leave,{bg:'#1E2025',border:'#2A2D34',color:'#fff'})),
+            S.postAuth?this.e('div',{key:'welc',display:'flex',alignItems:'center',gap:9,background:'rgba(52,211,153,.12)',border:'1px solid rgba(52,211,153,.4)',borderRadius:13,padding:'10px 13px',marginBottom:12},[this.ic('check',16,{color:A}),this.e('span',{fontSize:12.5,fontWeight:700,color:'#EAEBEC'},'Account created — pick a plan to finish up (you can change it any time)')]):null,
             this.e('div',{key:'crown',width:62,height:62,borderRadius:19,background:A,display:'flex',alignItems:'center',justifyContent:'center',margin:'4px 0 18px'},this.ic('crown',31,{color:'#0E0F12'})),
             this.e('div',{key:'t',style:{fontSize:30,fontWeight:800,color:'#fff',letterSpacing:'-.02em',lineHeight:1.05}},['21 ',this.e('span',{style:{color:A}},'Pro')]),
             this.e('div',{key:'sub',fontSize:15,color:'#9A9DA4',marginTop:9,marginBottom:22,lineHeight:1.42},'Cook smarter and waste less with everything unlocked.'),
             this.e('div',{key:'feats',marginBottom:22},[feat('Unlimited AI recipe generation'),feat('Unlimited recipe imports & photo OCR'),feat('Voice-guided hands-free cook mode'),feat('Full per-serving nutrition breakdowns'),feat('Household sharing for up to 6'),feat('Ad-free with priority support')]),
-            this.e('div',{key:'plans',display:'flex',flexDirection:'column',gap:11},[planCard('annual','Annual','$39.99/yr','Just $3.33 / month','Save 44%'),planCard('monthly','Monthly','$5.99/mo','Billed monthly',null)])
+            this.e('div',{key:'plans',display:'flex',flexDirection:'column',gap:11},[planCard('annual','Annual Pro','$39.99/yr at launch','Just $3.33 / month','Save 44%'),planCard('monthly','Monthly Pro','$5.99/mo at launch','Billed monthly',null),planCard('free','Free','$0','Scan, log, sync & 5 imports a month',null)]),
+            this.e('div',{key:'beta',display:'flex',gap:9,background:'#1A1C21',border:'1px solid #2A2D34',borderRadius:13,padding:'11px 13px',marginTop:14},[this.ic('spark',16,{color:A}),this.e('div',{fontSize:11.5,color:'#9A9DA4',lineHeight:1.45},[this.e('b',{style:{color:'#EAEBEC'}},'Beta period: '),'every plan is free right now — no card, no charge. Your pick just tells us what you’d choose at launch.'])])
           ]),
           this.e('div',{key:'foot',flexShrink:0,padding:'14px 22px 22px',background:'#0E0F12',borderTop:'1px solid #1E2025'},[
-            this.btn(plan==='annual'?'Start 7-day free trial':'Continue',()=>{this.showToast('Welcome to 21 Pro!');this.jump('library');},{style:{marginBottom:10}}),
+            this.btn(plan==='free'?'Continue with Free':(plan==='annual'?'Choose Annual · free in beta':'Choose Monthly · free in beta'),()=>{const p2=this.state.plan||'annual';this.setState({planTier:p2,postAuth:false});if(this.boom)this.boom(2);this.showToast(p2==='free'?'You’re on the Free plan — upgrade any time in Settings':'You’re on '+(p2==='annual'?'Annual':'Monthly')+' Pro — free during beta, nothing charged');this.jump('healthToday');},{style:{marginBottom:10}}),
             this.e('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',gap:14,fontSize:12,color:'#6E717A'}},[this.e('span',{style:{cursor:'pointer',textDecoration:'underline'}},'Restore',{onClick:()=>this.showToast('Restoring purchases\u2026')}),this.e('span',{},'\u00b7'),this.e('span',{style:{cursor:'pointer',textDecoration:'underline'}},'Terms',{onClick:()=>this.openLegal('terms')}),this.e('span',{},'\u00b7'),this.e('span',{style:{cursor:'pointer',textDecoration:'underline'}},'Privacy',{onClick:()=>this.openLegal('privacy')})])
           ])
         ]);
