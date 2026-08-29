@@ -541,7 +541,7 @@ class Component extends DCLogic {
   cancelHR=()=>{try{clearInterval(this._hrIv);}catch(e){}this.setState({hrMeas:null,hrResult:null,hrWave:[]});};
 
   // ---- Accounts & cloud sync (Supabase Auth + user_state table, RLS-isolated) ----
-  VERSION='20260829.1957';
+  VERSION='20260829.2012';
   checkUpdate=async()=>{try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();
     if(j&&j.v&&this.VERSION!=='__BUILD'+'_TS__'&&j.v!==this.VERSION){
       if(!this.state.lsOn){this.showToast('Updating to the latest version…');setTimeout(()=>{try{location.replace(location.pathname+'?v='+encodeURIComponent(j.v));}catch(e){location.reload();}},900);}
@@ -604,17 +604,25 @@ class Component extends DCLogic {
   captureScan=(mode,fromLib)=>{const inp=document.createElement('input');inp.type='file';inp.accept='image/*';if(!fromLib)inp.setAttribute('capture','environment');inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');const sc=Math.min(1,900/im.width);c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);c.getContext('2d').drawImage(im,0,0,c.width,c.height);const durl=c.toDataURL('image/jpeg',0.72);this.WIMG['scan-photo']=durl;this.WIMG['scan-live']=durl;this.setState({scanImg:durl,scanB64:durl.split(',')[1]});this.nav('scanChoice');};im.src=rd.result;};rd.readAsDataURL(f);};inp.click();};
   goScan=(mode,b64)=>{this.setState({scanMode:mode});this.nav('mealScanAnalyzing');this.runScan(mode,b64);};
   nextMyId=()=>{const mr=this.state.myRecs||[];return 1000+mr.reduce((a,r)=>Math.max(a,(r.id||999)-999),0);};
-  importRecipe=(rl,srcSub,img)=>{const id=this.nextMyId();const rec={id,title:rl.title,time:30,rating:4.8,tags:(rl.tags||['Imported']).slice(0,2),seed:(id%12)+1,diet:[],meal:'Dinner',diff:'Medium',kcal:rl.kcal_per_serving||400,sub:(srcSub||rl.description||'Imported').slice(0,42),live:{ingredients:rl.ingredients||[],steps:rl.steps||[]}};if(img){rec.img=img;this.WIMG['food-r'+id]=img;}this.RECIPES.push(rec);this.setState({myRecs:(this.state.myRecs||[]).concat(rec),recId:id,impPhase:0,screen:'recipeDetail',history:this.state.history.concat('recipeDetail')});this.showToast('Saved to your library');};
+  importRecipe=(rl,srcSub,img)=>{const id=this.nextMyId();const rec={id,title:rl.title,time:30,rating:4.8,tags:(rl.tags||['Imported']).slice(0,2),seed:(id%12)+1,diet:[],meal:'Dinner',diff:'Medium',kcal:rl.kcal_per_serving||400,sub:(srcSub||rl.description||'Imported').slice(0,42),live:{ingredients:rl.ingredients||[],steps:rl.steps||[]}};if(img){rec.img=img;this.WIMG['food-r'+id]=img;}this.RECIPES.push(rec);this.setState({myRecs:(this.state.myRecs||[]).concat(rec),recId:id,impPhase:0,impReview:null,savedBanner:id,screen:'recipeDetail',history:['library','recipeDetail']});if(this.boom)this.boom(2);this.showToast('Saved! '+rl.title+' is in your library');};
+  ytThumb=(u)=>{const m=(u||'').match(/(?:youtube\.com\/(?:watch\?[^#]*v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,20})/);return m?('https://img.youtube.com/vi/'+m[1]+'/hqdefault.jpg'):null;};
+  fetchLinkImage=(u)=>{fetch('https://api.microlink.io/?url='+encodeURIComponent(u)).then(r=>r.json()).then(m=>{const iu=m&&m.data&&m.data.image&&m.data.image.url;if(iu&&this.state.impReview&&!this.state.impReview.img)this.setState({impReview:{...this.state.impReview,img:iu}});}).catch(()=>{});};
+  openImportReview=(rl,src,img)=>{const h=this.state.history.slice(0,-1).concat('importReview');this.setState({impPhase:0,impReview:{rl:rl,src:src||null,img:img||null},irTitle:rl.title,screen:'importReview',history:h});};
   pickImage=(cb)=>{const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');const sc=Math.min(1,700/im.width);c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);c.getContext('2d').drawImage(im,0,0,c.width,c.height);cb(c.toDataURL('image/jpeg',0.6));};im.src=rd.result;};rd.readAsDataURL(f);};inp.click();};
   parseIng=(s)=>{const m=(s||'').trim().match(/^([\d.\/]+)\s*([a-zA-Z]{1,10})?\s+(.+)$/);if(m&&m[3])return {q:parseFloat(m[1])||1,u:m[2]||'',item:m[3]};return {q:1,u:'',item:(s||'').trim()};};
   runImport=(kind,value)=>{const seq=this._impSeq=(this._impSeq||0)+1;this.setState({impPhase:1});
     fetch(this.SCAN_URL,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+this.SCAN_KEY,apikey:this.SCAN_KEY},body:JSON.stringify(kind==='url'?{mode:'url',url:value}:{mode:'text',text:value})})
-    .then(r=>r.json()).then(j=>{if(this._impSeq!==seq)return;if(!j||!j.title)throw 0;this.importRecipe(j,kind==='url'?value.replace(/^https?:\/\/(www\.)?/,'').slice(0,42):null);})
+    .then(r=>r.json()).then(j=>{if(this._impSeq!==seq)return;if(!j||!j.title)throw 0;
+      const src=kind==='url'?value.replace(/^https?:\/\/(www\.)?/,'').slice(0,42):null;
+      let img=j.image_url||null;
+      if(!img&&kind==='url')img=this.ytThumb(value);
+      this.openImportReview(j,src,img);
+      if(!img&&kind==='url')this.fetchLinkImage(value);})
     .catch(()=>{if(this._impSeq!==seq)return;this.setState({impPhase:0});this.showToast('Couldn’t read a recipe from that — try another link or paste the text');});};
   cancelScan=()=>{this._scanSeq=(this._scanSeq||0)+1;this.back();};
   runScan=(mode,b64)=>{const seq=this._scanSeq=(this._scanSeq||0)+1;fetch(this.SCAN_URL,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+this.SCAN_KEY,apikey:this.SCAN_KEY},body:JSON.stringify({mode:mode==='recipe'?'recipe':(mode==='bar'?'barcode':'calories'),image:b64})}).then(r=>r.json()).then(j=>{
     if(this._scanSeq!==seq)return;
-    if(mode==='recipe'){if(!j||!j.title)throw 0;const rl=j;const rec={id:999,title:rl.title,time:30,rating:4.8,tags:(rl.tags||['Scanned']).slice(0,2),seed:1,diet:[],meal:'Dinner',diff:'Medium',kcal:rl.kcal_per_serving||400,sub:(rl.description||'Scanned with AI').slice(0,42),img:this.state.scanImg};const i=this.RECIPES.findIndex(r=>r.id===999);if(i>=0)this.RECIPES[i]=rec;else this.RECIPES.push(rec);const h=this.state.history.slice(0,-1).concat('recipeDetail');this.setState({recipeLive:rl,scanRec:rec,recId:999,screen:'recipeDetail',history:h});this.showToast('Recipe scanned & saved to library');}
+    if(mode==='recipe'){if(!j||!j.title)throw 0;this.openImportReview(j,'Scanned with AI',this.state.scanImg);this.showToast('Recipe read from your photo — review & save');}
     else{if(!j||!j.items||!j.items.length)throw 0;const h=this.state.history.slice(0,-1).concat('mealScanResult');this.setState({scanLive:j.items,scanConf:j.confidence||90,scanQty:{},screen:'mealScanResult',history:h});}
   }).catch(()=>{if(this._scanSeq!==seq)return;const h=this.state.history.slice(0,-1);this.setState({screen:h[h.length-1]||'mealScan',history:h.length?h:['mealScan']});this.showToast('Scan failed — check connection & try again');});};
   slug=(s)=>s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
@@ -700,7 +708,7 @@ class Component extends DCLogic {
   T(){return this._t;}
   L(){const a=this.props.accentColor||'#E8722E';return {bg:'#F7F1E8',card:'#FFFFFF',soft:'#F1E7D6',text:'#2B2119',muted:'#6B5D4F',faint:'#8A7A69',border:'#E8DCC6',ink:'#A83E1C',inkText:'#FFFFFF',accent:a,accentText:'#3B1505',heart:'#EF4444',shadow:'0 1px 3px rgba(43,33,25,.08)'};}
   SEC_BG={food:'#F2F4E4',health:'#F9ECE1',fit:'#FBF0D9'};
-  SEC_FOOD=['library','search','collections','tags','recipeDetail','editRecipe','manualEntry','moreMenu','addMenu','urlImport','photoImport','textImport','mealPlan','addMeal','planPick','grocery','addToGrocery','grocerySettings','nutrition','dietaryFilters','calorieDiary','manualFood','mealScanResult','goalEdit'];
+  SEC_FOOD=['library','search','collections','tags','recipeDetail','editRecipe','manualEntry','moreMenu','addMenu','urlImport','photoImport','textImport','importReview','mealPlan','addMeal','planPick','grocery','addToGrocery','grocerySettings','nutrition','dietaryFilters','calorieDiary','manualFood','mealScanResult','goalEdit'];
   SEC_HEALTH=['weight','steps','heartRate','sleep','medicalProfile','aiChat'];
   SEC_FIT=['fitness','logWorkout','liveWorkout'];
   secBg=(id)=>this.SEC_FOOD.includes(id)?this.SEC_BG.food:(this.SEC_HEALTH.includes(id)?this.SEC_BG.health:(this.SEC_FIT.includes(id)?this.SEC_BG.fit:'#F7F1E8'));
@@ -922,6 +930,35 @@ class Component extends DCLogic {
         ]);
       }
 
+      case 'importReview': {const ir=S.impReview;
+        if(!ir)return this.e('div',{flex:1,minHeight:0,display:'flex',flexDirection:'column'},[this.topbar('Review & save'),this.wrap([this.e('div',{key:'x',fontSize:13.5,color:t.muted,padding:'10px 0'},'Nothing to review yet — import a recipe from a link, text or photo first.'),this.btn('Import a recipe',()=>this.jump('addMenu'),{icon:'plus'})])]);
+        const rl=ir.rl;const nIng=(rl.ingredients||[]).length;const nSt=(rl.steps||[]).length;
+        const setImg=(d)=>this.setState({impReview:{...(this.state.impReview||{}),img:d}});
+        return this.e('div',{flex:1,minHeight:0,display:'flex',flexDirection:'column'},[
+          this.topbar('Review & save'),
+          this.e('div',{key:'body',className:'scr',style:{flex:1,minHeight:0,overflowY:'auto',padding:'0 18px'}},[
+            this.e('div',{key:'b',display:'flex',alignItems:'center',gap:8,background:t.accent,borderRadius:12,padding:'11px 13px',marginBottom:14,fontSize:12.5,fontWeight:700,color:t.accentText},[this.ic('spark',15,{color:t.accentText}),'We read this recipe — nothing is saved until you hit Save.']),
+            this.e('div',{key:'ph',position:'relative',borderRadius:18,overflow:'hidden',marginBottom:14,background:t.soft,height:170},[
+              ir.img?React.createElement('img',{key:'im',src:ir.img,alt:'',style:{width:'100%',height:'100%',objectFit:'cover',display:'block'},onError:(e)=>{e.target.style.display='none';}}):this.e('div',{key:'noim',position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:8,color:t.muted,cursor:'pointer'},[this.ic('camera',26,{color:t.muted}),this.e('span',{fontSize:12.5,fontWeight:700},'No photo on that page — tap to add one')],{onClick:()=>this.pickImage(setImg)}),
+              this.e('button',{key:'chg',style:{position:'absolute',bottom:10,right:10,background:'rgba(255,255,255,.94)',border:'none',borderRadius:999,padding:'7px 13px',fontWeight:800,fontSize:12,cursor:'pointer',display:'flex',gap:6,alignItems:'center'}},[this.ic('camera',14),ir.img?'Change photo':'Add photo'],{onClick:()=>this.pickImage(setImg)})
+            ]),
+            this.h('Title'),
+            React.createElement('input',{key:'ti',value:S.irTitle||'',onChange:e=>this.setState({irTitle:e.target.value}),style:{width:'100%',boxSizing:'border-box',border:'1px solid '+t.border,borderRadius:12,padding:'12px 13px',fontSize:15,fontWeight:800,color:t.text,outline:'none',background:t.card,fontFamily:'inherit',marginBottom:12}}),
+            this.e('div',{key:'meta',display:'flex',gap:8,flexWrap:'wrap',marginBottom:14},[(rl.kcal_per_serving||400)+' kcal/serve',nIng+' ingredients',nSt+' steps'].concat(ir.src?[ir.src]:[]).map(x=>this.e('span',{key:x,fontSize:11.5,fontWeight:700,background:t.soft,color:t.text,borderRadius:999,padding:'6px 11px'},x))),
+            this.h('Ingredients'),
+            ...(rl.ingredients||[]).map((g,i)=>this.e('div',{key:'g'+i,display:'flex',alignItems:'center',gap:10,padding:'9px 2px',borderBottom:'1px solid '+t.border},[this.e('span',{fontSize:13.5,color:t.text},[this.e('b',{fontWeight:800},(g.q||'')+(g.u?' '+g.u:'')+' '),g.item])])),
+            this.h('Method'),
+            ...(rl.steps||[]).slice(0,3).map((st2,i)=>this.e('div',{key:'s'+i,display:'flex',gap:10,marginBottom:10},[this.e('div',{width:24,height:24,borderRadius:999,background:t.ink,color:t.inkText,fontWeight:800,fontSize:12,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},i+1),this.e('div',{fontSize:13,lineHeight:1.45,color:t.text,paddingTop:2},st2.t||String(st2))])),
+            nSt>3?this.e('div',{key:'more',fontSize:12,color:t.muted,marginBottom:8},'+ '+(nSt-3)+' more steps — you can read them all after saving'):null,
+            this.e('div',{key:'sp',height:8})
+          ]),
+          this.e('div',{key:'f',padding:'12px 18px 22px',borderTop:'1px solid '+t.border,display:'flex',gap:10},[
+            this.btn('Discard',()=>{this.setState({impReview:null});this.back();this.showToast('Nothing was saved');},{variant:'secondary',style:{flex:1}}),
+            this.btn('Save recipe',()=>{const ttl=(this.state.irTitle||'').trim()||rl.title;this.importRecipe({...rl,title:ttl},ir.src,ir.img);},{icon:'check',style:{flex:1.6}})
+          ])
+        ]);
+      }
+
       case 'manualEntry': case 'editRecipe': {const edit=id==='editRecipe';const inpSt={width:'100%',boxSizing:'border-box',border:'1px solid '+t.border,borderRadius:12,padding:'11px 13px',fontSize:14,fontWeight:600,color:t.text,outline:'none',background:t.card,fontFamily:'inherit'};
         return this.e('div',{key:'me',flex:1,minHeight:0,display:'flex',flexDirection:'column'},[
         this.topbar(edit?'Edit recipe':'New recipe'),
@@ -971,7 +1008,8 @@ class Component extends DCLogic {
             this.e('div',{key:'c',style:{padding:'8px 18px 120px'}},[
               this.e('div',{fontSize:25,fontWeight:800,letterSpacing:'-.02em',lineHeight:1.15,color:t.text,marginBottom:8},r.title),
               this.e('div',{display:'flex',alignItems:'center',gap:6,fontSize:13,color:t.muted,marginBottom:16},[this.ic('tm',15,{color:t.text}),'Made in Thermomix',this.e('span',{width:3,height:3,borderRadius:999,background:t.faint}),this.e('span',{display:'flex',alignItems:'center',gap:3,color:t.text,fontWeight:700},[this.ic('star',14,{fill:'#F2B01E'}),r.rating,this.e('span',{color:t.muted,fontWeight:500},' · cooked 6×')])]),
-              (r.id===999&&S.scanB64)?this.e('div',{key:'scanban',display:'flex',alignItems:'center',gap:10,background:'rgba(52,211,153,.16)',border:'1px solid '+t.accent,borderRadius:14,padding:'10px 13px',marginBottom:16},[this.ic('spark',17,{color:t.text}),this.e('div',{flex:1},[this.e('div',{fontSize:12.5,fontWeight:800,color:t.text},'Scanned with AI · saved to your library'),this.e('div',{fontSize:11.5,color:t.muted},'Just ate this? Count calories from the same photo')]),this.e('button',{style:{border:'none',background:t.ink,color:t.inkText,fontWeight:800,fontSize:11.5,padding:'8px 12px',borderRadius:999,cursor:'pointer',whiteSpace:'nowrap'}},'Count kcal',{onClick:()=>{this.setState({scanMode:'cal'});this.nav('mealScanAnalyzing');this.runScan('cal',this.state.scanB64);}})]):null,
+              (S.savedBanner===r.id)?this.e('div',{key:'savedb',display:'flex',alignItems:'center',gap:10,background:'rgba(52,211,153,.18)',border:'1.5px solid '+t.accent,borderRadius:14,padding:'11px 13px',marginBottom:16},[this.e('div',{width:26,height:26,borderRadius:999,background:t.accent,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic('check',15,{color:t.accentText})),this.e('div',{flex:1},[this.e('div',{fontSize:12.5,fontWeight:800,color:t.text},'Saved to your library'),this.e('div',{fontSize:11.5,color:t.muted},'Back takes you Home. Plan it, cook it, or add it to your grocery list below.')]),this.e('button',{style:{border:'none',background:'none',color:t.muted,fontWeight:800,cursor:'pointer',fontSize:15,padding:4}},'\u00d7',{onClick:()=>this.setState({savedBanner:null})})]):null,
+              (S.scanB64&&(r.id===999||(r.img&&r.img===S.scanImg)))?this.e('div',{key:'scanban',display:'flex',alignItems:'center',gap:10,background:'rgba(52,211,153,.16)',border:'1px solid '+t.accent,borderRadius:14,padding:'10px 13px',marginBottom:16},[this.ic('spark',17,{color:t.text}),this.e('div',{flex:1},[this.e('div',{fontSize:12.5,fontWeight:800,color:t.text},'Scanned with AI · saved to your library'),this.e('div',{fontSize:11.5,color:t.muted},'Just ate this? Count calories from the same photo')]),this.e('button',{style:{border:'none',background:t.ink,color:t.inkText,fontWeight:800,fontSize:11.5,padding:'8px 12px',borderRadius:999,cursor:'pointer',whiteSpace:'nowrap'}},'Count kcal',{onClick:()=>{this.setState({scanMode:'cal'});this.nav('mealScanAnalyzing');this.runScan('cal',this.state.scanB64);}})]):null,
               this.e('div',{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:0,background:t.card,border:'1px solid '+t.border,borderRadius:18,padding:'14px 8px',marginBottom:18},[[String(r.kcal),'kcal'],[M.p+'g','protein'],[M.f+'g','fats'],[M.c+'g','carbs']].map(([v,l],i)=>this.e('div',{key:l,style:{textAlign:'center',borderRight:i<3?'1px solid '+t.border:'none'}},[this.e('div',{fontSize:17,fontWeight:800,color:t.text},v),this.e('div',{fontSize:11,color:t.muted,marginTop:2},l)]))),
               this.e('div',{display:'flex',justifyContent:'space-between',marginBottom:20},acts.map(([ic,l,go])=>this.e('button',{key:l,style:{background:'none',border:'none',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:6}},[this.e('div',{width:50,height:50,borderRadius:16,background:t.card,border:'1px solid '+t.border,display:'flex',alignItems:'center',justifyContent:'center',color:(l==='Save'&&fav)?t.heart:t.text},this.ic(ic,20,{fill:(l==='Save'&&fav)?t.heart:'none',color:(l==='Save'&&fav)?t.heart:t.text})),this.e('span',{fontSize:11,fontWeight:700,color:t.muted},l)],{onClick:()=>{if(go==='fav')this.toggleFav(r.id);else if(go==='logFood')this.openLogFood(r.title,r.kcal,'Dinner');else if(go==='shareGo')this.shareRecipe(r);else this.nav(go);}}))),
               this.e('div',{display:'flex',alignItems:'center',justifyContent:'space-between',background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'11px 14px',marginBottom:18},[
