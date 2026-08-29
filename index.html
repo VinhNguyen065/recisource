@@ -279,15 +279,39 @@ class Component extends DCLogic {
   scanItems=()=>this.state.scanLive||this.SCAN_ITEMS;
   scanTotals=()=>{const q=this.state.scanQty;return this.scanItems().reduce((a,it,i)=>{const m=(q[i]!==undefined)?q[i]:1;return {kcal:a.kcal+Math.round((it.kcal||0)*m),p:a.p+Math.round((it.p||0)*m),f:a.f+Math.round((it.f||0)*m),c:a.c+Math.round((it.c||0)*m)};},{kcal:0,p:0,f:0,c:0});};
   runCoach=()=>{this.setState({coachPhase:1});clearTimeout(this._cp);this._cp=setTimeout(()=>this.setState({coachPhase:2}),1800);};
-  sendChat=(q)=>{const msg=(q||'').trim();if(!msg)return;const lower=msg.toLowerCase();
-    const reply=/spic/.test(lower)?'Add 1 extra red chilli at step 2 and a pinch of cayenne with the turmeric — heat without changing the texture.'
-      :/double/.test(lower)?'Doubling works: keep chop times the same, add 2 min to the sauté and use reverse + speed 1 so the extra volume doesn’t crush.'
-      :/stor/.test(lower)?'Cool within 30 min, fridge up to 3 days in a sealed box, or freeze 2 months. Reheat to steaming-hot right through.'
-      :/wine|drink|pair/.test(lower)?'A dry Riesling or a citrusy pale ale pairs well — both cut through the richness.'
-      :/veg(an|etarian)/.test(lower)?'Swap the eggs for 150 g crumbled firm tofu tossed in at step 4, and use vegan fish-sauce alternative.'
-      :'Good question! For this recipe I’d keep it simple: taste at the last step and adjust salt, acid and heat in that order.';
-    this.setState({chatLog:(this.state.chatLog||[]).concat([{me:true,txt:msg},{me:false,txt:reply}]),chatDraft:''});};
+  sendChat=(q)=>{const msg=(q||'').trim();if(!msg)return;
+    const log=(this.state.chatLog||[]).concat([{me:true,txt:msg}]);
+    this.setState({chatLog:log,chatDraft:'',chatBusy:true});
+    const seq=this._chatSeq=(this._chatSeq||0)+1;
+    const wire=log.slice(-12).map(m=>({role:m.me?'user':'assistant',content:m.txt}));
+    fetch(this.SCAN_URL,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+this.SCAN_KEY,apikey:this.SCAN_KEY},body:JSON.stringify({mode:'chat',messages:wire})})
+      .then(r=>r.json()).then(j=>{if(this._chatSeq!==seq)return;if(!j||!j.reply)throw 0;this.setState({chatLog:(this.state.chatLog||[]).concat({me:false,txt:j.reply}),chatBusy:false});})
+      .catch(()=>{if(this._chatSeq!==seq)return;this.setState({chatLog:(this.state.chatLog||[]).concat({me:false,txt:'I couldn’t reach the kitchen brain just now — check your connection and ask me again.'}),chatBusy:false});});};
   openLegal=(kind)=>{this.setState({legalKind:kind});this.nav('legal');};
+  isNative=()=>{try{return !!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());}catch(e){return false;}};
+  // Apple Health sync — only functional inside the Capacitor iOS build with the
+  // CapacitorHealthkit plugin installed (see app-store-package/README-IOS-HEALTHKIT.md).
+  // On the web build it explains itself; manual entry always remains available.
+  syncHealth=async()=>{
+    if(!this.isNative()){this.showToast('Apple Health sync needs the iOS app — manual entry works everywhere');return;}
+    const HK=window.Capacitor.Plugins&&(window.Capacitor.Plugins.CapacitorHealthkit||window.Capacitor.Plugins.HealthKit);
+    if(!HK){this.showToast('Health plugin not installed in this build');return;}
+    try{
+      this.showToast('Connecting to Apple Health…');
+      await HK.requestAuthorization({all:[],write:[],read:['steps','heartRate','sleepAnalysis']});
+      const now=new Date();const dayStart=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+      const upd={};
+      try{const st=await HK.queryHKitSampleType({sampleName:'stepCount',startDate:dayStart.toISOString(),endDate:now.toISOString(),limit:0});
+        const total=(st&&st.resultData||[]).reduce((a,s)=>a+(parseFloat(s.value)||0),0);if(total>0)upd.stepsToday=Math.round(total);}catch(e){}
+      try{const hr=await HK.queryHKitSampleType({sampleName:'heartRate',startDate:dayStart.toISOString(),endDate:now.toISOString(),limit:0});
+        const rows=hr&&hr.resultData||[];if(rows.length)upd.hr=Math.round(parseFloat(rows[rows.length-1].value)||this.state.hr);}catch(e){}
+      try{const yest=new Date(dayStart.getTime()-43200000);const sl=await HK.queryHKitSampleType({sampleName:'sleepAnalysis',startDate:yest.toISOString(),endDate:now.toISOString(),limit:0});
+        const mins=(sl&&sl.resultData||[]).reduce((a,s)=>{const d=(new Date(s.endDate)-new Date(s.startDate))/60000;return a+(d>0&&d<720?d:0);},0);
+        if(mins>60){upd.sleepH=Math.floor(mins/60);upd.sleepM=Math.round(mins%60);}}catch(e){}
+      if(Object.keys(upd).length){this.setState(upd);this.showToast('Synced from Apple Health ✓');}
+      else this.showToast('Connected — no new Health data found today');
+    }catch(e){this.showToast('Apple Health sync failed — you can still enter values manually');}
+  };
 
   ALG={1:['eggs','soy','sesame'],2:['eggs','soy','sesame'],3:['gluten'],4:['eggs','soy','sesame'],5:['gluten','dairy','eggs'],6:['gluten','dairy'],7:['gluten','dairy','eggs'],8:['gluten'],9:['gluten'],10:['gluten'],11:['dairy','gluten'],12:['gluten','dairy','treenuts'],13:['dairy'],14:['dairy'],15:['shellfish','dairy'],16:['dairy','treenuts'],17:['dairy','treenuts'],18:[],19:['dairy'],20:[],21:['gluten'],22:['gluten'],23:['gluten','dairy'],24:['gluten','dairy'],25:['gluten','dairy','sesame'],26:['gluten','dairy','sesame','eggs'],27:[]};
   ALGS=[['gluten','Gluten'],['dairy','Dairy'],['eggs','Eggs'],['treenuts','Tree nuts'],['peanuts','Peanuts'],['shellfish','Shellfish'],['soy','Soy'],['sesame','Sesame'],['fish','Fish']];
@@ -838,11 +862,9 @@ class Component extends DCLogic {
         this.topbar('Cooking Assistant'),
         this.e('div',{key:'ctx',style:{margin:'0 18px 10px',display:'flex',alignItems:'center',gap:8,background:t.soft,borderRadius:999,padding:'7px 13px',fontSize:12,fontWeight:700,color:t.text,alignSelf:'flex-start'}},[this.ic('tm',14),'Cooking: '+this.curRec().title]),
         this.e('div',{key:'msgs',className:'scr',style:{flex:1,overflowY:'auto',padding:'4px 18px',display:'flex',flexDirection:'column',gap:12}},[
-          this.chatBubble('Can I use day-old rice instead of fresh?',true),
-          this.chatBubble('Definitely — day-old rice is ideal. It fries up separate and fluffy instead of sticky. Add it straight from the fridge at 120°C, Speed 1, reverse blade.',false),
-          this.chatBubble('How do I stop it going mushy?',true),
-          this.chatBubble('Keep the moisture low: use cooked, cooled rice, cook on reverse blade so the grains stay whole, and give it a quick high-heat toss at the end to drive off any steam.',false),
-          ...(S.chatLog||[]).map((m,ci)=>this.e(React.Fragment,{key:'cl'+ci},this.chatBubble(m.txt,m.me)))
+          (S.chatLog||[]).length===0?this.chatBubble('Hi! Ask me anything about cooking, substitutions, portions or macros — I answer live.',false):null,
+          ...(S.chatLog||[]).map((m,ci)=>this.e(React.Fragment,{key:'cl'+ci},this.chatBubble(m.txt,m.me))),
+          S.chatBusy?this.e('div',{key:'busy',display:'flex',alignItems:'center',gap:8,color:t.muted,fontSize:12.5,fontWeight:700},[this.e('div',{width:18,height:18,borderRadius:999,border:'3px solid '+t.soft,borderTopColor:t.ink,animation:'spin 1s linear infinite'}),'Thinking…']):null
         ]),
         this.e('div',{key:'sug',className:'scr',style:{display:'flex',gap:8,overflowX:'auto',padding:'8px 18px'}},['Make it spicier','Double the recipe','Storage tips','Wine pairing','Make it vegan'].map(s=>this.chip(s,false,()=>this.sendChat(s),{sm:true}))),
         this.e('div',{key:'input',style:{padding:'8px 18px 22px',display:'flex',gap:10,alignItems:'center'}},[this.e('div',{flex:1,display:'flex',alignItems:'center',gap:9,background:t.card,border:'1px solid '+t.border,borderRadius:999,padding:'8px 8px 8px 16px'},[React.createElement('input',{key:'ci',value:S.chatDraft||'',onChange:e=>this.setState({chatDraft:e.target.value}),placeholder:'Ask anything\u2026',style:{flex:1,minWidth:0,border:'none',outline:'none',background:'none',fontSize:14,color:t.text,fontFamily:'inherit'}}),this.ic('mic',18,{color:t.muted})]),this.circBtn('share',()=>this.sendChat(this.state.chatDraft),{sz:46,bg:t.accent,color:t.accentText,border:t.accent,icsz:19})])
@@ -976,7 +998,7 @@ class Component extends DCLogic {
             this.ic('chev',18,{color:'rgba(255,255,255,.55)'})
           ]),
           this.e('div',{key:'mg',display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14},(()=>{const hrv=(S.hr!==undefined)?S.hr:68;const slH=(S.sleepH!==undefined)?S.sleepH:7,slM=(S.sleepM!==undefined)?S.sleepM:20;const slScore=Math.max(40,Math.min(100,Math.round(100-Math.abs(480-(slH*60+slM))/6)));const stp=(S.stepsToday!==undefined)?S.stepsToday:7842;const gl=S.stepGoal||10000;return [['pulse','Heart rate',hrv+' bpm','Resting 62 · '+(hrv<=100?'normal':'elevated'),'heartRate'],['moon','Sleep',slH+'h '+String(slM).padStart(2,'0')+'m','Score '+slScore+' · '+(slScore>=80?'good':slScore>=65?'fair':'low'),'sleep'],['flame','Steps',stp.toLocaleString(),Math.min(100,Math.round(stp/gl*100))+'% of '+(gl%1000===0?(gl/1000)+'k':gl.toLocaleString())+' goal','steps'],['drop','Water',S.water+' / 8','Cups · tap to log','calorieDiary'],['trend','Weight',this.fmt(curw)+' kg','▼ '+this.fmt(Math.round((72.8-curw)*10)/10)+' kg since Jan','weight'],['spark','Healthy days','12 in a row','Food + steps + sleep, all logged','weight']];})().map(([icn,l,v,sub,go])=>this.e('div',{key:l,onClick:()=>this.nav(go),style:{background:t.card,border:'1px solid '+t.border,borderRadius:18,padding:'13px 14px',cursor:'pointer',boxShadow:t.shadow}},[this.e('div',{display:'flex',alignItems:'center',gap:7,marginBottom:8},[this.ic(icn,16,{color:t.text}),this.e('span',{fontSize:11.5,fontWeight:700,color:t.muted},l)]),this.e('div',{fontSize:19,fontWeight:800,color:t.text},v),this.e('div',{fontSize:11,color:t.muted,marginTop:2},sub)]))),
-          this.e('div',{key:'ah',display:'flex',alignItems:'center',justifyContent:'center',gap:6,fontSize:11,color:t.faint,marginBottom:14},[this.ic('heart',12,{color:'#FF5B62',fill:'#FF5B62'}),'Tap any tile to edit · Apple Health auto-sync arrives with the iOS app'],{onClick:()=>this.nav('medicalProfile')}),
+          this.e('div',{key:'ah',display:'flex',alignItems:'center',justifyContent:'center',gap:6,fontSize:11,color:t.faint,marginBottom:14},[this.ic('heart',12,{color:'#FF5B62',fill:'#FF5B62'}),this.isNative()?'Tap here to sync steps, sleep & heart rate from Apple Health':'Tap any tile to edit · Apple Health sync lives in the iOS app'],{onClick:()=>this.syncHealth()}),
           this.e('div',{key:'coach',onClick:()=>this.nav('aiCoach'),style:{background:'rgba(198,241,53,.14)',border:'1px solid '+t.accent,borderRadius:18,padding:'14px 15px',display:'flex',gap:12,alignItems:'center',cursor:'pointer',marginBottom:6}},[this.e('div',{width:40,height:40,borderRadius:12,background:t.accent,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic('spark',20,{color:'#17191D'})),this.e('div',{flex:1},[this.e('div',{fontWeight:800,fontSize:13.5,color:t.text},'AI Coach: this week’s plan is ready'),this.e('div',{fontSize:12,color:t.muted,marginTop:2},'Low-GI, low-sodium · tuned to your conditions & goals')]),this.ic('chev',17,{color:t.muted})]),
           this.h('Today’s meals',this.e('span',{fontSize:12,fontWeight:700,color:t.text,cursor:'pointer'},'Open diary',{onClick:()=>this.nav('calorieDiary')})),
           ...[['latte','Breakfast','Cinnamon Oat Latte · logged 8:10',210,2],['rice','Lunch','Golden Turmeric Fried Rice',380,0],['avoc','Snack','Scanned · chicken, rice & avocado',550,4]].filter(x=>!hide.includes(x[0])).map(x=>x.slice(1)).concat((S.dlog||[]).filter(m=>((m.day!==undefined)?m.day:4)===4).map((m,i)=>[m.slot||'Snack',m.n+' · logged just now',m.kcal,(i+1)%6])).map(([slot,d,k,g],ri)=>this.e('div',{key:slot+'-'+ri,display:'flex',alignItems:'center',gap:12,padding:'10px 0',borderBottom:'1px solid '+t.border,cursor:'pointer'},[this.e('div',{width:38,height:38,borderRadius:12,background:this.GRADS[g],flexShrink:0}),this.e('div',{flex:1},[this.e('div',{fontSize:13.5,fontWeight:700,color:t.text},slot),this.e('div',{fontSize:12,color:t.muted},d)]),this.e('span',{fontSize:13,fontWeight:800,color:t.text},k+' kcal'),this.ic('chev',15,{color:t.faint})],{onClick:()=>this.nav('calorieDiary')}))
