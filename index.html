@@ -388,8 +388,19 @@ class Component extends DCLogic {
   speak=(txt)=>{try{if(!this.state.lsCoach)return;if(!window.speechSynthesis)return;this._lastSpeak=Date.now();const u=new SpeechSynthesisUtterance(txt);u.rate=1.05;u.pitch=1.05;window.speechSynthesis.speak(u);this._spoke=(this._spoke||0)+1;}catch(e){}};
   HIITS={'Tabata 20/10 ×8':{work:20,rest:10,rounds:8},'Intervals 30/15 ×10':{work:30,rest:15,rounds:10}};
   COACH5=['5 minutes in — you’re moving beautifully!','That’s 10 — momentum is yours!','15 minutes — stronger than you started!','20 minutes! This is dedication.','25 in — legend behaviour.','Half an hour. Incredible work!'];
-  onMotion=(e)=>{try{const a=e.accelerationIncludingGravity||e.acceleration;if(!a)return;const m=Math.sqrt((a.x||0)*(a.x||0)+(a.y||0)*(a.y||0)+(a.z||0)*(a.z||0));const now=Date.now();if(this._mBase===undefined)this._mBase=m;this._mBase=this._mBase*0.95+m*0.05;const dev=Math.abs(m-this._mBase);
-    if(dev>2.2&&(!this._mLast||now-this._mLast>280)){this._mLast=now;if(this.state.lsRun){this.setState({lsSteps:(this.state.lsSteps||0)+1});if(this.state.lsTick!==false)this.beep(920,0.05,0.14);}else if(this.state.autoSteps!==false){this._asBuf=(this._asBuf||0)+1;}}
+  _regStep=(now)=>{if(this.state.lsRun){this.setState({lsSteps:(this.state.lsSteps||0)+1});if(this.state.lsTick!==false)this.beep(920,0.05,0.14);}else if(this.state.autoSteps!==false){this._asBuf=(this._asBuf||0)+1;}};
+  onMotion=(e)=>{try{const a=e.accelerationIncludingGravity||e.acceleration;if(!a)return;const m=Math.sqrt((a.x||0)*(a.x||0)+(a.y||0)*(a.y||0)+(a.z||0)*(a.z||0));const now=Date.now();
+    // gravity low-pass → linear acceleration that oscillates around zero as you step
+    if(this._g===undefined)this._g=m;this._g=this._g*0.9+m*0.1;const lin=m-this._g;
+    // adaptive threshold: tracks the walker's own peak amplitude so gentle and vigorous walkers both register
+    if(this._pk===undefined)this._pk=1.4;const T=Math.max(0.55,Math.min(3.6,this._pk*0.5));
+    // hysteresis peak detection — one step per up-then-down swing, refractory 250ms (max ~4 steps/s)
+    if(!this._armed){ if(lin>T){this._armed=true;this._pkCur=lin;} }
+    else { if(lin>this._pkCur)this._pkCur=lin;
+      if(lin<T*0.35){ this._armed=false; const dt=now-(this._stepT||0);
+        if(dt>250&&dt<2400){ this._stepT=now;this._pk=this._pk*0.82+this._pkCur*0.18; this._regStep(now); }
+        else { this._stepT=now;this._pk=this._pk*0.9+this._pkCur*0.1; } } }
+    const dev=Math.abs(lin);
     // vigorous shake (3 hard spikes inside 0.8 s) toggles pause — no permission beyond motion itself
     if(dev>7){this._shk=(this._shk||[]).filter(t2=>now-t2<800);this._shk.push(now);
       if(this._shk.length>=3&&now-(this._shkAct||0)>2000&&this.state.lsOn&&!this.state.lsDone){this._shkAct=now;this._shk=[];this.setState({lsClapFlash:now});this.beep(1200,0.1,0.2);this.liveToggle();}}
@@ -544,7 +555,7 @@ class Component extends DCLogic {
   cancelHR=()=>{try{clearInterval(this._hrIv);}catch(e){}this.setState({hrMeas:null,hrResult:null,hrWave:[]});};
 
   // ---- Accounts & cloud sync (Supabase Auth + user_state table, RLS-isolated) ----
-  VERSION='20260830.1209';
+  VERSION='20260830.1219';
   checkUpdate=async()=>{try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();
     if(j&&j.v&&this.VERSION!=='__BUILD'+'_TS__'&&j.v!==this.VERSION){
       if(!this.state.lsOn){this.showToast('Updating to the latest version…');setTimeout(()=>{try{location.replace(location.pathname+'?v='+encodeURIComponent(j.v));}catch(e){location.reload();}},900);}
