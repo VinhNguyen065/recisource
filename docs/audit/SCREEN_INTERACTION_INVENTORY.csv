@@ -1,0 +1,57 @@
+Screen,Route,Interactive controls found,Controls exercised,Navigations triggered,Errors during exercise,Keyboard accessible,Loading state,Error state,Persistence expectation,Test status,Defect ref,Evidence reference,Notes
+# Method: every screen reached via in-app navigation on 2026-08-09; every element carrying a React onClick prop enumerated and clicked (evidence/crawl-results-2026-08-09.json). Element-level identity is positional in a single-file prototype (no stable IDs); counts and outcomes are recorded per screen. Keyboard accessibility is a global fail (see SECURITY_PRIVACY_ACCESSIBILITY_REVIEW.md) — controls are divs with onClick, no tabindex/roles.
+splash,splash,3,3,1,0,No,n/a,n/a,None,PASS,,crawl json,
+welcome,welcome,4,4,1,0,No,n/a,n/a,None,PASS,,crawl json,
+auth,auth,6,6,3,0,Partial (input),n/a,No validation,userName persists,PASS,,crawl json,No real auth (CAP-02)
+dietary,dietary,16,16,2,0,No,n/a,n/a,Diet prefs persist,PASS,,crawl json,
+permissions,permissions,4,4,2,0,No,n/a,n/a,None,PASS,,crawl json,No real OS permission requests
+library,library,105,26,11,0,No,n/a,Empty state via filters,favs persist,PASS,,crawl json + T11,Largest screen; segments/categories/cards
+search,search,38,14,2,0,Partial (input),n/a,"Empty state present ('Try loosening your filters')",query not persisted,PARTIAL,DEF-001,T10 T12,Query filter exact; ignores dietary filters
+collections,collections,10,10,6,0,No,n/a,n/a,None,PASS,,crawl json,
+tags,tags,27,11,9,0 app / 16 crawler artifacts,No,n/a,n/a,None,PASS,,crawl json,SVG children lack .click(); dispatchEvent fine
+addMenu,addMenu,10,10,8,0,No,n/a,n/a,None,PASS,,crawl json,"Sheet title now 'Add to 21'"
+urlImport,urlImport,8,8,1,0,Partial (input),Simulated phases,n/a,None,PASS (as demo),,crawl json,Import simulated (CAP-08)
+photoImport,photoImport,3,3,0,0,No,Simulated,n/a,None,PASS (as demo),,crawl json,
+textImport,textImport,4,4,1,0,Partial,Simulated,n/a,None,PASS (as demo),,crawl json,
+manualEntry,manualEntry,11,11,2,0,Partial,n/a,n/a,Nothing saved to library,PASS (as demo),,crawl json,Stub rows + toast
+editRecipe,editRecipe,11,11,2,0,Partial,n/a,n/a,Nothing saved,PASS (as demo),,crawl json,
+recipeDetail,recipeDetail,31,31,14,0,No,n/a,n/a,favs/servings persist,PASS,,crawl json,
+moreMenu,moreMenu,10,10,7,0,No,n/a,n/a,None,PASS,,crawl json,
+cookStep,cookStep,8,8,3,0,No,n/a,n/a,None,PASS,,crawl json,
+cookIngredients,cookIngredients,11,11,1,0,No,n/a,n/a,ingredient checks in-session,PASS,,crawl json,
+cookTimers,cookTimers,7,7,1,0,No,Timer ticks,n/a,None,PASS,DEF-002 (suspected origin),crawl json,
+cookComplete,cookComplete,9,9,2,0,No,n/a,n/a,None,PASS,,crawl json,
+mealPlan,mealPlan,28,29,12,0,No,n/a,n/a,planDay/planView NOT persisted (OQ-2),PASS,,T9,Day chips/view toggle/swap verified with state
+addMeal,addMeal,18,18,13,0,No,n/a,n/a,None,PASS,,crawl json,
+autoGenerate,autoGenerate,16,16,2,0,No,Simulated,n/a,None,PASS (as demo),,crawl json,
+mealTemplates,mealTemplates,8,8,5,0,No,n/a,n/a,None,PASS,,crawl json,
+grocery,grocery,58,58,7,0,No,n/a,n/a,Checked items persist,PASS,,crawl json,
+addToGrocery,addToGrocery,10,10,3,0,No,n/a,n/a,agSel state,PASS,,crawl json,
+grocerySettings,grocerySettings,12,12,1,0,No,n/a,n/a,Toggles persist,PASS,,crawl json,
+nutrition,nutrition,3,3,1,0,No,n/a,n/a,None,PASS,,crawl json,
+dietaryFilters,dietaryFilters,35,35,3,0,No (slider unlabeled),n/a,n/a,filters NOT persisted (OQ-2),PASS,,T11,Count badge exactly matches filtered()
+aiGenerator,aiGenerator,36,36,4,0,No,Simulated,n/a,aiHave chips in-session,PASS (as demo),,crawl json,
+aiSubstitutions,aiSubstitutions,6,6,1,0,No,n/a,n/a,None,PASS (as demo),,crawl json,
+aiChat,aiChat,9,9,1,0,Partial (input),n/a,n/a,chatLog persists,PASS (as demo),,crawl json,Canned replies (CAP-22)
+aiAutoTag,aiAutoTag,14,14,2,0,No,Simulated,n/a,None,PASS (as demo),,crawl json,
+discover,discover,25,25,13,0,No,n/a,n/a,None,PASS (as demo),,crawl json,
+publicProfile,publicProfile,18,14,5,0 app / 4 crawler artifacts,No,n/a,n/a,following toggle,PASS (as demo),,crawl json + replay,Replay with fresh state: zero errors
+publicRecipe,publicRecipe,6,6,3,0,No,n/a,n/a,None,PASS (as demo),,crawl json,
+shareSheet,shareSheet,12,12,10,0,No,n/a,n/a,None,PASS (as demo),,crawl json,Needs title else close control vanishes (known quirk)
+household,household,6,6,1,0,No,n/a,n/a,None,PASS (as demo),,crawl json,
+profile,profile,17,17,13,0,Partial (name input),n/a,n/a,userName persists,PASS,,crawl json,
+settings,settings,19,19,5,0,No,n/a,n/a,Toggles persist,PASS,,crawl json,Export = real JSON download (not re-clicked)
+paywall,paywall,9,9,4,0,No,n/a,n/a,None,PASS (as demo),,T16,"'21 Pro' rename verified; no real purchase"
+healthToday,healthToday,22,22,18,0,No,Loader on boot,n/a,Underlying data persists,PASS,DEF-004,T2 T3 T4,990-kcal cross-check exact
+mealScan,mealScan,10,10,1,0,No,n/a,Failure toast,None,PASS,,T14,captureScan opens native camera (stubbed in crawl)
+mealScanAnalyzing,mealScanAnalyzing,3,3,1,0,No,Spinner state,Pops back on failure,None,PASS,,T14,
+mealScanResult,mealScanResult,17,17,4,0,No,n/a,n/a,Log writes dlog,PASS,,T3 + prior E2E,Portion steppers verified in prior E2E
+calorieDiary,calorieDiary,29,29,6,0,No,n/a,n/a,"dlog, dhide, water, diaryDay persist",PASS,DEF-004 (tile wording),T1-T4 T13,All math exact incl. rapid-tap
+fitness,fitness,18,18,10,0,No,n/a,n/a,Stats computed live,PASS,,crawl json,
+heartRate,heartRate,12,12,1,0,No,n/a,n/a,"hr, bpLog persist",PASS,,T8,
+sleep,sleep,12,12,1,0,No,n/a,n/a,"sleepLog, sleepSel persist",PASS,,T7,Score formula verified
+medicalProfile,medicalProfile,19,19,3,0 app / 2 crawl-race,No,n/a,n/a,"conds, meds persist",PASS,DEF-002,crawl + replay,Replay clean; race only under stale-element clicks
+aiCoach,aiCoach,4,4,1,0,No,Coach phases,n/a,coachPhase in-session,PASS (as demo),,crawl json,
+weight,weight,14,14,1,0,No,n/a,n/a,"curW, wextra, wGoal persist; weightRange resets",PASS,,T5 T13,
+steps,steps,18,18,1,0,No,n/a,n/a,"stepsLog, stepGoal persist",PASS,,T6,
+legal,legal,5,5,1,0,No,n/a,n/a,None,PASS,,T16,Disclaimers renamed to 21

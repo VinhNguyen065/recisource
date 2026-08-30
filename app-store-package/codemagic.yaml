@@ -1,0 +1,79 @@
+# 21again — cloud iOS build & App Store submission (NO MAC NEEDED)
+# Codemagic runs this on a macOS cloud machine straight from your GitHub repo.
+# One-time setup is in README-BUILD-AND-SUBMIT.md ("No-Mac path"). After that,
+# every push (or a manual "Start build") produces a signed build and uploads it
+# to TestFlight / App Store Connect.
+#
+# You must set, in Codemagic → your app → Settings:
+#   • an "App Store Connect" integration (an API key from App Store Connect) named APP_STORE_CONNECT
+#   • environment variables (group "appstore"):  BUNDLE_ID, APPLE_TEAM_ID
+#   • ios_signing → Automatic, using that same API key
+workflows:
+  ios-release:
+    name: 21again iOS · App Store
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      groups:
+        - appstore            # define BUNDLE_ID and APPLE_TEAM_ID here
+      vars:
+        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
+        XCODE_SCHEME: "App"
+        BUNDLE_ID: "com.recisource.app"
+      node: 18.17.0
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.recisource.app
+    integrations:
+      app_store_connect: APP_STORE_CONNECT
+    scripts:
+      - name: Install JS dependencies
+        script: |
+          npm install
+      - name: Add & sync the iOS project (Capacitor)
+        script: |
+          # Generate the native iOS project from www/ + plugins if it isn't committed
+          if [ ! -d "ios" ]; then npx cap add ios; fi
+          npx cap sync ios
+      - name: Inject Info.plist usage descriptions (required — prevents launch crash)
+        script: |
+          PLIST="ios/App/App/Info.plist"
+          set_key () {
+            /usr/libexec/PlistBuddy -c "Add :$1 string $2" "$PLIST" 2>/dev/null \
+            || /usr/libexec/PlistBuddy -c "Set :$1 $2" "$PLIST"
+          }
+          set_key NSCameraUsageDescription "21again uses the camera to scan meals for calorie counting, to import recipes from photos, and to measure your pulse."
+          set_key NSPhotoLibraryUsageDescription "21again lets you pick photos of meals or cookbook pages to analyse."
+          set_key NSMicrophoneUsageDescription "21again listens for claps and spoken commands to control hands-free workout timers."
+          set_key NSMotionUsageDescription "21again uses motion to count your steps automatically and to count reps during workouts."
+          set_key NSHealthShareUsageDescription "21again reads heart rate, sleep and steps from Apple Health to power your Today dashboard."
+          set_key NSHealthUpdateUsageDescription "21again saves workouts and nutrition you log back to Apple Health."
+          echo "Info.plist usage descriptions set."
+      - name: Set version & build number
+        script: |
+          cd ios/App
+          # marketing version from package.json; build number = Codemagic build counter
+          VER=$(node -p "require('../../package.json').version")
+          agvtool new-marketing-version "$VER" || true
+          agvtool new-version -all "$PROJECT_BUILD_NUMBER" || true
+      - name: Install CocoaPods
+        script: |
+          cd ios/App && pod install
+      - name: Set up signing
+        script: |
+          xcode-project use-profiles
+      - name: Build signed IPA
+        script: |
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true      # goes to TestFlight for you to install & invite testers
+        # submit_to_app_store: false    # flip to true when you're ready for public review

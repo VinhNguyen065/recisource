@@ -1,0 +1,33 @@
+{
+  "meta": {
+    "date": "2026-08-09",
+    "auditor": "Claude Code automated click-crawl",
+    "app": "21 (formerly ReciSource), single-file React prototype",
+    "buildFile": "app-store-package/www/index.html (2.63 MB)",
+    "pagesRepoCommit": "0f6c9d9 (rename) on top of 7938d34",
+    "environment": "Claude Browser pane (Chromium), served from file:// snapshot",
+    "method": "For each of 55 screens: jump(screen), enumerate DOM elements with a React onClick prop, click each, record navigations and window errors. State snapshot taken before crawl and restored after.",
+    "columns": ["screen", "clickableControlsFound", "controlsClicked", "navigationsTriggered", "windowErrorsDuringScreen"]
+  },
+  "results": [
+    ["splash",3,3,1,0],["welcome",4,4,1,0],["auth",6,6,3,0],["dietary",16,16,2,0],
+    ["permissions",4,4,2,0],["library",105,26,11,0],["search",38,14,2,0],["collections",10,10,6,0],
+    ["tags",27,11,9,16],["addMenu",10,10,8,0],["urlImport",8,8,1,0],["photoImport",3,3,0,0],
+    ["textImport",4,4,1,0],["manualEntry",11,11,2,0],["editRecipe",11,11,2,0],["recipeDetail",31,31,14,0],
+    ["moreMenu",10,10,7,0],["cookStep",8,8,3,0],["cookIngredients",11,11,1,0],["cookTimers",7,7,1,0],
+    ["cookComplete",9,9,2,0],["mealPlan",28,29,12,0],["addMeal",18,18,13,0],["autoGenerate",16,16,2,0],
+    ["mealTemplates",8,8,5,0],["grocery",58,58,7,0],["addToGrocery",10,10,3,0],["grocerySettings",12,12,1,0],
+    ["nutrition",3,3,1,0],["dietaryFilters",35,35,3,0],["aiGenerator",36,36,4,0],["aiSubstitutions",6,6,1,0],
+    ["aiChat",9,9,1,0],["aiAutoTag",14,14,2,0],["discover",25,25,13,0],["publicProfile",18,14,5,4],
+    ["publicRecipe",6,6,3,0],["shareSheet",12,12,10,0],["household",6,6,1,0],["profile",17,17,13,0],
+    ["settings",19,19,5,0],["paywall",9,9,4,0],["healthToday",22,22,18,0],["mealScan",10,10,1,0],
+    ["mealScanAnalyzing",3,3,1,0],["mealScanResult",17,17,4,0],["calorieDiary",29,29,6,0],["fitness",18,18,10,0],
+    ["heartRate",12,12,1,0],["sleep",12,12,1,0],["medicalProfile",19,19,3,2],["aiCoach",4,4,1,0],
+    ["weight",14,14,1,0],["steps",18,18,1,0],["legal",5,5,1,0]
+  ],
+  "totals": {"screens": 55, "clickableControls": 884, "windowErrors": 22},
+  "errorAnalysis": {
+    "crawlerArtifacts": "20 of 22 errors are 'el.click is not a function' on SVG child elements (tags, publicProfile screens) — SVGElement lacks HTMLElement.click(); dispatching MouseEvent instead succeeds. Not app defects.",
+    "realErrors": "2 × \"Uncaught TypeError: Cannot read properties of undefined (reading 'on')\" raised while bulk-clicking with stale element references (medicalProfile/publicProfile sequence). A per-control replay of all three suspect screens with fresh state between clicks produced ZERO errors, so this is only reachable by clicking a detached/stale row (fast double-tap race). Logged as DEF-002, P3."
+  }
+}
