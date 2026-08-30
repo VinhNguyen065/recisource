@@ -555,7 +555,7 @@ class Component extends DCLogic {
   cancelHR=()=>{try{clearInterval(this._hrIv);}catch(e){}this.setState({hrMeas:null,hrResult:null,hrWave:[]});};
 
   // ---- Accounts & cloud sync (Supabase Auth + user_state table, RLS-isolated) ----
-  VERSION='20260830.1309';
+  VERSION='20260830.1329';
   checkUpdate=async()=>{try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();
     if(j&&j.v&&this.VERSION!=='__BUILD'+'_TS__'&&j.v!==this.VERSION){
       if(!this.state.lsOn){this.showToast('Updating to the latest version…');setTimeout(()=>{try{location.replace(location.pathname+'?v='+encodeURIComponent(j.v));}catch(e){location.reload();}},900);}
@@ -563,7 +563,7 @@ class Component extends DCLogic {
     }}catch(e){}};
   AUTH_URL='https://czbetvehfqqfhggqlqfp.supabase.co/auth/v1';
   REST_URL='https://czbetvehfqqfhggqlqfp.supabase.co/rest/v1';
-  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog','planFilter','planTier','hhMembers','myTpls','wlogD','wDemoOff','autoSteps','demo','following','likes','cookCount','aisleOrd','grocCombine','grocStaples','reminders','remFired'];
+  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog','planFilter','planTier','hhMembers','myTpls','wlogD','wDemoOff','autoSteps','demo','following','likes','cookCount','aisleOrd','grocCombine','grocStaples','reminders','remFired','remAck'];
   snapshotState=()=>{const S=this.state;const o={_ts:Date.now()};this.SYNC_KEYS.forEach(k=>{o[k]=S[k];});return o;};
   loadSess=()=>{try{return JSON.parse(localStorage.getItem('recisource_auth')||'null');}catch(e){return null;}};
   saveSess=(s)=>{try{if(s)localStorage.setItem('recisource_auth',JSON.stringify(s));else localStorage.removeItem('recisource_auth');}catch(e){}};
@@ -652,18 +652,25 @@ class Component extends DCLogic {
   slug=(s)=>s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
   SLOT_TIMES={Breakfast:[8,0],Lunch:[12,30],Dinner:[18,30],Snack:[15,0]};
   _hour=()=>new Date().getHours();
-  addReminder=(label,time,emoji)=>{const id=Date.now();const r={id,label:(label||'Reminder').slice(0,60),time:time||'09:00',emoji:emoji||'⏰',on:true};this.setState({reminders:(this.state.reminders||[]).concat(r)});if(this.state.notif&&typeof Notification!=='undefined'&&Notification.permission==='default')Notification.requestPermission();this.showToast('Reminder set for '+this.fmtTime(r.time));return r;};
+  addReminder=(label,time,emoji,repeat,date)=>{const id=Date.now();const r={id,label:(label||'Reminder').slice(0,60),time:time||'09:00',emoji:emoji||'⏰',repeat:repeat||'daily',date:date||null,on:true};this.setState({reminders:(this.state.reminders||[]).concat(r)});if(this.state.notif&&typeof Notification!=='undefined'&&Notification.permission==='default')Notification.requestPermission();this.showToast('Reminder set · '+this.remNextLabel(r));return r;};
   toggleReminder=(id)=>{this.setState({reminders:(this.state.reminders||[]).map(r=>r.id===id?{...r,on:!r.on}:r)});};
   delReminder=(id)=>{this.setState({reminders:(this.state.reminders||[]).filter(r=>r.id!==id)});this.showToast('Reminder removed');};
-  editReminderTime=(id,time)=>{this.setState({reminders:(this.state.reminders||[]).map(r=>r.id===id?{...r,time:time}:r)});};
+  patchReminder=(id,patch)=>{this.setState({reminders:(this.state.reminders||[]).map(r=>r.id===id?{...r,...patch}:r)});};
+  editReminderTime=(id,time)=>this.patchReminder(id,{time});
   fmtTime=(hm)=>{const p=(hm||'09:00').split(':');let h=+p[0];const m=p[1];const ap=h<12?'am':'pm';h=h%12;if(h===0)h=12;return h+':'+m+' '+ap;};
+  remAppliesOn=(r,d)=>{const dow=d.getDay();if(r.repeat==='weekdays')return dow>=1&&dow<=5;if(r.repeat==='weekends')return dow===0||dow===6;if(r.repeat==='once')return r.date===this.dkey(d);return true;};
+  remNextOccur=(r)=>{const p=(r.time||'09:00').split(':');const now=new Date();for(let k=0;k<400;k++){const d=new Date(now.getFullYear(),now.getMonth(),now.getDate()+k,+p[0],+p[1],0,0);if(d<now&&k===0)continue;if(this.remAppliesOn(r,d))return d;}return null;};
+  remNextLabel=(r)=>{const d=this.remNextOccur(r);if(!d)return r.repeat==='once'?'in the past':'scheduled';const t=this.fmtTime(r.time);const dk=this.dkey(d);if(dk===this.dkToday())return 'today '+t;const tm=new Date();tm.setDate(tm.getDate()+1);if(dk===this.dkey(tm))return 'tomorrow '+t;return d.toLocaleDateString('en',{weekday:'short',day:'numeric',month:'short'})+' '+t;};
+  remOccKey=(r,d)=>r.id+'|'+this.dkey(d);
   fireReminders=()=>{try{if(!this.state.notif||typeof Notification==='undefined'||Notification.permission!=='granted')return;
-    const now=new Date();const pad=n=>String(n).padStart(2,'0');const hm=pad(now.getHours())+':'+pad(now.getMinutes());const today=this.dkToday();
+    const now=new Date();const nowMin=now.getHours()*60+now.getMinutes();const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
     const fired={...(this.state.remFired||{})};let changed=false;
-    (this.state.reminders||[]).forEach(r=>{if(r.on&&r.time===hm&&fired[r.id]!==today){fired[r.id]=today;changed=true;try{new Notification((r.emoji||'⏰')+' '+r.label,{body:'Reminder from 21 — tap to open',tag:'21-rem-'+r.id});}catch(e){}}});
+    (this.state.reminders||[]).forEach(r=>{if(!r.on)return;if(!this.remAppliesOn(r,today))return;const p=(r.time||'09:00').split(':');const rm=(+p[0])*60+(+p[1]);const key=this.remOccKey(r,today);
+      if(nowMin>=rm&&nowMin-rm<180&&fired[key]!==1){fired[key]=1;changed=true;try{new Notification((r.emoji||'⏰')+' '+r.label,{body:'Reminder from 21 — tap to open',tag:'21-rem-'+r.id});}catch(e){}}});
     if(changed)this.setState({remFired:fired});}catch(e){}};
-  dueReminders=()=>{const now=new Date();const nowMin=now.getHours()*60+now.getMinutes();
-    return (this.state.reminders||[]).filter(r=>r.on).map(r=>{const p=(r.time||'09:00').split(':');return {...r,_min:(+p[0])*60+(+p[1])};}).filter(r=>r._min<=nowMin&&(this.state.remFired||{})[r.id]!==this.dkToday()&&(nowMin-r._min)<180);};
+  dueReminders=()=>{const now=new Date();const nowMin=now.getHours()*60+now.getMinutes();const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    return (this.state.reminders||[]).filter(r=>r.on&&this.remAppliesOn(r,today)).map(r=>{const p=(r.time||'09:00').split(':');return {...r,_min:(+p[0])*60+(+p[1])};}).filter(r=>r._min<=nowMin&&(this.state.remAck||{})[this.remOccKey(r,today)]!==1&&(nowMin-r._min)<180);};
+  ackReminder=(r)=>{const today=new Date();const ack={...(this.state.remAck||{})};ack[this.remOccKey(r,new Date(today.getFullYear(),today.getMonth(),today.getDate()))]=1;this.setState({remAck:ack});};
   freshUserState=()=>({demo:false,conds:[],meds:[],wlog:[],bpLog:[],bpSys:120,bpDia:80,sleepLog:[0,0,0,0,0,0],sleepH:0,sleepM:0,stepsLog:[0,0,0,0,0,0],stepsToday:0,stepsHist:{},wextra:[],wlogD:[],wDemoOff:true,dlog:[],dhide:['latte','rice','avoc'],water:0,hr:0,totSteps:0,totMins:0,totKcalBurn:0,records:'None',ahealth:false,following:false,likes:{},cookCount:{},userName:''});
   isDemo=()=>this.state.demo!==false;
   _armMotionGesture=()=>{if(this._motionArmed)return;this._motionArmed=true;
@@ -2014,29 +2021,35 @@ class Component extends DCLogic {
       case 'reminders': {const rems=(S.reminders||[]).slice().sort((a,b)=>(a.time||'').localeCompare(b.time||''));
         const presets=[['💧','Drink water','11:00'],['⚖️','Log your weight','07:30'],['🍽','Log your meals','19:30'],['💊','Take medication','08:00'],['🚶','Go for a walk','15:00'],['😴','Wind down for bed','21:30']];
         const notifOn=(typeof Notification!=='undefined'&&Notification.permission==='granted'&&S.notif);
+        const rep=S.remRepeat||'daily';const repLabels=[['daily','Every day'],['weekdays','Weekdays'],['weekends','Weekends'],['once','Once']];
+        const inpBase={border:'1px solid '+t.border,borderRadius:11,padding:'11px 12px',fontSize:15,color:t.text,outline:'none',background:t.bg,fontFamily:'inherit',boxSizing:'border-box'};
         return this.e('div',{flex:1,minHeight:0,display:'flex',flexDirection:'column'},[
           this.topbar('Reminders'),
           this.wrap([
-            notifOn?null:this.e('div',{key:'perm',display:'flex',alignItems:'center',gap:10,background:'rgba(232,114,46,.13)',border:'1px solid '+t.accent,borderRadius:14,padding:'11px 13px',marginBottom:14},[this.e('span',{fontSize:18},'🔔'),this.e('div',{flex:1,fontSize:12,color:t.text,lineHeight:1.4},'Turn on notifications so reminders reach you even when 21 is in the background.'),this.e('button',{style:{padding:'8px 12px',borderRadius:10,border:'none',background:t.ink,color:t.inkText,fontWeight:800,fontSize:11.5,cursor:'pointer',flexShrink:0}},'Enable',{onClick:()=>{this.setState({notif:true});if(typeof Notification!=='undefined'&&Notification.requestPermission)Notification.requestPermission().then(p=>this.showToast(p==='granted'?'Notifications on ✓':'Allow notifications in your browser settings'));}})]),
-            this.h('Add a reminder'),
-            this.e('div',{key:'custom',background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'12px 14px',marginBottom:14,boxShadow:t.shadow},[
-              this.e('div',{display:'flex',gap:8,marginBottom:10},[
-                React.createElement('input',{key:'rl',value:S.remDraft||'',onChange:e=>this.setState({remDraft:e.target.value}),placeholder:'What should I remind you?',style:{flex:1,minWidth:0,border:'1px solid '+t.border,borderRadius:10,padding:'10px 12px',fontSize:14,color:t.text,outline:'none',background:t.bg,fontFamily:'inherit'}}),
-                React.createElement('input',{key:'rt',type:'time',value:S.remTime||'09:00',onChange:e=>this.setState({remTime:e.target.value}),style:{width:110,border:'1px solid '+t.border,borderRadius:10,padding:'10px 8px',fontSize:14,color:t.text,outline:'none',background:t.bg,fontFamily:'inherit'}})
+            notifOn?null:this.e('div',{key:'perm',display:'flex',alignItems:'center',gap:10,background:'rgba(232,114,46,.13)',border:'1px solid '+t.accent,borderRadius:14,padding:'11px 13px',marginBottom:14},[this.e('span',{fontSize:18},'🔔'),this.e('div',{flex:1,fontSize:12,color:t.text,lineHeight:1.4},'Turn on notifications so reminders can pop up. They always show on the Today bell too.'),this.e('button',{style:{padding:'8px 12px',borderRadius:10,border:'none',background:t.ink,color:t.inkText,fontWeight:800,fontSize:11.5,cursor:'pointer',flexShrink:0}},'Enable',{onClick:()=>{this.setState({notif:true});if(typeof Notification!=='undefined'&&Notification.requestPermission)Notification.requestPermission().then(p=>this.showToast(p==='granted'?'Notifications on ✓':'Allow notifications in your browser settings'));}})]),
+            this.h('New reminder'),
+            this.e('div',{key:'custom',background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'14px',marginBottom:16,boxShadow:t.shadow},[
+              React.createElement('input',{key:'rl',value:S.remDraft||'',onChange:e=>this.setState({remDraft:e.target.value}),placeholder:'Remind me to…',style:{...inpBase,width:'100%',marginBottom:10,fontWeight:600}}),
+              this.e('div',{key:'rowtime',display:'flex',gap:8,marginBottom:10},[
+                this.e('div',{style:{flex:1}},[this.e('div',{fontSize:10.5,fontWeight:800,color:t.muted,marginBottom:4,textTransform:'uppercase',letterSpacing:'.04em'},'Time'),React.createElement('input',{key:'rt',type:'time',value:S.remTime||'09:00',onChange:e=>this.setState({remTime:e.target.value}),style:{...inpBase,width:'100%'}})]),
+                rep==='once'?this.e('div',{style:{flex:1.3}},[this.e('div',{fontSize:10.5,fontWeight:800,color:t.muted,marginBottom:4,textTransform:'uppercase',letterSpacing:'.04em'},'Date'),React.createElement('input',{key:'rd',type:'date',value:S.remDate||this.dkToday(),min:this.dkToday(),onChange:e=>this.setState({remDate:e.target.value}),style:{...inpBase,width:'100%'}})]):null
               ]),
-              this.e('button',{style:{width:'100%',padding:'11px 0',borderRadius:11,border:'none',background:t.ink,color:t.inkText,fontWeight:800,fontSize:13,cursor:'pointer'}},'Add reminder',{onClick:()=>{const v=(this.state.remDraft||'').trim();if(!v){this.showToast('Type what to remind you first');return;}this.addReminder(v,this.state.remTime||'09:00','⏰');this.setState({remDraft:'',remTime:'09:00'});}})
+              this.e('div',{key:'repL',fontSize:10.5,fontWeight:800,color:t.muted,marginBottom:6,textTransform:'uppercase',letterSpacing:'.04em'},'Repeat'),
+              this.e('div',{key:'rep',display:'flex',gap:6,marginBottom:12,flexWrap:'wrap'},repLabels.map(([k,l])=>this.e('button',{key:k,style:{flex:'1 1 22%',padding:'9px 4px',borderRadius:10,border:'none',cursor:'pointer',fontSize:12,fontWeight:800,background:rep===k?t.ink:t.soft,color:rep===k?t.inkText:t.text}},l,{onClick:()=>this.setState({remRepeat:k})}))),
+              this.e('button',{style:{width:'100%',padding:'12px 0',borderRadius:11,border:'none',background:t.accent,color:t.accentText,fontWeight:800,fontSize:14,cursor:'pointer'}},'Set reminder',{onClick:()=>{const v=(this.state.remDraft||'').trim();if(!v){this.showToast('Type what to remind you first');return;}const rp=this.state.remRepeat||'daily';const dt=rp==='once'?(this.state.remDate||this.dkToday()):null;this.addReminder(v,this.state.remTime||'09:00','⏰',rp,dt);this.setState({remDraft:'',remTime:'09:00',remRepeat:'daily',remDate:null});}})
             ]),
-            this.e('div',{key:'presetsL',fontSize:11.5,color:t.muted,marginBottom:8},'Quick add:'),
-            this.e('div',{key:'presets',display:'flex',gap:8,flexWrap:'wrap',marginBottom:18},presets.filter(p=>!rems.some(r=>r.label===p[1])).map(p=>this.e('button',{key:p[1],style:{display:'flex',alignItems:'center',gap:6,padding:'9px 13px',borderRadius:999,border:'1px solid '+t.border,background:t.card,cursor:'pointer',fontSize:12.5,fontWeight:700,color:t.text}},[p[0]+' '+p[1]],{onClick:()=>this.addReminder(p[1],p[2],p[0])}))),
+            this.e('div',{key:'presetsL',fontSize:11.5,color:t.muted,marginBottom:8},'Quick add (daily):'),
+            this.e('div',{key:'presets',display:'flex',gap:8,flexWrap:'wrap',marginBottom:18},presets.filter(p=>!rems.some(r=>r.label===p[1])).map(p=>this.e('button',{key:p[1],style:{display:'flex',alignItems:'center',gap:6,padding:'9px 13px',borderRadius:999,border:'1px solid '+t.border,background:t.card,cursor:'pointer',fontSize:12.5,fontWeight:700,color:t.text}},[p[0]+' '+p[1]],{onClick:()=>this.addReminder(p[1],p[2],p[0],'daily',null)}))),
             this.h('Your reminders'+(rems.length?' · '+rems.length:'')),
-            rems.length===0?this.e('div',{key:'none',textAlign:'center',padding:'26px 20px',background:t.card,border:'1px dashed '+t.border,borderRadius:16},[this.e('div',{fontSize:30,marginBottom:6},'⏰'),this.e('div',{fontSize:13.5,fontWeight:800,color:t.text,marginBottom:4},'No reminders yet'),this.e('div',{fontSize:12,color:t.muted,lineHeight:1.5},'Add one above or tap a quick option — 21 will nudge you at the time you pick, every day.')]):null,
-            ...rems.map(r=>this.e('div',{key:r.id,display:'flex',alignItems:'center',gap:12,background:t.card,border:'1px solid '+t.border,borderRadius:14,padding:'11px 13px',marginBottom:10,boxShadow:t.shadow},[
+            rems.length===0?this.e('div',{key:'none',textAlign:'center',padding:'26px 20px',background:t.card,border:'1px dashed '+t.border,borderRadius:16},[this.e('div',{fontSize:30,marginBottom:6},'⏰'),this.e('div',{fontSize:13.5,fontWeight:800,color:t.text,marginBottom:4},'No reminders yet'),this.e('div',{fontSize:12,color:t.muted,lineHeight:1.5},'Add one above or tap a quick option — pick a time, choose repeat or a one-off date, and 21 will nudge you.')]):null,
+            ...rems.map(r=>{const repTxt={daily:'Every day',weekdays:'Weekdays',weekends:'Weekends',once:'Once'}[r.repeat||'daily'];
+              return this.e('div',{key:r.id,display:'flex',alignItems:'center',gap:12,background:t.card,border:'1px solid '+t.border,borderRadius:14,padding:'11px 13px',marginBottom:10,boxShadow:t.shadow},[
               this.e('div',{width:40,height:40,borderRadius:12,background:t.soft,display:'flex',alignItems:'center',justifyContent:'center',fontSize:19,flexShrink:0},r.emoji||'⏰'),
-              this.e('div',{flex:1,minWidth:0},[this.e('div',{fontSize:14,fontWeight:800,color:r.on?t.text:t.faint},r.label),React.createElement('input',{key:'t',type:'time',value:r.time,onChange:e=>this.editReminderTime(r.id,e.target.value),style:{marginTop:3,border:'none',background:'none',fontSize:12,color:t.muted,outline:'none',fontFamily:'inherit',padding:0}})]),
+              this.e('div',{flex:1,minWidth:0},[this.e('div',{fontSize:14,fontWeight:800,color:r.on?t.text:t.faint},r.label),this.e('div',{fontSize:11.5,color:r.on?t.muted:t.faint,marginTop:2},r.on?('Next: '+this.remNextLabel(r)+' · '+repTxt):'Off · '+repTxt)]),
               this.e('button',{style:{width:46,height:27,borderRadius:999,border:'none',background:r.on?t.accent:t.soft,cursor:'pointer',position:'relative',flexShrink:0,padding:0}},this.e('div',{style:{position:'absolute',top:3,left:r.on?22:3,width:21,height:21,borderRadius:999,background:'#fff',transition:'.15s',boxShadow:'0 1px 3px rgba(0,0,0,.25)'}}),{onClick:()=>this.toggleReminder(r.id)}),
               this.e('button',{style:{width:28,height:28,borderRadius:9,border:'none',background:t.soft,color:t.muted,cursor:'pointer',fontWeight:800,fontSize:13,lineHeight:'1',padding:0,flexShrink:0}},'×',{onClick:()=>this.delReminder(r.id)})
-            ])),
-            this.e('div',{key:'note',fontSize:11.5,color:t.faint,textAlign:'center',marginTop:10,lineHeight:1.5},'Reminders fire at the time you set while 21 is installed. On the iPhone app they arrive even when 21 is closed.')
+            ]);}),
+            this.e('div',{key:'note',fontSize:11.5,color:t.faint,textAlign:'center',marginTop:10,lineHeight:1.5},'Reminders show on the Today bell whenever they’re due, and pop up as notifications while 21 is open. The iPhone app delivers them even when 21 is closed.')
           ])
         ]);
       }
