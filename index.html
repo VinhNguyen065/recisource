@@ -211,7 +211,7 @@ class Component extends DCLogic {
 
   componentDidMount(){ if(this.props.startInGallery)this.setState({mode:'gallery'}); try{const sv=JSON.parse(localStorage.getItem('recisource_v1')||'null');if(!sv){this.setState(this.freshUserState());}if(sv){this.setState(sv);if(sv.scanRec){const i=this.RECIPES.findIndex(r=>r.id===999);if(i>=0)this.RECIPES[i]=sv.scanRec;else this.RECIPES.push(sv.scanRec);if(sv.scanRec.img)this.WIMG['food-r999']=sv.scanRec.img;}(sv.myRecs||[]).forEach(mr=>{if(!this.RECIPES.some(r=>r.id===mr.id))this.RECIPES.push(mr);if(mr.img)this.WIMG['food-r'+mr.id]=mr.img;});}}catch(e){} try{const lv=JSON.parse(localStorage.getItem('recisource_live')||'null');if(lv&&lv.lsOn){this.setState(lv);}}catch(e){} this.rollover(); this.checkUpdate(); try{if(this.state.autoSteps!==false){if(window.DeviceMotionEvent&&typeof DeviceMotionEvent.requestPermission==='function'){this._armMotionGesture();}else{window.addEventListener('devicemotion',this.onMotion);this._motionOn=true;}}}catch(e){} const sess=this.loadSess(); if(sess&&sess.user){this.setState({sessEmail:sess.user.email||null});this.cloudSyncOnLogin();} this._tk=setInterval(()=>{const S=this.state;
     if(this._asBuf){const b=this._asBuf;this._asBuf=0;this.setState({stepsToday:((this.state.stepsToday!==undefined)?this.state.stepsToday:0)+b});}
-    this._tkN=(this._tkN||0)+1;if(this._tkN%60===0){if(S.stepsDate&&S.stepsDate!==this.dkToday())this.rollover();this.maybeWaterNudge();this.fireReminders();}
+    this._tkN=(this._tkN||0)+1;if(this._tkN%5===0)this.fireReminders();if(this._tkN%60===0){if(S.stepsDate&&S.stepsDate!==this.dkToday())this.rollover();this.maybeWaterNudge();}
     if(S.mode==='phone'&&S.screen==='cookTimers'&&S.t1run&&S.t1>0)this.setState({t1:S.t1-1});
     if(S.screen==='workoutTimer'&&(S.swRun||S.tmRun)){
       if(S.tmRun){const left=Math.max(0,S.tmTotal-Math.floor((Date.now()-S.tmStart)/1000));
@@ -555,7 +555,7 @@ class Component extends DCLogic {
   cancelHR=()=>{try{clearInterval(this._hrIv);}catch(e){}this.setState({hrMeas:null,hrResult:null,hrWave:[]});};
 
   // ---- Accounts & cloud sync (Supabase Auth + user_state table, RLS-isolated) ----
-  VERSION='20260830.1922';
+  VERSION='20260830.2023';
   checkUpdate=async()=>{try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();
     if(j&&j.v&&this.VERSION!=='__BUILD'+'_TS__'&&j.v!==this.VERSION){
       if(!this.state.lsOn){this.showToast('Updating to the latest version…');setTimeout(()=>{try{location.replace(location.pathname+'?v='+encodeURIComponent(j.v));}catch(e){location.reload();}},900);}
