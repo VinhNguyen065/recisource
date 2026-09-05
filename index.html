@@ -59,7 +59,7 @@ class Component extends DCLogic {
     cs:0, gchecked:{},
     toast:null, notes:'Added extra turmeric for colour and a pinch of chilli. Great with a fried egg on top.',
     tmRunning:false, list:'This week', descOpen:false, query:'', plan:'annual', activeVer:'original', myIng:null, mySteps:null, aiPrefs:{'Dinner':true,'Under 30 min':true},
-    demo:true, reminders:[], remFired:{}, recId:1, scanQty:{}, t1:724, t1run:false, legalKind:'terms', coachPhase:0, water:0, scanMode:'cal', weightRange:'6M', stepRange:'W', curW:71.2, wextra:[], dlog:[], diaryDay:((new Date().getDay()+6)%7), dhide:[], kcalGoal:1900,
+    demo:true, reminders:[], remFired:{}, checkins:{}, moodLog:{}, checkinBest:0, recId:1, scanQty:{}, t1:724, t1run:false, legalKind:'terms', coachPhase:0, water:0, scanMode:'cal', weightRange:'6M', stepRange:'W', curW:71.2, wextra:[], dlog:[], diaryDay:((new Date().getDay()+6)%7), dhide:[], kcalGoal:1900,
     wlog:[{day:0,ty:'Walk',mins:34,kcal:135},{day:1,ty:'Run',mins:52,kcal:555},{day:2,ty:'Yoga',mins:41,kcal:165},{day:3,ty:'Cycle',mins:66,kcal:550},{day:4,ty:'Walk',mins:48,kcal:190},{day:4,ty:'Strength',mins:38,kcal:230}],
     twMode:'sw', swRun:false, swAcc:0, swStart:0, swLaps:[], tmTotal:60, tmLeft:60, tmRun:false, tmStart:0, hr:68, sleepH:7, sleepM:20, stepsToday:7842, stepGoal:10000, sleepLog:[408,426,372,444,420,486], sleepSel:6, stepsLog:[6200,8100,7400,9200,7800,10400], stepsSel:6, bpSys:118, bpDia:76, bpLog:[{s:124,d:82,t:'Jul 12'},{s:121,d:80,t:'Jul 26'}], wGoal:70, conds:[], meds:[], condEdit:null, condDraft:'', medEdit:null, medDraft:'', notif:true, appearance:'Light', ahealth:true, records:'MyChart', gExtra:[], gDraft:'', userName:'Sofia', chatLog:[], chatDraft:'', mealSlot:'Snack', cookRating:0
   };
@@ -252,7 +252,7 @@ class Component extends DCLogic {
   };
   ic=(name,size=22,o={})=>{const filled=o.fill&&o.fill!=='none';return React.createElement('svg',{width:size,height:size,viewBox:'0 0 24 24',fill:filled?o.fill:'none',stroke:filled?'none':(o.color||'currentColor'),strokeWidth:o.sw||2,strokeLinecap:'round',strokeLinejoin:'round',onClick:o.onClick,style:{flexShrink:0,cursor:o.onClick?'pointer':undefined,...(o.style||{})},dangerouslySetInnerHTML:{__html:this.ICONS[name]||''}});};
 
-  nav=(id)=>{const h=this.state.history.concat(id);this.setState({screen:id,history:h,descOpen:false,qlOpen:false});};
+  nav=(id)=>{const h=this.state.history.concat(id);this.setState({screen:id,history:h,descOpen:false,qlOpen:false,checkinOpen:false});};
   jump=(id)=>this.setState({mode:'phone',screen:id,history:[id]});
   back=()=>{const h=this.state.history.slice(0,-1);if(h.length===0){this.setState({screen:'healthToday',history:['healthToday']});return;}this.setState({screen:h[h.length-1],history:h});};
   setMode=(m)=>this.setState({mode:m});
@@ -555,7 +555,7 @@ class Component extends DCLogic {
   cancelHR=()=>{try{clearInterval(this._hrIv);}catch(e){}this.setState({hrMeas:null,hrResult:null,hrWave:[]});};
 
   // ---- Accounts & cloud sync (Supabase Auth + user_state table, RLS-isolated) ----
-  VERSION='20260905.1011';
+  VERSION='20260905.1035';
   checkUpdate=async()=>{try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();
     if(j&&j.v&&this.VERSION!=='__BUILD'+'_TS__'&&j.v!==this.VERSION){
       if(!this.state.lsOn){this.showToast('Updating to the latest version…');setTimeout(()=>{try{location.replace(location.pathname+'?v='+encodeURIComponent(j.v));}catch(e){location.reload();}},900);}
@@ -563,7 +563,7 @@ class Component extends DCLogic {
     }}catch(e){}};
   AUTH_URL='https://czbetvehfqqfhggqlqfp.supabase.co/auth/v1';
   REST_URL='https://czbetvehfqqfhggqlqfp.supabase.co/rest/v1';
-  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog','planFilter','planTier','hhMembers','myTpls','wlogD','wDemoOff','autoSteps','demo','following','likes','cookCount','aisleOrd','grocCombine','grocStaples','grocLayout','reminders','remFired','remAck'];
+  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog','planFilter','planTier','hhMembers','myTpls','wlogD','wDemoOff','autoSteps','demo','following','likes','cookCount','aisleOrd','grocCombine','grocStaples','grocLayout','reminders','remFired','remAck','checkins','moodLog','checkinBest'];
   snapshotState=()=>{const S=this.state;const o={_ts:Date.now()};this.SYNC_KEYS.forEach(k=>{o[k]=S[k];});return o;};
   loadSess=()=>{try{return JSON.parse(localStorage.getItem('recisource_auth')||'null');}catch(e){return null;}};
   saveSess=(s)=>{try{if(s)localStorage.setItem('recisource_auth',JSON.stringify(s));else localStorage.removeItem('recisource_auth');}catch(e){}};
@@ -730,6 +730,7 @@ class Component extends DCLogic {
     const wl=(S.wDemoOff?[]:this.WLOG).concat(S.wextra||[]);const wg=(S.wGoal!==undefined)?S.wGoal:70;
     if(wl.length&&((wg<=wl[0]&&wl[wl.length-1]<=wg)||(wg>wl[0]&&wl[wl.length-1]>=wg)))out.push(['check','Weight goal reached',this.fmt(wl[wl.length-1])+' kg — set your next goal on the Weight page','weight','good']);
     if((S.wlogD||[]).length&&!(S.wlogD||[]).some(e=>e.ts&&this.dkey(new Date(e.ts))===this.dkToday()))out.push(['trend','Weigh-in reminder','Keep the chart honest — log today’s weight (takes 10 seconds)','weight','good']);
+    if(h9>=18&&!this.checkedInToday()){const strk=this.checkinStreak();out.unshift(['spark',strk>0?'Keep your '+strk+'-day streak':'Daily check-in',strk>0?'Check in before midnight so your streak doesn’t reset':'A 15-second check-in builds the habit','healthToday','todo']);}
     this.dueReminders().forEach(r=>out.unshift([r.emoji&&r.emoji.length<=2?'clock':'clock',r.label,'Your reminder from '+this.fmtTime(r.time)+' · tap to manage','reminders','todo']));
     return out;};
   openQa=(r)=>this.setState({qaRec:r.id,qaDay:this.todayIdx(),qaSlot:'Dinner'});
@@ -881,6 +882,59 @@ class Component extends DCLogic {
   labeledField(label,val,ta){const t=this.T();return this.e('div',{marginBottom:12},[this.e('div',{fontSize:12,fontWeight:800,color:t.muted,marginBottom:6},label),this.e('div',{background:t.card,border:'1px solid '+t.border,borderRadius:12,padding:'12px 14px',fontSize:14,color:val?t.text:t.faint,minHeight:ta?58:'auto',lineHeight:1.5},val||('Enter '+label.toLowerCase()))]);}
   wrap(children,pad=true,extra){return this.e('div',{key:'scr-'+this.state.screen,className:'scr',style:{flex:1,minHeight:0,overflowY:'auto',overflowX:'hidden',animation:'fadeup .22s ease',padding:pad?'0 18px 24px':0,...(extra||{})}},children);}
 
+  // ── Daily check-in & streaks ─────────────────────────────
+  checkedInToday=()=>!!(this.state.checkins||{})[this.dkToday()];
+  checkinStreak=()=>{const c=this.state.checkins||{};let n=0;const d=new Date();
+    if(!c[this.dkey(d)])d.setDate(d.getDate()-1); // today not yet done → count up to yesterday
+    while(c[this.dkey(d)]){n++;d.setDate(d.getDate()-1);}return n;};
+  CHECKIN_MILESTONES={3:'3-day streak! You’re building the habit 🔥',7:'A full week! 7-day streak 🎉',14:'Two weeks straight — unstoppable 💪',21:'21 days on 21again — this is who you are now ⭐',30:'30-day streak! A whole month 🏆',50:'50 days. Legend behaviour 👑',100:'100 days!!! Absolutely elite 🚀'};
+  doCheckin=(mood)=>{const today=this.dkToday();const c={...(this.state.checkins||{})};const already=!!c[today];c[today]=true;
+    const ml={...(this.state.moodLog||{})};if(mood)ml[today]=mood;
+    // compute streak with today counted
+    let n=0;const d=new Date();while(c[this.dkey(d)]){n++;d.setDate(d.getDate()-1);}
+    const best=Math.max(this.state.checkinBest||0,n);
+    this.setState({checkins:c,moodLog:ml,checkinBest:best,checkinOpen:false});
+    this.haptic&&this.haptic([200,100,200]);
+    const mile=this.CHECKIN_MILESTONES[n];
+    if(mile){if(this.boom)this.boom(4);if(this.chime)this.chime();this.showToast(mile);}
+    else if(!already){if(this.boom)this.boom(2);this.showToast('Checked in! '+n+'-day streak 🔥 — see you tomorrow');}
+    else this.showToast('Updated today’s check-in');};
+  quickCheckinSheet(){const t=this.T();const S=this.state;const today=this.dkToday();const done=this.checkedInToday();const streak=this.checkinStreak();const best=Math.max(S.checkinBest||0,streak);
+    const eaten=(()=>{const hide=S.dhide||[];const demoSum=this.todayIdx()===4?((hide.includes('latte')?0:210)+(hide.includes('rice')?0:380)+(hide.includes('avoc')?0:550)):0;const extra=(S.dlog||[]).filter(m=>m.dt?m.dt===today:((m.day!==undefined)?m.day:4)===this.todayIdx()).reduce((a,x)=>a+x.kcal,0);return demoSum+extra;})();
+    const stp=S.stepsToday||0;const water=S.water||0;const gl=S.stepGoal||10000;const kg=S.kcalGoal||1900;
+    const moods=[['😴','Tired'],['😐','Meh'],['🙂','Good'],['😃','Great'],['🤩','Amazing']];const curMood=(S.moodLog||{})[today];
+    const nextMile=[3,7,14,21,30,50,100].find(m=>m>streak);
+    const stat=(icn,col,label,val,goal,pct)=>this.e('div',{key:label,style:{flex:1,background:t.card,border:'1px solid '+t.border,borderRadius:14,padding:'11px 8px',textAlign:'center'}},[this.e('div',{display:'flex',justifyContent:'center',marginBottom:5},this.ic(icn,16,{color:col})),this.e('div',{fontSize:15,fontWeight:800,color:t.text},val),this.e('div',{fontSize:9.5,color:t.muted,marginTop:1},label),this.e('div',{height:4,borderRadius:99,background:t.soft,overflow:'hidden',marginTop:6},this.e('div',{height:'100%',width:Math.min(100,pct)+'%',background:col,borderRadius:99}))]);
+    return this.e('div',{key:'ci',position:'absolute',inset:0,zIndex:62,display:'flex',flexDirection:'column',justifyContent:'flex-end',background:'rgba(20,16,12,.5)'},[
+      this.e('div',{key:'x',flex:1},null,{onClick:()=>this.setState({checkinOpen:false})}),
+      this.e('div',{key:'s',background:t.bg,borderRadius:'26px 26px 0 0',padding:'12px 18px 26px',maxHeight:'92%',display:'flex',flexDirection:'column',animation:'fadeUp .25s ease'},[
+        this.e('div',{key:'grab',width:42,height:5,borderRadius:999,background:t.border,margin:'0 auto 12px'}),
+        this.e('div',{key:'body',className:'scr',style:{minHeight:0,overflowY:'auto'}},[
+          // streak hero
+          this.e('div',{key:'hero',style:{textAlign:'center',padding:'6px 0 16px'}},[
+            this.e('div',{fontSize:46,lineHeight:1},streak>0?'🔥':'✨'),
+            this.e('div',{fontSize:30,fontWeight:800,color:t.text,letterSpacing:'-.02em',marginTop:4},streak+(streak===1?' day':' days')),
+            this.e('div',{fontSize:12.5,color:t.muted,marginTop:2},done?'Checked in today ✓ · best '+best+' days':(streak>0?'Keep the streak alive — check in for today':'Start your streak today')),
+            nextMile?this.e('div',{fontSize:11.5,color:t.faint,marginTop:6},(nextMile-streak)+' more day'+(nextMile-streak===1?'':'s')+' to your '+nextMile+'-day milestone'):null
+          ]),
+          // mood
+          this.e('div',{key:'moodL',fontSize:12.5,fontWeight:800,color:t.text,marginBottom:9},'How are you feeling today?'),
+          this.e('div',{key:'mood',style:{display:'flex',gap:7,marginBottom:18}},moods.map(([em,lab])=>this.e('button',{key:lab,style:{flex:1,padding:'11px 2px',borderRadius:14,border:'1.5px solid '+(curMood===em?t.accent:t.border),background:curMood===em?'rgba(232,114,46,.1)':t.card,cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:3}},[this.e('span',{fontSize:24},em),this.e('span',{fontSize:9.5,fontWeight:700,color:t.muted},lab)],{onClick:()=>{const ml={...(this.state.moodLog||{})};ml[today]=em;this.setState({moodLog:ml});}}))),
+          // today snapshot
+          this.e('div',{key:'snapL',fontSize:12.5,fontWeight:800,color:t.text,marginBottom:9},'Today so far'),
+          this.e('div',{key:'snap',style:{display:'flex',gap:8,marginBottom:14}},[
+            stat('flame','#E8722E','steps',stp.toLocaleString(),gl,Math.round(stp/gl*100)),
+            stat('drop','#3B82F6','water',water+'/8',8,Math.round(water/8*100)),
+            stat('pin',t.ink,'kcal',eaten.toLocaleString(),kg,Math.round(eaten/kg*100))
+          ]),
+          this.e('div',{key:'quick',style:{display:'flex',gap:8,marginBottom:16}},[
+            this.e('button',{style:{flex:1,padding:'11px 0',borderRadius:12,border:'1px solid '+t.border,background:t.card,color:t.text,fontWeight:800,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}},[this.ic('drop',15,{color:'#3B82F6'}),'+ Water'],{onClick:()=>this.addCup((this.state.water||0)+1)}),
+            this.e('button',{style:{flex:1,padding:'11px 0',borderRadius:12,border:'1px solid '+t.border,background:t.card,color:t.text,fontWeight:800,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}},[this.ic('scan',15,{color:t.text}),'Scan meal'],{onClick:()=>{this.setState({checkinOpen:false,scanMode:'cal'});this.nav('mealScan');}})
+          ]),
+          this.e('button',{key:'go',style:{width:'100%',padding:'15px 0',borderRadius:14,border:'none',background:done?t.soft:t.accent,color:done?t.text:t.accentText,fontWeight:800,fontSize:16,cursor:'pointer'}},done?'All done for today ✓':'Complete check-in',{onClick:()=>this.doCheckin((this.state.moodLog||{})[today])})
+        ])
+      ])
+    ]);}
   quickLogSheet(){const t=this.T();const S=this.state;const wCur=(S.curW!==undefined)?S.curW:((S.wextra&&S.wextra.length)?S.wextra[S.wextra.length-1]:70);const water=S.water||0;
     const row=(bg,icn,iconColor,title,sub,right,onClick)=>this.e('div',{key:title,style:{display:'flex',alignItems:'center',gap:12,padding:'12px 13px',borderRadius:15,background:t.card,border:'1px solid '+t.border,marginBottom:9,cursor:onClick?'pointer':'default',boxShadow:t.shadow}},[this.e('div',{width:40,height:40,borderRadius:12,background:bg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic(icn,20,{color:iconColor})),this.e('div',{flex:1,minWidth:0},[this.e('div',{fontSize:14,fontWeight:800,color:t.text},title),sub?this.e('div',{fontSize:11.5,color:t.muted,marginTop:1},sub):null]),right],onClick?{onClick}:undefined);
     const chipBtn=(txt,fn,primary)=>this.e('button',{style:{padding:'9px 13px',borderRadius:11,border:'none',background:primary?t.ink:t.soft,color:primary?t.inkText:t.text,fontWeight:800,fontSize:12.5,cursor:'pointer',whiteSpace:'nowrap'}},txt,{onClick:fn});
@@ -1654,8 +1708,14 @@ class Component extends DCLogic {
         return this.wrap([
           this.e('div',{key:'top',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 0 14px'},[
             this.e('div',{},[this.e('div',{fontSize:13,color:t.muted},new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})),this.sectionTitle((this._hour()<12?'Good morning':this._hour()<18?'Good afternoon':'Good evening')+(S.userName?', '+S.userName:''),{m:0,sm:true})]),
-            this.e('div',{display:'flex',alignItems:'center',gap:8},[this.e('button',{style:{display:'flex',alignItems:'center',gap:4,background:t.accent,border:'none',borderRadius:999,padding:'6px 11px',fontSize:11,fontWeight:800,color:'#17191D',cursor:'pointer'}},'🔥 '+this.activeDays(),{onClick:()=>this.nav('fitness')}),this.e('div',{key:'bellwrap',position:'relative'},[this.circBtn('bell',()=>this.nav('alerts')),this.getAlerts().length?this.e('div',{position:'absolute',top:2,right:2,width:10,height:10,borderRadius:999,background:t.heart,border:'2px solid '+t.bg}):null])])
+            this.e('div',{display:'flex',alignItems:'center',gap:8},[this.e('button',{style:{display:'flex',alignItems:'center',gap:4,background:this.checkinStreak()>0?t.accent:t.soft,border:'none',borderRadius:999,padding:'6px 11px',fontSize:11,fontWeight:800,color:this.checkinStreak()>0?t.accentText:t.text,cursor:'pointer'}},'🔥 '+this.checkinStreak(),{onClick:()=>this.setState({checkinOpen:true})}),this.e('div',{key:'bellwrap',position:'relative'},[this.circBtn('bell',()=>this.nav('alerts')),this.getAlerts().length?this.e('div',{position:'absolute',top:2,right:2,width:10,height:10,borderRadius:999,background:t.heart,border:'2px solid '+t.bg}):null])])
           ]),
+          (()=>{const done=this.checkedInToday();const streak=this.checkinStreak();
+            return this.e('div',{key:'checkin',onClick:()=>this.setState({checkinOpen:true}),style:{background:done?t.card:'#17191D',border:done?'1px solid '+t.border:'none',borderRadius:18,padding:'14px 16px',marginBottom:14,display:'flex',alignItems:'center',gap:13,cursor:'pointer',boxShadow:t.shadow}},[
+              this.e('div',{width:44,height:44,borderRadius:13,background:done?t.soft:'rgba(255,255,255,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,flexShrink:0},streak>0?'🔥':'✨'),
+              this.e('div',{flex:1,minWidth:0},[this.e('div',{fontSize:14.5,fontWeight:800,color:done?t.text:'#fff'},done?(streak+'-day streak · checked in ✓'):(streak>0?'Keep your '+streak+'-day streak alive':'Start your streak today')),this.e('div',{fontSize:12,color:done?t.muted:'rgba(255,255,255,.65)',marginTop:2},done?'Nice — come back tomorrow to keep it going':'A 15-second daily check-in')]),
+              done?this.ic('chev',18,{color:t.faint}):this.e('div',{style:{background:t.accent,color:t.accentText,fontWeight:800,fontSize:12.5,padding:'9px 15px',borderRadius:999,whiteSpace:'nowrap'}},'Check in')
+            ]);})(),
           this.e('div',{key:'cal',onClick:()=>this.nav('calorieDiary'),style:{background:t.card,border:'1px solid '+t.border,borderRadius:22,padding:'16px',boxShadow:t.shadow,display:'flex',alignItems:'center',gap:16,marginBottom:14,cursor:'pointer'}},[
             this.e('div',{position:'relative',width:120,height:120,flexShrink:0},[
               React.createElement('svg',{key:'s',width:120,height:120,viewBox:'0 0 120 120'},[React.createElement('circle',{key:'bg',cx:60,cy:60,r:R,fill:'none',stroke:t.soft,strokeWidth:11}),React.createElement('circle',{key:'fg',cx:60,cy:60,r:R,fill:'none',stroke:t.accent,strokeWidth:11,strokeLinecap:'round',strokeDasharray:C,strokeDashoffset:C*(1-p),transform:'rotate(-90 60 60)'})]),
@@ -2385,6 +2445,7 @@ class Component extends DCLogic {
       if(this.TABSCREENS.includes(id))inner.push(this.tabbar());
       if(this.state.qaRec&&!gallery)inner.push(this.qaSheet());
       if(this.state.qlOpen&&!gallery)inner.push(this.quickLogSheet());
+      if(this.state.checkinOpen&&!gallery)inner.push(this.quickCheckinSheet());
       if(this.state.toast&&!gallery)inner.push(this.e('div',{key:'toast',position:'absolute',left:'50%',bottom:this.TABSCREENS.includes(id)?100:34,transform:'translateX(-50%)',background:'#17191D',color:'#fff',padding:'11px 18px',borderRadius:999,fontSize:13,fontWeight:700,boxShadow:'0 12px 26px -8px rgba(0,0,0,.4)',animation:'toastin .3s ease',display:'flex',alignItems:'center',gap:8,zIndex:40,whiteSpace:'nowrap'},[this.ic('check',15,{color:this.props.accentColor||'#34D399'}),this.state.toast]));
     }
     const mob=!gallery&&typeof window!=='undefined'&&window.innerWidth<=520;
