@@ -564,7 +564,7 @@ class Component extends DCLogic {
   cancelHR=()=>{try{clearInterval(this._hrIv);}catch(e){}this.setState({hrMeas:null,hrResult:null,hrWave:[]});};
 
   // ---- Accounts & cloud sync (Supabase Auth + user_state table, RLS-isolated) ----
-  VERSION='20260905.2144';
+  VERSION='20260906.0100';
   checkUpdate=async()=>{try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();
     if(j&&j.v&&this.VERSION!=='__BUILD'+'_TS__'&&j.v!==this.VERSION){
       if(!this.state.lsOn){this.showToast('Updating to the latest version…');setTimeout(()=>{try{location.replace(location.pathname+'?v='+encodeURIComponent(j.v));}catch(e){location.reload();}},900);}
@@ -670,6 +670,26 @@ class Component extends DCLogic {
       this.openImportReview(j,src,img);
       })
     .catch(()=>{if(this._impSeq!==seq)return;this.setState({impPhase:0});this.showToast('Couldn’t read a recipe from that — try another link or paste the text');});};
+  // Bulk import: paste many recipe links (one per line) → convert & save each to the library.
+  bulkImport=async(text)=>{
+    const urls=(text||'').split(/[\n,]+/).map(s=>s.trim()).filter(s=>/^https?:\/\//i.test(s)||/^[\w-]+\.[a-z]{2,}/i.test(s)).map(s=>/^https?:/i.test(s)?s:('https://'+s));
+    if(!urls.length){this.showToast('Paste one or more recipe links, one per line');return;}
+    if(urls.length>20){this.showToast('Up to 20 at a time — trimming to the first 20');urls.length=20;}
+    let maxId=(this.state.myRecs||[]).reduce((a,r)=>Math.max(a,r.id||0),999);
+    const added=[];this.setState({bulkRunning:true,bulkTotal:urls.length,bulkDone:0,bulkOk:0});
+    for(let i=0;i<urls.length;i++){
+      try{const j=await fetch(this.SCAN_URL,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+this.SCAN_KEY,apikey:this.SCAN_KEY},body:JSON.stringify({mode:'url',url:urls[i]})}).then(r=>r.json());
+        if(j&&j.title){maxId++;const id=maxId;const src=urls[i].replace(/^https?:\/\/(www\.)?/,'').slice(0,42);let img=j.image_url||this.ytThumb(urls[i])||null;
+          const rec={id,title:j.title,time:30,rating:4.8,tags:(j.tags||['Imported']).slice(0,2),seed:(id%12)+1,diet:[],meal:'Dinner',diff:'Medium',kcal:j.kcal_per_serving||400,sub:(src||j.description||'Imported').slice(0,42),live:{ingredients:j.ingredients||[],steps:j.steps||[]}};
+          if(img){rec.img=img;this.WIMG['food-r'+id]=img;}this.RECIPES.push(rec);added.push(rec);}
+      }catch(e){}
+      this.setState({bulkDone:i+1,bulkOk:added.length});
+    }
+    if(added.length){this.setState({myRecs:(this.state.myRecs||[]).concat(added)});if(this.boom)this.boom(3);setTimeout(()=>this.cloudPush&&this.cloudPush(),400);}
+    this.setState({bulkRunning:false});
+    if(added.length){this.setState({seg:'Recently Added',recSort:'new'});this.showToast('Imported '+added.length+' of '+urls.length+' recipe'+(urls.length>1?'s':'')+' ✓');this.jump('library');}
+    else this.showToast('Couldn’t import those — check the links and try again');
+  };
   cancelScan=()=>{this._scanSeq=(this._scanSeq||0)+1;this.back();};
   runScan=(mode,b64)=>{const seq=this._scanSeq=(this._scanSeq||0)+1;fetch(this.SCAN_URL,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+this.SCAN_KEY,apikey:this.SCAN_KEY},body:JSON.stringify({mode:mode==='recipe'?'recipe':(mode==='bar'?'barcode':'calories'),image:b64})}).then(r=>r.json()).then(j=>{
     if(this._scanSeq!==seq)return;
@@ -773,9 +793,13 @@ class Component extends DCLogic {
     const b=new Blob([ics],{type:'text/calendar'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='cook-'+this.slug(r.title)+'.ics';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);
     this.showToast('Calendar event ready — open the download to add it');
   }catch(e){this.showToast('Calendar export isn’t supported in this browser');}};
-  shareRecipe=(r)=>{const url='https://vinhnguyen065.github.io/recisource/';const data={title:r.title+' · 21again',text:r.title+' — '+r.kcal+' kcal/serving, made in 21again',url};
+  recipeText=(r)=>{const url='https://vinhnguyen065.github.io/recisource/';
+    const ings=this.recIng(r).map(g=>' • '+(((g.q?this.fmt(g.q):'')+(g.u?' '+g.u:'')+' '+g.item).trim()));
+    const steps=this.recSteps(r).map((st,i)=>{const s=st.s||{};const set=[s.temp?(/^\d/.test(String(s.temp))?s.temp+'°C':s.temp):null,s.time,s.speed?('speed '+s.speed):null].filter(Boolean).join(' · ');return (i+1)+'. '+st.t+(set?('   ['+set+']'):'');});
+    return [r.title,[(r.kcal?r.kcal+' kcal/serving':''),(r.time?r.time+' min':'')].filter(Boolean).join(' · '),'','INGREDIENTS',...ings,'','METHOD (Thermomix settings in brackets)',...steps,'','Made with 21again — '+url].filter(x=>x!==undefined).join('\n');};
+  shareRecipe=(r)=>{const url='https://vinhnguyen065.github.io/recisource/';const text=this.recipeText(r);const data={title:r.title+' · 21again',text,url};
     if(navigator.share){navigator.share(data).catch(()=>{});}
-    else if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(data.text+' '+url).then(()=>this.showToast('Copied to clipboard — paste anywhere'),()=>this.showToast('Couldn’t copy — sharing works on your phone'));}
+    else if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(()=>this.showToast('Full recipe copied — paste it into any message'),()=>this.showToast('Couldn’t copy — sharing works on your phone'));}
     else this.showToast('Sharing works on your phone');};
   dietLabels=(r)=>(r.diet||[]).map(d=>(this.DIETS.find(x=>x[0]===d)||[d,d])[1]);
   setScanQty=(i,d)=>{const q={...this.state.scanQty};q[i]=Math.max(0.5,Math.round((((q[i]!==undefined)?q[i]:1)+d)*2)/2);this.setState({scanQty:q});};
@@ -977,7 +1001,7 @@ class Component extends DCLogic {
   };
   activeTheme=()=>this.THEMES[this.state.theme]||this.THEMES.bloom;
   L(){const T=this.activeTheme();return {bg:T.bg,card:'#FFFFFF',soft:T.soft,text:T.text||'#23202B',muted:T.muted||'#6B6578',faint:T.faint||'#9A94A6',border:T.border,ink:T.ink,inkText:'#FFFFFF',accent:T.a,accentText:T.aTx,heart:'#EF4466',shadow:T.shadow||'0 2px 8px rgba(40,34,60,.08)'};}
-  SEC_FOOD=['library','search','collections','tags','recipeDetail','editRecipe','manualEntry','moreMenu','addMenu','urlImport','photoImport','textImport','importReview','mealPlan','addMeal','planPick','grocery','addToGrocery','grocerySettings','nutrition','dietaryFilters','calorieDiary','manualFood','mealScanResult','goalEdit'];
+  SEC_FOOD=['library','search','collections','tags','recipeDetail','editRecipe','manualEntry','moreMenu','addMenu','bulkImport','urlImport','photoImport','textImport','importReview','mealPlan','addMeal','planPick','grocery','addToGrocery','grocerySettings','nutrition','dietaryFilters','calorieDiary','manualFood','mealScanResult','goalEdit'];
   SEC_HEALTH=['weight','steps','heartRate','sleep','medicalProfile','aiChat','alerts','reminders'];
   SEC_FIT=['fitness','logWorkout','liveWorkout','routes'];
   secBg=(id)=>{const T=this.activeTheme();return this.SEC_FOOD.includes(id)?T.sec.food:(this.SEC_HEALTH.includes(id)?T.sec.health:(this.SEC_FIT.includes(id)?T.sec.fit:T.def));};
@@ -1183,7 +1207,12 @@ class Component extends DCLogic {
     return this.e('div',{background:t.card,borderRadius:20,border:'1px solid '+t.border,boxShadow:t.shadow,overflow:'hidden',cursor:'pointer'},[this.e('div',{position:'relative'},[this.photo(r.seed,150,{},'food-r'+r.id),heart,ratePill,metaPill]),this.e('div',{padding:'9px 11px 10px',display:'flex',alignItems:'center',gap:8},[this.e('div',{fontWeight:800,fontSize:13.5,color:t.text,lineHeight:1.25,flex:1,minWidth:0,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden',minHeight:34},r.title),addBtn])],{onClick:()=>this.openRecipe(r)});
   }
   tmPill(label,val){const t=this.T();return this.e('div',{display:'flex',flexDirection:'column',gap:1,padding:'6px 12px',borderRadius:11,background:t.soft,color:t.text,minWidth:52,alignItems:'center'},[this.e('span',{fontSize:9,fontWeight:800,textTransform:'uppercase',letterSpacing:'.04em',color:t.muted},label),this.e('span',{fontSize:14,fontWeight:800},val)]);}
-  tmRow(s){const p=[];if(s.temp)p.push(['Temp',s.temp]);if(s.time)p.push(['Time',s.time]);if(s.speed)p.push(['Speed',s.speed]);return this.e('div',{display:'flex',gap:7,flexWrap:'wrap',marginTop:9},p.map(([l,v],i)=>React.createElement('div',{key:i},this.tmPill(l,v))));}
+  tmRow(s){s=s||{};const p=[];
+    if(s.temp){const tv=String(s.temp).trim();p.push(['Temp',/^\d+(\.\d+)?$/.test(tv)?(tv+'°C'):tv]);}
+    if(s.time)p.push(['Time',String(s.time).trim()]);
+    if(s.speed){let sv=String(s.speed).trim();const rev=/reverse|↺|⟲/i.test(sv);if(rev){const n=(sv.match(/[\d.]+/)||[''])[0];sv='⟲ '+(n||'stir');}p.push(['Speed',sv]);}
+    if(!p.length)return this.e('div',{fontSize:11.5,color:this.T().faint,marginTop:8,fontStyle:'italic'},'Hands-on step — no Thermomix setting');
+    return this.e('div',{display:'flex',gap:7,flexWrap:'wrap',marginTop:9},p.map(([l,v],i)=>React.createElement('div',{key:i},this.tmPill(l,v))));}
   sheet(title,children,o={}){const t=this.T();return this.e('div',{position:'absolute',inset:0,display:'flex',flexDirection:'column',justifyContent:'flex-end',background:'rgba(16,18,22,.5)',zIndex:20},[
     this.e('div',{key:'x',flex:1},null,{onClick:this.back}),
     this.e('div',{key:'s',background:t.card,borderRadius:'28px 28px 0 0',padding:'12px 20px 24px',maxHeight:'88%',display:'flex',flexDirection:'column',animation:'fadeUp .28s ease'},[
@@ -1330,6 +1359,21 @@ class Component extends DCLogic {
               ])
         ]);}
 
+      case 'bulkImport': {const running=S.bulkRunning;const tot=S.bulkTotal||0,done=S.bulkDone||0,ok=S.bulkOk||0;
+        return this.e('div',{flex:1,minHeight:0,display:'flex',flexDirection:'column'},[
+          this.topbar('Import many'),
+          this.wrap([
+            this.e('div',{key:'i',fontSize:13,color:t.muted,marginBottom:12,lineHeight:1.5},'Paste recipe links — one per line (any website, YouTube, TikTok, Instagram). Each is converted into a Thermomix recipe and saved to your library. Up to 20 at a time.'),
+            React.createElement('textarea',{key:'ta',value:S.bulkText||'',onChange:e=>this.setState({bulkText:e.target.value}),placeholder:'https://…\nhttps://…\nhttps://…',disabled:running,style:{width:'100%',minHeight:150,resize:'vertical',border:'1px solid '+t.border,borderRadius:14,padding:'12px 14px',fontSize:14,lineHeight:1.6,color:t.text,background:t.card,outline:'none',boxSizing:'border-box',fontFamily:'inherit'}}),
+            running?this.e('div',{key:'prog',style:{marginTop:14}},[
+              this.e('div',{style:{display:'flex',justifyContent:'space-between',fontSize:12.5,fontWeight:800,color:t.text,marginBottom:6}},[this.e('span',{},'Converting… '+done+' / '+tot),this.e('span',{style:{color:t.accent}},ok+' saved')]),
+              this.e('div',{style:{height:8,borderRadius:999,background:t.soft,overflow:'hidden'}},this.e('div',{style:{height:'100%',width:(tot?Math.round(done/tot*100):0)+'%',background:t.accent,borderRadius:999,transition:'.3s'}})),
+              this.e('div',{style:{fontSize:11.5,color:t.faint,marginTop:8,textAlign:'center'}},'Keep this screen open while it works — each link takes a few seconds.')
+            ]):this.e('div',{key:'go',style:{marginTop:14}},this.btn('Import all',()=>this.bulkImport(this.state.bulkText),{icon:'spark'})),
+            this.e('div',{key:'note',display:'flex',gap:10,background:t.soft,borderRadius:14,padding:'12px 14px',marginTop:16},[this.ic('spark',16,{color:t.accent}),this.e('div',{fontSize:11.5,color:t.muted,lineHeight:1.5},'Anything we can’t read is skipped — the rest still import. Tip: paste from your browser, notes, or a shared list.')])
+          ])
+        ]);}
+
       case 'collections': {const favN=Object.keys(S.favs||{}).filter(k=>S.favs[k]).length;
         const COLL=[['Favourites',favN,5,r=>(S.favs||{})[r.id]],['Quick & Easy',null,4,r=>r.time<=20],['Weeknight Dinners',null,0,r=>r.meal==='Dinner'],['Cozy Soups',null,1,r=>/soup|broth|stew/i.test(r.title+' '+(r.tags||[]).join(' '))],['Drinks & Smoothies',null,3,r=>/smoothie|latte|drink|juice/i.test(r.title+' '+(r.tags||[]).join(' '))],['My recipes',(S.myRecs||[]).length,2,null]];
         return this.wrap([
@@ -1348,7 +1392,7 @@ class Component extends DCLogic {
       ]);}
 
       case 'addMenu': return this.sheet('Add to 21',[
-        ...[['scan','Scan with camera','One photo → count calories or save the recipe','scanCal'],['link','Import from a link','YouTube, TikTok, Instagram or any website','urlImport'],['text','Paste text','Drop in messy text, we\u2019ll structure it','textImport'],['edit','Create manually','Type your own recipe from scratch','manualEntry']].map(([ic,ti,su,go])=>this.e('button',{key:ti,style:{width:'100%',textAlign:'left',display:'flex',alignItems:'center',gap:14,padding:'14px 4px',border:'none',borderBottom:'1px solid '+t.border,background:'none',cursor:'pointer'}},[this.e('div',{width:46,height:46,borderRadius:14,background:t.soft,color:t.text,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic(ic,21)),this.e('div',{flex:1},[this.e('div',{fontWeight:800,fontSize:15,color:t.text},ti),this.e('div',{fontSize:12.5,color:t.muted,marginTop:2},su)]),this.ic('chev',18,{color:t.faint})],{onClick:()=>{if(go==='scanCal'||go==='scanRecipe'){this.nav('mealScan');}else if(go==='manualEntry'){this.setState({meTitle:'',meDesc:'',meKcal:'',meIng:[''],meSteps:[''],meImg:null,meEditId:null});this.nav('manualEntry');}else this.nav(go);}}))
+        ...[['scan','Scan with camera','One photo → count calories or save the recipe','scanCal'],['link','Import from a link','YouTube, TikTok, Instagram or any website','urlImport'],['folder','Import many at once','Paste a list of links — bulk-convert to Thermomix','bulkImport'],['text','Paste text','Drop in messy text, we\u2019ll structure it','textImport'],['edit','Create manually','Type your own recipe from scratch','manualEntry']].map(([ic,ti,su,go])=>this.e('button',{key:ti,style:{width:'100%',textAlign:'left',display:'flex',alignItems:'center',gap:14,padding:'14px 4px',border:'none',borderBottom:'1px solid '+t.border,background:'none',cursor:'pointer'}},[this.e('div',{width:46,height:46,borderRadius:14,background:t.soft,color:t.text,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic(ic,21)),this.e('div',{flex:1},[this.e('div',{fontWeight:800,fontSize:15,color:t.text},ti),this.e('div',{fontSize:12.5,color:t.muted,marginTop:2},su)]),this.ic('chev',18,{color:t.faint})],{onClick:()=>{if(go==='scanCal'||go==='scanRecipe'){this.nav('mealScan');}else if(go==='manualEntry'){this.setState({meTitle:'',meDesc:'',meKcal:'',meIng:[''],meSteps:[''],meImg:null,meEditId:null});this.nav('manualEntry');}else this.nav(go);}}))
       ]);
 
       case 'urlImport': case 'photoImport': case 'textImport': {

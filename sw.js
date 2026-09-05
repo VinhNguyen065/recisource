@@ -1,4 +1,4 @@
-const V='21-20260905.2144';
+const V='21-20260906.0100';
 self.addEventListener('install',function(e){self.skipWaiting();e.waitUntil(caches.open(V).then(function(c){return c.addAll(['./','./index.html','./version.json']).catch(function(){});}));});
 self.addEventListener('activate',function(e){e.waitUntil((async function(){try{var ks=await caches.keys();await Promise.all(ks.map(function(k){return k!==V?caches.delete(k):Promise.resolve();}));}catch(_e){}try{await self.clients.claim();}catch(_e){}})());});
 self.addEventListener('fetch',function(e){var req=e.request;if(req.method!=='GET')return;var url;try{url=new URL(req.url);}catch(_e){return;}if(url.origin!==self.location.origin)return;e.respondWith((async function(){try{var net=await fetch(req);try{var c=await caches.open(V);c.put(req,net.clone());}catch(_e){}return net;}catch(err){var cached=await caches.match(req);return cached||caches.match('./index.html');}})());});
