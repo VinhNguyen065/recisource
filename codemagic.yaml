@@ -8,12 +8,15 @@
 # current www/index.html to; main's copy is older and lacks the Apple Health
 # auto-sync on launch and the 5-minute re-sync timer.
 #
-# SIGNING NOTE: do NOT add an ios_signing: block here. That only FETCHES
-# existing signing files and fails on a fresh Apple account with
-# "No matching profiles found for bundle identifier ... app_store".
-# The "Create or fetch iOS signing files" step below uses --create, which
-# mints the distribution certificate and a profile carrying the HealthKit
-# entitlement.
+# SIGNING NOTE: signing uses Codemagic's managed code signing identity
+# (Settings -> Code signing identities -> '21again distribution', an Apple
+# Distribution certificate Codemagic generated and holds the private key for).
+# The ios_signing block below makes Codemagic fetch that certificate and
+# create/fetch the provisioning profile for com.recisource.app, which carries
+# the HealthKit entitlement because the App ID has that capability enabled.
+# Do NOT replace this with 'app-store-connect fetch-signing-files --create':
+# that fails with 'Cannot save Signing Certificates without certificate
+# private key' unless you also supply a private key.
 workflows:
   ios-release:
     name: 21again iOS - TestFlight
@@ -28,6 +31,9 @@ workflows:
       node: 18.17.0
       xcode: latest
       cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.recisource.app
     integrations:
       app_store_connect: APP_STORE_CONNECT
     scripts:
@@ -95,11 +101,6 @@ workflows:
           proj.save
           puts 'CODE_SIGN_ENTITLEMENTS set'
           RUBY_EOF
-      - name: Create or fetch iOS signing files
-        script: |
-          keychain initialize
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
-          keychain add-certificates
       - name: Set version and build number
         script: |
           cd ios/App
