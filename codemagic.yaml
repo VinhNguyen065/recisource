@@ -1,30 +1,19 @@
-# 21again — cloud iOS build & TestFlight upload (NO MAC NEEDED)
+# 21again - cloud iOS build & TestFlight upload (NO MAC NEEDED)
 #
 # This file lives at the REPO ROOT because that is the only place Codemagic
-# reads it from. The actual Capacitor project is in app-store-package/, which
-# `working_directory` below points at — so every script path stays relative
-# to that folder.
+# reads it from. The Capacitor project is in app-store-package/, which
+# working_directory below points at, so script paths stay relative to it.
 #
 # BRANCH NOTE: build this branch (full-source). It is the one Code pushes the
 # current www/index.html to; main's copy is older and lacks the Apple Health
 # auto-sync on launch and the 5-minute re-sync timer.
 #
-# ── One-time setup ────────────────────────────────────────────────────────
-# 1. developer.apple.com → Certificates, Identifiers & Profiles → Identifiers
-#    → + → App IDs → App → explicit Bundle ID `com.recisource.app`
-#    → TICK "HealthKit" → Register.
-#    DO THIS BEFORE THE FIRST BUILD. This workflow injects the HealthKit
-#    entitlement; if the App ID lacks the capability, signing fails with
-#    "Provisioning profile doesn't include the com.apple.developer.healthkit
-#    entitlement".
-# 2. App Store Connect → Users and Access → Integrations → App Store Connect
-#    → create an API key (App Manager or Admin). Keep the .p8, Key ID, Issuer ID.
-# 3. Codemagic → this app → Settings:
-#      • Add an App Store Connect integration named exactly APP_STORE_CONNECT
-#      • Code signing (iOS) → Automatic, using that same API key
-#    No environment-variable groups are needed.
-# 4. App Store Connect → Apps → + → new app: bundle ID com.recisource.app.
-# ──────────────────────────────────────────────────────────────────────────
+# SIGNING NOTE: do NOT add an ios_signing: block here. That only FETCHES
+# existing signing files and fails on a fresh Apple account with
+# "No matching profiles found for bundle identifier ... app_store".
+# The "Create or fetch iOS signing files" step below uses --create, which
+# mints the distribution certificate and a profile carrying the HealthKit
+# entitlement.
 workflows:
   ios-release:
     name: 21again iOS - TestFlight
@@ -39,52 +28,41 @@ workflows:
       node: 18.17.0
       xcode: latest
       cocoapods: default
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.recisource.app
     integrations:
       app_store_connect: APP_STORE_CONNECT
     scripts:
       - name: Install JS dependencies
         script: |
           npm install
-      - name: Add & sync the iOS project (Capacitor)
+      - name: Add and sync the iOS project (Capacitor)
         script: |
           if [ ! -d "ios" ]; then npx cap add ios; fi
           npx cap sync ios
       - name: Confirm the HealthKit plugin is linked
         script: |
-          # Fail early and loudly rather than shipping a build where Apple
-          # Health silently does nothing.
-          grep -qi "healthkit" ios/App/Podfile \
-            || { echo "ERROR: HealthKit pod missing from ios/App/Podfile - check package.json"; exit 1; }
+          grep -qi "healthkit" ios/App/Podfile || { echo "ERROR: HealthKit pod missing"; exit 1; }
           echo "HealthKit plugin is linked."
       - name: Confirm the web build has the Health bridge
         script: |
-          # Guards against building a stale www/index.html that predates the
-          # Apple Health work - the exact failure this branch note warns about.
           W="www/index.html"
-          grep -q "CapacitorHealthkit" "$W" || { echo "ERROR: $W has no HealthKit bridge"; exit 1; }
-          grep -q "queryHKitSampleType" "$W" || { echo "ERROR: $W has no HealthKit queries"; exit 1; }
-          echo "Health bridge present. Web build bytes: $(wc -c < "$W")"
-      - name: Inject Info.plist usage descriptions (required - prevents launch crash)
+          grep -q "CapacitorHealthkit" "$W" || { echo "ERROR: no HealthKit bridge in $W"; exit 1; }
+          grep -q "queryHKitSampleType" "$W" || { echo "ERROR: no HealthKit queries in $W"; exit 1; }
+          echo "Health bridge present."
+      - name: Inject Info.plist usage descriptions
         script: |
           PLIST="ios/App/App/Info.plist"
           set_key () {
-            /usr/libexec/PlistBuddy -c "Add :$1 string $2" "$PLIST" 2>/dev/null \
-            || /usr/libexec/PlistBuddy -c "Set :$1 $2" "$PLIST"
+            /usr/libexec/PlistBuddy -c "Add :$1 string $2" "$PLIST" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :$1 $2" "$PLIST"
           }
-          set_key NSCameraUsageDescription "21again uses the camera to scan meals for calorie counting, to import recipes from photos, and to measure your pulse."
+          set_key NSCameraUsageDescription "21again uses the camera to scan meals for calorie counting and to import recipes from photos."
           set_key NSPhotoLibraryUsageDescription "21again lets you pick photos of meals or cookbook pages to analyse."
           set_key NSMicrophoneUsageDescription "21again listens for claps and spoken commands to control hands-free workout timers."
-          set_key NSMotionUsageDescription "21again uses motion to count your steps automatically and to count reps during workouts."
+          set_key NSMotionUsageDescription "21again uses motion to count your steps and reps during workouts."
           set_key NSHealthShareUsageDescription "21again reads heart rate, sleep and steps from Apple Health to power your Today dashboard."
           set_key NSHealthUpdateUsageDescription "21again saves workouts and nutrition you log back to Apple Health."
           /usr/libexec/PlistBuddy -c "Print :NSHealthShareUsageDescription" "$PLIST"
       - name: Inject the HealthKit entitlement
         script: |
-          # Capacitor generates NO entitlements file. Without this, iOS never
-          # shows the Health permission sheet and requestAuthorization() fails.
           ENT="ios/App/App/App.entitlements"
           cat > "$ENT" <<'PLIST_EOF'
           <?xml version="1.0" encoding="UTF-8"?>
@@ -102,22 +80,27 @@ workflows:
           ruby <<'RUBY_EOF'
           require 'xcodeproj'
           proj = Xcodeproj::Project.open('ios/App/App.xcodeproj')
-          target = proj.targets.find { |t| t.name == 'App' } or abort('ERROR: target "App" not found')
+          target = proj.targets.find { |t| t.name == 'App' } or abort('ERROR: App target not found')
           begin
             grp = proj.main_group.find_subpath('App', true)
             unless grp.files.any? { |f| f.display_name == 'App.entitlements' }
               grp.new_file('App.entitlements')
             end
           rescue => e
-            puts "note: could not add file reference (cosmetic only): #{e}"
+            puts 'note: could not add file reference (cosmetic only)'
           end
           target.build_configurations.each do |c|
             c.build_settings['CODE_SIGN_ENTITLEMENTS'] = 'App/App.entitlements'
           end
           proj.save
-          puts 'CODE_SIGN_ENTITLEMENTS set to App/App.entitlements'
+          puts 'CODE_SIGN_ENTITLEMENTS set'
           RUBY_EOF
-      - name: Set version & build number
+      - name: Create or fetch iOS signing files
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
+          keychain add-certificates
+      - name: Set version and build number
         script: |
           cd ios/App
           VER=$(node -p "require('../../package.json').version")
@@ -131,9 +114,7 @@ workflows:
           xcode-project use-profiles
       - name: Build signed IPA
         script: |
-          xcode-project build-ipa \
-            --workspace "$XCODE_WORKSPACE" \
-            --scheme "$XCODE_SCHEME"
+          xcode-project build-ipa --workspace "$XCODE_WORKSPACE" --scheme "$XCODE_SCHEME"
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
@@ -141,5 +122,3 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
-        # submit_to_app_store: false   # flip to true when ready for public review
-
