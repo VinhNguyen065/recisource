@@ -63,7 +63,7 @@ class Component extends DCLogic {
     tmRunning:false, list:'This week', descOpen:false, query:'', plan:'annual', activeVer:'original', myIng:null, mySteps:null, aiPrefs:{'Dinner':true,'Under 30 min':true},
     demo:true, reminders:[], remFired:{}, checkins:{}, moodLog:{}, checkinBest:0, freezes:0, frozen:{}, recId:1, scanQty:{}, t1:724, t1run:false, legalKind:'terms', coachPhase:0, water:0, scanMode:'cal', weightRange:'6M', stepRange:'W', curW:71.2, wextra:[], dlog:[], diaryDay:((new Date().getDay()+6)%7), dhide:[], kcalGoal:1900,
     wlog:[{day:0,ty:'Walk',mins:34,kcal:135},{day:1,ty:'Run',mins:52,kcal:555},{day:2,ty:'Yoga',mins:41,kcal:165},{day:3,ty:'Cycle',mins:66,kcal:550},{day:4,ty:'Walk',mins:48,kcal:190},{day:4,ty:'Strength',mins:38,kcal:230}],
-    twMode:'sw', swRun:false, swAcc:0, swStart:0, swLaps:[], tmTotal:60, tmLeft:60, tmRun:false, tmStart:0, hr:68, sleepH:7, sleepM:20, stepsToday:7842, stepGoal:10000, sleepLog:[408,426,372,444,420,486], sleepSel:6, stepsLog:[6200,8100,7400,9200,7800,10400], stepsSel:6, bpSys:118, bpDia:76, bpLog:[{s:124,d:82,t:'Jul 12'},{s:121,d:80,t:'Jul 26'}], wGoal:70, conds:[], meds:[], condEdit:null, condDraft:'', medEdit:null, medDraft:'', notif:true, appearance:'Light', theme:'berry', ahealth:true, records:'MyChart', gExtra:[], gDraft:'', userName:'Sofia', chatLog:[], chatDraft:'', mealSlot:'Snack', cookRating:0
+    twMode:'sw', swRun:false, swAcc:0, swStart:0, swLaps:[], tmTotal:60, tmLeft:60, tmRun:false, tmStart:0, hr:68, sleepH:7, sleepM:20, stepsToday:7842, stepGoal:10000, sleepLog:[408,426,372,444,420,486], sleepSel:6, stepsLog:[6200,8100,7400,9200,7800,10400], stepsSel:6, bpSys:118, bpDia:76, bpLog:[{s:124,d:82,t:'Jul 12'},{s:121,d:80,t:'Jul 26'}], wGoal:70, conds:[], meds:[], condEdit:null, condDraft:'', medEdit:null, medDraft:'', notif:true, appearance:'Light', theme:'bloom', ahealth:true, records:'MyChart', gExtra:[], gDraft:'', userName:'Sofia', chatLog:[], chatDraft:'', mealSlot:'Snack', cookRating:0
   };
 
   GRADS=['linear-gradient(150deg,#7FD9A6,#4CA97D)','linear-gradient(150deg,#B6A6F0,#7C6BD6)','linear-gradient(150deg,#F6A6C7,#EC6199)','linear-gradient(150deg,#8FD0E8,#5A9FD4)','linear-gradient(150deg,#F7C978,#E89B45)','linear-gradient(150deg,#A6E0B4,#6FBF8C)'];
@@ -717,7 +717,7 @@ class Component extends DCLogic {
   dueReminders=()=>{const now=new Date();const nowMin=now.getHours()*60+now.getMinutes();const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
     return (this.state.reminders||[]).filter(r=>r.on&&this.remAppliesOn(r,today)).map(r=>{const p=(r.time||'09:00').split(':');return {...r,_min:(+p[0])*60+(+p[1])};}).filter(r=>r._min<=nowMin&&(this.state.remAck||{})[this.remOccKey(r,today)]!==1&&(nowMin-r._min)<180);};
   ackReminder=(r)=>{const today=new Date();const ack={...(this.state.remAck||{})};ack[this.remOccKey(r,new Date(today.getFullYear(),today.getMonth(),today.getDate()))]=1;this.setState({remAck:ack});};
-  freshUserState=()=>({demo:false,conds:[],meds:[],wlog:[],bpLog:[],bpSys:120,bpDia:80,sleepLog:[0,0,0,0,0,0],sleepH:0,sleepM:0,stepsLog:[0,0,0,0,0,0],stepsToday:0,stepsHist:{},wextra:[],wlogD:[],wDemoOff:true,dlog:[],dhide:['latte','rice','avoc'],water:0,hr:0,totSteps:0,totMins:0,totKcalBurn:0,records:'None',ahealth:false,following:false,likes:{},cookCount:{},cookAt:{},theme:'berry',appearance:'Light',userName:''});
+  freshUserState=()=>({demo:false,conds:[],meds:[],wlog:[],bpLog:[],bpSys:120,bpDia:80,sleepLog:[0,0,0,0,0,0],sleepH:0,sleepM:0,stepsLog:[0,0,0,0,0,0],stepsToday:0,stepsHist:{},wextra:[],wlogD:[],wDemoOff:true,dlog:[],dhide:['latte','rice','avoc'],water:0,hr:0,totSteps:0,totMins:0,totKcalBurn:0,records:'None',ahealth:false,following:false,likes:{},cookCount:{},cookAt:{},theme:'bloom',appearance:'Light',userName:''});
   isDemo=()=>this.state.demo!==false;
   _armMotionGesture=()=>{if(this._motionArmed)return;this._motionArmed=true;
     const go=async()=>{try{const p=await DeviceMotionEvent.requestPermission();if(p==='granted'){window.addEventListener('devicemotion',this.onMotion);this._motionOn=true;}}catch(e){}
@@ -862,15 +862,16 @@ class Component extends DCLogic {
   T(){return this._t;}
   // ── Colour themes: user-selectable accent families, each with tuned neutrals + per-section tints ──
   THEMES={
-    berry:{n:'Berry',c:'#EC4899',a:'#EC4899',aTx:'#FFFFFF',ink:'#4B3F86',bg:'#F1EEFB',soft:'#EDEAF8',border:'#E7E3F3',sec:{food:'#E7F6EC',health:'#EDE9FB',fit:'#FCE9F2'},def:'#EDE9FB'},
+    bloom:{n:'Bloom',c:'#EC4899',a:'#EC4899',aTx:'#FFFFFF',ink:'#4B3F86',bg:'#F1EEFB',soft:'#EEEBFA',border:'#E9E5F5',sec:{food:'#E7F6EC',health:'#EDE9FB',fit:'#FCE9F2'},def:'#EDE9FB',text:'#241F35',muted:'#6E6884',faint:'#9C97AE',shadow:'0 2px 8px rgba(76,63,134,.08)'},
+    berry:{n:'Berry',c:'#E11D74',a:'#E11D74',aTx:'#FFFFFF',ink:'#8A2352',bg:'#FCEEF4',soft:'#FBE3EE',border:'#F6D5E3',sec:{food:'#FCE9F0',health:'#FBEAF3',fit:'#FCE6EC'},def:'#FCEEF4'},
     fresh:{n:'Fresh',c:'#22C55E',a:'#1EA34D',aTx:'#FFFFFF',ink:'#276749',bg:'#EFF6F1',soft:'#E6F1E9',border:'#D9EADF',sec:{food:'#E3F4E9',health:'#EAF3EC',fit:'#E7F5EC'},def:'#EFF6F1'},
     ocean:{n:'Ocean',c:'#3B82F6',a:'#2E7BF0',aTx:'#FFFFFF',ink:'#1E3A8A',bg:'#EEF4FD',soft:'#E4EDFB',border:'#D8E5F6',sec:{food:'#E6F1FD',health:'#E9EFFC',fit:'#E7EEFB'},def:'#EEF4FD'},
     violet:{n:'Violet',c:'#8B5CF6',a:'#7C3AED',aTx:'#FFFFFF',ink:'#4C1D95',bg:'#F2EEFC',soft:'#EAE3FA',border:'#E1D8F4',sec:{food:'#ECE7FB',health:'#EFE7FB',fit:'#F5E8FB'},def:'#F2EEFC'},
     coral:{n:'Coral',c:'#FB7185',a:'#F1495F',aTx:'#FFFFFF',ink:'#9F2D3C',bg:'#FDF0EF',soft:'#FBE6E4',border:'#F6D8D4',sec:{food:'#FCEAE6',health:'#FDE9ED',fit:'#FCE8E8'},def:'#FDF0EF'},
     sunny:{n:'Sunny',c:'#F59E0B',a:'#F5A623',aTx:'#2E2408',ink:'#B45309',bg:'#FBF5EA',soft:'#F8EDDA',border:'#F1E2C8',sec:{food:'#F4F3E3',health:'#FCEFDD',fit:'#FBF0D9'},def:'#FBF5EA'}
   };
-  activeTheme=()=>this.THEMES[this.state.theme]||this.THEMES.berry;
-  L(){const T=this.activeTheme();return {bg:T.bg,card:'#FFFFFF',soft:T.soft,text:'#23202B',muted:'#6B6578',faint:'#9A94A6',border:T.border,ink:T.ink,inkText:'#FFFFFF',accent:T.a,accentText:T.aTx,heart:'#EF4466',shadow:'0 2px 8px rgba(40,34,60,.08)'};}
+  activeTheme=()=>this.THEMES[this.state.theme]||this.THEMES.bloom;
+  L(){const T=this.activeTheme();return {bg:T.bg,card:'#FFFFFF',soft:T.soft,text:T.text||'#23202B',muted:T.muted||'#6B6578',faint:T.faint||'#9A94A6',border:T.border,ink:T.ink,inkText:'#FFFFFF',accent:T.a,accentText:T.aTx,heart:'#EF4466',shadow:T.shadow||'0 2px 8px rgba(40,34,60,.08)'};}
   SEC_FOOD=['library','search','collections','tags','recipeDetail','editRecipe','manualEntry','moreMenu','addMenu','urlImport','photoImport','textImport','importReview','mealPlan','addMeal','planPick','grocery','addToGrocery','grocerySettings','nutrition','dietaryFilters','calorieDiary','manualFood','mealScanResult','goalEdit'];
   SEC_HEALTH=['weight','steps','heartRate','sleep','medicalProfile','aiChat','alerts','reminders'];
   SEC_FIT=['fitness','logWorkout','liveWorkout'];
