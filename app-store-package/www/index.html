@@ -564,7 +564,7 @@ class Component extends DCLogic {
   cancelHR=()=>{try{clearInterval(this._hrIv);}catch(e){}this.setState({hrMeas:null,hrResult:null,hrWave:[]});};
 
   // ---- Accounts & cloud sync (Supabase Auth + user_state table, RLS-isolated) ----
-  VERSION='20260905.2127';
+  VERSION='20260905.2137';
   checkUpdate=async()=>{try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();
     if(j&&j.v&&this.VERSION!=='__BUILD'+'_TS__'&&j.v!==this.VERSION){
       if(!this.state.lsOn){this.showToast('Updating to the latest version…');setTimeout(()=>{try{location.replace(location.pathname+'?v='+encodeURIComponent(j.v));}catch(e){location.reload();}},900);}
@@ -2828,5 +2828,5 @@ class Component extends DCLogic {
 }
 </script>
 
-<script>(function(){var f=function(){var l=document.getElementById("rs-loader");if(l)l.remove();};if(document.readyState==="complete")f();else window.addEventListener("load",f);})();</script>
+<script>(function(){var f=function(){var l=document.getElementById("rs-loader");if(l)l.remove();};if(document.readyState==="complete")f();else window.addEventListener("load",f);})();</script><script>(function(){if(!("serviceWorker" in navigator)||window.Capacitor||location.protocol.indexOf("http")!==0)return;var hadCtrl=!!navigator.serviceWorker.controller,reloaded=false;navigator.serviceWorker.addEventListener("controllerchange",function(){if(reloaded||!hadCtrl)return;reloaded=true;location.reload();});navigator.serviceWorker.register("sw.js").then(function(reg){try{reg.update();}catch(e){}}).catch(function(){});})();</script>
 </body></html>

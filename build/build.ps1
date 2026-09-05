@@ -71,12 +71,23 @@ $html="$inline`n$html"
 # feedback immediately instead of a white page; the app removes it on boot.
 $head='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>21again</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"></head><body style="margin:0;overflow-x:hidden"><div id="rs-loader" style="position:fixed;inset:0;background:#F1EEFB;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;font-family:system-ui,sans-serif;z-index:9999"><div style="width:44px;height:44px;border-radius:12px;background:#EC4899;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;color:#ffffff">21</div><div style="font-weight:800;color:#241F35;font-size:15px">21again</div><div style="color:#83868C;font-size:12.5px">Loading your kitchen…</div><div style="width:120px;height:4px;border-radius:99px;background:#E9E5F5;overflow:hidden"><div style="width:40%;height:100%;border-radius:99px;background:#EC4899;animation:rsld 1.1s ease-in-out infinite alternate"></div></div><style>@keyframes rsld{from{margin-left:0}to{margin-left:72px}}</style></div>'
 $tail='<script>(function(){var f=function(){var l=document.getElementById("rs-loader");if(l)l.remove();};if(document.readyState==="complete")f();else window.addEventListener("load",f);})();</script>'
+# Service worker: web-only (skipped in the native app), network-first so updates apply instantly + offline fallback.
+$tail=$tail+'<script>(function(){if(!("serviceWorker" in navigator)||window.Capacitor||location.protocol.indexOf("http")!==0)return;var hadCtrl=!!navigator.serviceWorker.controller,reloaded=false;navigator.serviceWorker.addEventListener("controllerchange",function(){if(reloaded||!hadCtrl)return;reloaded=true;location.reload();});navigator.serviceWorker.register("sw.js").then(function(reg){try{reg.update();}catch(e){}}).catch(function(){});})();</script>'
 $html="$head`n$html`n$tail`n</body></html>"
 
 $ver=(Get-Date -Format 'yyyyMMdd.HHmm')
 $html=$html.Replace('__BUILD_TS__',$ver)
 [IO.File]::WriteAllText("$sp\app-21.html",$html)
 [IO.File]::WriteAllText("$sp\version.json",('{"v":"'+$ver+'"}'))
+# Service worker (cache name stamped with build version → every deploy = a fresh SW that activates immediately)
+$swjs=@'
+const V='21-__VER__';
+self.addEventListener('install',function(e){self.skipWaiting();e.waitUntil(caches.open(V).then(function(c){return c.addAll(['./','./index.html','./version.json']).catch(function(){});}));});
+self.addEventListener('activate',function(e){e.waitUntil((async function(){try{var ks=await caches.keys();await Promise.all(ks.map(function(k){return k!==V?caches.delete(k):Promise.resolve();}));}catch(_e){}try{await self.clients.claim();}catch(_e){}})());});
+self.addEventListener('fetch',function(e){var req=e.request;if(req.method!=='GET')return;var url;try{url=new URL(req.url);}catch(_e){return;}if(url.origin!==self.location.origin)return;e.respondWith((async function(){try{var net=await fetch(req);try{var c=await caches.open(V);c.put(req,net.clone());}catch(_e){}return net;}catch(err){var cached=await caches.match(req);return cached||caches.match('./index.html');}})());});
+'@
+$swjs=$swjs.Replace('__VER__',$ver)
+[IO.File]::WriteAllText("$sp\sw.js",$swjs)
 Write-Output ("version: " + $ver)
 Write-Output ("image bytes (b64): " + $total)
 Write-Output ("final size: " + (Get-Item "$sp\app-21.html").Length)
