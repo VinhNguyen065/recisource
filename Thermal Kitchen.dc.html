@@ -567,7 +567,7 @@ class Component extends DCLogic {
     }}catch(e){}};
   AUTH_URL='https://czbetvehfqqfhggqlqfp.supabase.co/auth/v1';
   REST_URL='https://czbetvehfqqfhggqlqfp.supabase.co/rest/v1';
-  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog','planFilter','planTier','hhMembers','myTpls','wlogD','wDemoOff','autoSteps','demo','following','likes','cookCount','aisleOrd','grocCombine','grocStaples','grocLayout','reminders','remFired','remAck','checkins','moodLog','checkinBest','freezes','frozen','recSort'];
+  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog','planFilter','planTier','hhMembers','myTpls','wlogD','wDemoOff','autoSteps','demo','following','likes','cookCount','aisleOrd','grocCombine','grocStaples','grocLayout','reminders','remFired','remAck','checkins','moodLog','checkinBest','freezes','frozen','recSort','cookAt','grocGroup'];
   snapshotState=()=>{const S=this.state;const o={_ts:Date.now()};this.SYNC_KEYS.forEach(k=>{o[k]=S[k];});return o;};
   loadSess=()=>{try{return JSON.parse(localStorage.getItem('recisource_auth')||'null');}catch(e){return null;}};
   saveSess=(s)=>{try{if(s)localStorage.setItem('recisource_auth',JSON.stringify(s));else localStorage.removeItem('recisource_auth');}catch(e){}};
@@ -590,11 +590,29 @@ class Component extends DCLogic {
         const rs=await fetch(this.SCAN_URL,{method:'POST',headers:{apikey:this.SCAN_KEY,Authorization:'Bearer '+this.SCAN_KEY,'Content-Type':'application/json'},body:JSON.stringify({mode:'signup',email:em,password:pw})});
         const js=await rs.json();
         if(!js||!js.ok){this.setState({authBusy:false});this.showToast(String((js&&js.error)||'Couldn’t create the account — try again').slice(0,90));return;}
+        // Email confirmation required before first login → show the "check your inbox" screen.
+        if(js.needsConfirm!==false){this.setState({authBusy:false,authPwd:'',confirmEmail:em});this.jump('confirmEmail');return;}
       }
       const r=await fetch(this.AUTH_URL+'/token?grant_type=password',{method:'POST',headers:{apikey:this.SCAN_KEY,'Content-Type':'application/json'},body:JSON.stringify({email:em,password:pw})});
       const j=await r.json();
       if(j&&j.access_token){this.saveSess(j);this.setState({authBusy:false,sessEmail:em,authPwd:''});this.showToast(login?'Welcome back — syncing…':'Account created ✓ syncing…');await this.cloudSyncOnLogin();if(login){this.jump('healthToday');}else{this.setState({...this.freshUserState(),postAuth:true});this.jump('paywall');}}
-      else{this.setState({authBusy:false});this.showToast(String((j&&(j.error_description||j.msg||j.error))||'That didn’t work — check your details').slice(0,90));}
+      else{
+        const raw=String((j&&(j.error_code||j.error_description||j.msg||j.error))||'');
+        if(/not.?confirm|email_not_confirmed|confirm/i.test(raw)){this.setState({authBusy:false,confirmEmail:em});this.jump('confirmEmail');return;}
+        this.setState({authBusy:false});this.showToast(raw?raw.slice(0,90):'That didn’t work — check your details');
+      }
+    }catch(e){this.setState({authBusy:false});this.showToast('No connection — try again');}};
+  resendConfirm=async()=>{const em=(this.state.confirmEmail||'').trim();if(!em)return;this.setState({authBusy:true});
+    try{const rs=await fetch(this.SCAN_URL,{method:'POST',headers:{apikey:this.SCAN_KEY,Authorization:'Bearer '+this.SCAN_KEY,'Content-Type':'application/json'},body:JSON.stringify({mode:'resend',email:em})});const js=await rs.json().catch(()=>({}));this.setState({authBusy:false});this.showToast((js&&js.ok)?'Sent again — check your inbox (and spam)':'Couldn’t resend just now — try in a minute');}
+    catch(e){this.setState({authBusy:false});this.showToast('No connection — try again');}};
+  confirmedLogin=async()=>{const em=(this.state.confirmEmail||'').trim();const pw=this.state.authPwd||'';
+    if(!em){this.jump('auth');return;}
+    if(pw.length<6){this.showToast('Enter your password to log in');return;}
+    this.setState({authBusy:true});
+    try{const r=await fetch(this.AUTH_URL+'/token?grant_type=password',{method:'POST',headers:{apikey:this.SCAN_KEY,'Content-Type':'application/json'},body:JSON.stringify({email:em,password:pw})});
+      const j=await r.json();
+      if(j&&j.access_token){this.saveSess(j);this.setState({authBusy:false,sessEmail:em,authPwd:'',confirmEmail:null});this.showToast('Email confirmed ✓ welcome!');await this.cloudSyncOnLogin();this.setState({...this.freshUserState(),postAuth:true});this.jump('paywall');}
+      else{const raw=String((j&&(j.error_code||j.error_description||j.msg||j.error))||'');this.setState({authBusy:false});this.showToast(/not.?confirm|confirm/i.test(raw)?'Not confirmed yet — tap the link in your email first':(raw?raw.slice(0,90):'Wrong password — try again'));}
     }catch(e){this.setState({authBusy:false});this.showToast('No connection — try again');}};
   logOut=()=>{this.saveSess(null);this.setState({sessEmail:null});this.showToast('Logged out — your data stays on this device');};
   deleteAccount=async()=>{this.showToast('Deleting your account…');let ok=false;
@@ -699,7 +717,7 @@ class Component extends DCLogic {
   dueReminders=()=>{const now=new Date();const nowMin=now.getHours()*60+now.getMinutes();const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
     return (this.state.reminders||[]).filter(r=>r.on&&this.remAppliesOn(r,today)).map(r=>{const p=(r.time||'09:00').split(':');return {...r,_min:(+p[0])*60+(+p[1])};}).filter(r=>r._min<=nowMin&&(this.state.remAck||{})[this.remOccKey(r,today)]!==1&&(nowMin-r._min)<180);};
   ackReminder=(r)=>{const today=new Date();const ack={...(this.state.remAck||{})};ack[this.remOccKey(r,new Date(today.getFullYear(),today.getMonth(),today.getDate()))]=1;this.setState({remAck:ack});};
-  freshUserState=()=>({demo:false,conds:[],meds:[],wlog:[],bpLog:[],bpSys:120,bpDia:80,sleepLog:[0,0,0,0,0,0],sleepH:0,sleepM:0,stepsLog:[0,0,0,0,0,0],stepsToday:0,stepsHist:{},wextra:[],wlogD:[],wDemoOff:true,dlog:[],dhide:['latte','rice','avoc'],water:0,hr:0,totSteps:0,totMins:0,totKcalBurn:0,records:'None',ahealth:false,following:false,likes:{},cookCount:{},userName:''});
+  freshUserState=()=>({demo:false,conds:[],meds:[],wlog:[],bpLog:[],bpSys:120,bpDia:80,sleepLog:[0,0,0,0,0,0],sleepH:0,sleepM:0,stepsLog:[0,0,0,0,0,0],stepsToday:0,stepsHist:{},wextra:[],wlogD:[],wDemoOff:true,dlog:[],dhide:['latte','rice','avoc'],water:0,hr:0,totSteps:0,totMins:0,totKcalBurn:0,records:'None',ahealth:false,following:false,likes:{},cookCount:{},cookAt:{},userName:''});
   isDemo=()=>this.state.demo!==false;
   _armMotionGesture=()=>{if(this._motionArmed)return;this._motionArmed=true;
     const go=async()=>{try{const p=await DeviceMotionEvent.requestPermission();if(p==='granted'){window.addEventListener('devicemotion',this.onMotion);this._motionOn=true;}}catch(e){}
@@ -810,12 +828,13 @@ class Component extends DCLogic {
   toggleAllergen=(a)=>{const f={...this.state.filters};const cur=f.allergens||[];f.allergens=cur.includes(a)?cur.filter(z=>z!==a):cur.concat(a);this.setState({filters:f});};
   fcount=()=>{const f=this.state.filters;return f.diet.length+(f.meal?1:0)+(f.diff?1:0)+(f.minRating>0?1:0)+(f.maxTime<60?1:0)+((f.allergens||[]).length)+(((f.maxKcal||800)<800)?1:0);};
   searchResults=()=>{const q=(this.state.query||'').trim().toLowerCase();const base=this.filtered(true);if(!q)return base;return base.filter(r=>[r.title,r.sub,r.meal,r.diff].concat(r.tags||[],r.diet||[]).join(' ').toLowerCase().includes(q));};
-  filtered=(skipSeg)=>{const {filters:f,seg,favs}=this.state;return this.RECIPES.filter(r=>{
+  filtered=(skipSeg)=>{const {filters:f,seg,favs}=this.state;const cc=this.state.cookCount||{};const mine=this.state.myRecs||[];const mineIds={};mine.forEach(m=>mineIds[m.id]=true);if(this.state.scanRec)mineIds[this.state.scanRec.id]=true;
+    return this.RECIPES.filter(r=>{
     if(skipSeg!==true){
     if(seg==='Favorites'&&!favs[r.id])return false;
-    if(seg==='Want to Try'&&![2,4,7,9].includes(r.id))return false;
-    if(seg==='Recently Added'&&![15,22,26,11].includes(r.id))return false;
-    if(seg==='Recently Cooked'&&![1,3,6].includes(r.id))return false;
+    if(seg==='Want to Try'&&!(favs[r.id]&&!(cc[r.id]>0)))return false;   // saved but not yet cooked
+    if(seg==='Recently Added'&&!mineIds[r.id])return false;               // recipes you imported/created
+    if(seg==='Recently Cooked'&&!(cc[r.id]>0))return false;               // recipes you've actually cooked
     }
     if(!f.diet.every(d=>r.diet.includes(d)))return false;
     if(f.meal&&r.meal!==f.meal)return false;
@@ -825,7 +844,10 @@ class Component extends DCLogic {
     if((f.allergens||[]).some(a=>this.recAllergens(r).includes(a)))return false;
     if(r.kcal>(f.maxKcal||800))return false;
     return true;
-  }).sort((a,b)=>this.recCmp(a,b,favs));};
+  }).sort((a,b)=>{
+    if(seg==='Recently Cooked'){const ca=this.state.cookAt||{};const d=(ca[b.id]||0)-(ca[a.id]||0);if(d)return d;}
+    return this.recCmp(a,b,favs);
+  });};
   recCmp=(a,b,favs)=>{favs=favs||this.state.favs||{};const s=this.state.recSort||'new';
     const mine=r=>(r.id||0)>=999;const aMine=mine(a),bMine=mine(b);
     if(s==='az')return (a.title||'').localeCompare(b.title||'');
@@ -1061,6 +1083,22 @@ class Component extends DCLogic {
         this.e('div',{key:'tog',textAlign:'center',marginTop:18,fontSize:13.5,color:t.muted},[login?'New here? ':'Already have an account? ',this.e('span',{fontWeight:800,cursor:'pointer',textDecoration:'underline'},login?'Sign up':'Log in',{onClick:()=>this.setState({authMode:login?'signup':'login'})})])
       ]);}
 
+      case 'confirmEmail': {const em=S.confirmEmail||'your email';return this.wrap([
+        this.e('div',{key:'nav',display:'flex',alignItems:'center',paddingTop:6},[this.circBtn('back',()=>{this.setState({authMode:'login'});this.jump('auth');})]),
+        this.e('div',{key:'top',paddingTop:14,textAlign:'center'},[
+          this.e('div',{width:76,height:76,borderRadius:24,margin:'0 auto 18px',background:t.accent,display:'flex',alignItems:'center',justifyContent:'center'},this.ic('bell',36,{color:'#17191D'})),
+          this.sectionTitle('Check your email',{m:'0 0 8px'}),
+          this.e('div',{fontSize:14.5,color:t.text,marginBottom:6,lineHeight:1.5},['We sent a confirmation link to ',this.e('b',{fontWeight:800},em),'.']),
+          this.e('div',{fontSize:13.5,color:t.muted,marginBottom:22,lineHeight:1.5},'Tap the link in that email to activate your account, then come back and log in. (Check your spam folder if it’s not there in a minute.)')
+        ]),
+        // Once they've confirmed in their inbox, they log in right here.
+        this.e('div',{key:'pwlbl',fontSize:12,fontWeight:800,color:t.muted,textTransform:'uppercase',letterSpacing:'.04em',marginBottom:8},'Confirmed? Log in'),
+        this.e('div',{key:'pw',display:'flex',alignItems:'center',gap:9,background:t.card,border:'1px solid '+t.border,borderRadius:14,padding:'13px 14px'},[this.ic('lock',17,{color:t.muted}),React.createElement('input',{key:'i',type:'password',value:S.authPwd||'',onChange:e=>this.setState({authPwd:e.target.value}),placeholder:'Your password',style:{flex:1,minWidth:0,border:'none',outline:'none',background:'none',fontSize:14.5,color:t.text,fontFamily:'inherit'}})]),
+        this.e('div',{key:'sub',marginTop:16},this.btn(S.authBusy?'One moment…':'Log in',()=>{if(!S.authBusy)this.confirmedLogin();})),
+        this.e('div',{key:'resend',textAlign:'center',marginTop:20,fontSize:13.5,color:t.muted},['Didn’t get it? ',this.e('span',{fontWeight:800,cursor:'pointer',textDecoration:'underline',color:t.text},'Resend email',{onClick:()=>{if(!S.authBusy)this.resendConfirm();}})]),
+        this.e('div',{key:'wrong',textAlign:'center',marginTop:12,fontSize:12.5,color:t.faint},[this.e('span',{cursor:'pointer',textDecoration:'underline'},'Use a different email',{onClick:()=>{this.setState({authMode:'signup',confirmEmail:null});this.jump('auth');}})])
+      ]);}
+
       case 'dietary': {const fromSettings=S.history.includes('settings')||S.history.includes('profile');return this.e('div',{flex:1,minHeight:0,display:'flex',flexDirection:'column'},[
         fromSettings?this.topbar('Dietary & allergens'):null,
         this.wrap([
@@ -1101,7 +1139,14 @@ class Component extends DCLogic {
             (()=>{const order=['new','old','az','fav'];const lab={'new':'Newest','old':'Oldest','az':'A–Z','fav':'Favourites'};const cur=S.recSort||'new';return this.e('button',{style:{display:'flex',alignItems:'center',gap:5,background:t.card,border:'1px solid '+t.border,borderRadius:999,padding:'7px 11px',color:t.text,fontWeight:800,fontSize:12,cursor:'pointer'}},[this.ic('filter',13,{color:t.muted}),lab[cur]],{onClick:()=>{const nx=order[(order.indexOf(cur)+1)%order.length];this.setState({recSort:nx});this.showToast('Sorted by '+lab[nx].toLowerCase());}});})(),
             this.circBtn('grid',()=>this.setState({grid:true}),{sz:34,bg:S.grid?t.ink:t.card,color:S.grid?t.inkText:t.muted,border:S.grid?t.ink:t.border,icsz:16}),this.circBtn('rows',()=>this.setState({grid:false}),{sz:34,bg:!S.grid?t.ink:t.card,color:!S.grid?t.inkText:t.muted,border:!S.grid?t.ink:t.border,icsz:16})])]),
           recs.length===0
-            ? this.e('div',{key:'empty',textAlign:'center',padding:'40px 20px'},[this.e('div',{width:74,height:74,borderRadius:24,background:t.soft,margin:'0 auto 16px',display:'flex',alignItems:'center',justifyContent:'center',color:t.faint},this.ic('search',34,{color:t.faint})),this.e('div',{fontWeight:800,fontSize:16,color:t.text,marginBottom:6},'No recipes match'),this.e('div',{fontSize:13.5,color:t.muted,marginBottom:16},'Try loosening your filters.'),this.btn('Reset filters',this.resetF,{auto:true,variant:'dark',sm:true,style:{margin:'0 auto'}})])
+            ? (()=>{const noFilters=this.fcount()===0;const em={
+                'Favorites':['heart','No saved recipes yet','Tap the ♥ on any recipe to save it here.','Browse recipes','All'],
+                'Want to Try':['heart','Nothing on your to-try list','Save a recipe with ♥ and it waits here until you cook it.','Browse recipes','All'],
+                'Recently Added':['spark','You haven’t added any recipes','Import from a link or create your own — they’ll appear here newest first.','Import a recipe','import'],
+                'Recently Cooked':['flame','You haven’t cooked anything yet','Finish a recipe in Cook mode and it shows up here.','Browse recipes','All']
+              }[S.seg];
+              if(em&&noFilters){const [icn,ti,su,btnL,act]=em;return this.e('div',{key:'empty',textAlign:'center',padding:'40px 20px'},[this.e('div',{width:74,height:74,borderRadius:24,background:t.soft,margin:'0 auto 16px',display:'flex',alignItems:'center',justifyContent:'center',color:t.faint},this.ic(icn,32,{color:t.faint})),this.e('div',{fontWeight:800,fontSize:16,color:t.text,marginBottom:6},ti),this.e('div',{fontSize:13.5,color:t.muted,marginBottom:16,lineHeight:1.5,maxWidth:260,marginLeft:'auto',marginRight:'auto'},su),this.btn(btnL,()=>{if(act==='import'){this.nav('urlImport');}else{this.setState({seg:'All'});}},{auto:true,variant:'dark',sm:true,style:{margin:'0 auto'}})]);}
+              return this.e('div',{key:'empty',textAlign:'center',padding:'40px 20px'},[this.e('div',{width:74,height:74,borderRadius:24,background:t.soft,margin:'0 auto 16px',display:'flex',alignItems:'center',justifyContent:'center',color:t.faint},this.ic('search',34,{color:t.faint})),this.e('div',{fontWeight:800,fontSize:16,color:t.text,marginBottom:6},'No recipes match'),this.e('div',{fontSize:13.5,color:t.muted,marginBottom:16},'Try loosening your filters.'),this.btn('Reset filters',this.resetF,{auto:true,variant:'dark',sm:true,style:{margin:'0 auto'}})]);})()
             : this.e('div',{key:'grid',style:S.grid?{display:'grid',gridTemplateColumns:'1fr 1fr',gap:13}:{display:'flex',flexDirection:'column',gap:11}},recs.map(r=>React.createElement('div',{key:r.id},this.recipeCard(r,!S.grid))))
         ]);
       }
@@ -1339,7 +1384,7 @@ class Component extends DCLogic {
           ]),
           this.e('div',{key:'nav',display:'flex',alignItems:'center',gap:12,marginTop:18},[
             this.e('button',{style:{width:56,height:56,borderRadius:18,border:'1px solid '+t.border,background:t.card,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:t.text,opacity:S.cs===0?.4:1}},this.ic('back',24),{onClick:()=>this.cookNav(-1)}),
-            S.cs===total-1?this.btn('Finish',()=>{const id=this.curRec().id;const cc={...(this.state.cookCount||{})};cc[id]=(cc[id]||0)+1;this.setState({cookCount:cc});this.fanfare();this.nav('cookComplete');},{icon:'check',style:{flex:1,height:56}}):this.e('button',{style:{flex:1,height:56,borderRadius:18,border:'none',cursor:'pointer',background:t.accent,color:t.accentText,fontWeight:800,fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',gap:8}},['Next step',this.ic('chev',22,{color:t.accentText})],{onClick:()=>this.cookNav(1)}),
+            S.cs===total-1?this.btn('Finish',()=>{const id=this.curRec().id;const cc={...(this.state.cookCount||{})};cc[id]=(cc[id]||0)+1;const ca={...(this.state.cookAt||{})};ca[id]=Date.now();this.setState({cookCount:cc,cookAt:ca});this.fanfare();this.nav('cookComplete');},{icon:'check',style:{flex:1,height:56}}):this.e('button',{style:{flex:1,height:56,borderRadius:18,border:'none',cursor:'pointer',background:t.accent,color:t.accentText,fontWeight:800,fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',gap:8}},['Next step',this.ic('chev',22,{color:t.accentText})],{onClick:()=>this.cookNav(1)}),
             this.e('button',{style:{width:56,height:56,borderRadius:18,border:'1px solid '+t.border,background:t.card,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:t.text}},this.ic('rows',22),{onClick:()=>this.nav('cookIngredients')})
           ]),
           this.e('div',{key:'vc',textAlign:'center',marginTop:12,fontSize:11.5,color:t.faint},'Stuck on this step? Tap the sparkle up top to ask your chef')
@@ -1471,29 +1516,36 @@ class Component extends DCLogic {
       ]);
 
       case 'grocery': {const items=this.gList();const done=items.filter(it=>S.gchecked[it.n]);const open=items.filter(it=>!S.gchecked[it.n]);
-        const srcs=[...new Set(items.map(it=>it.src).filter(s2=>s2&&s2!=='You'))];
         const ord=(S.aisleOrd||['Produce','Bakery','Dairy & Eggs','Meat & Fish','Pantry','Frozen','Household']).concat(['Other']);
+        const grouped=!!S.grocGroup;
         const byAisle=ord.map(a=>[a,open.filter(it=>(it.aisle||'Pantry')===a)]).filter(x=>x[1].length);
         const pct=items.length?Math.round(done.length/items.length*100):0;
         return this.e('div',{flex:1,display:'flex',flexDirection:'column',minHeight:0},[
-          this.e('div',{key:'top',padding:'6px 18px 8px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10},[this.circBtn('back',()=>this.back()),this.e('div',{flex:1},this.sectionTitle('Grocery List',{m:0,sm:true})),this.circBtn('gear',()=>this.nav('grocerySettings')),this.circBtn('share',()=>{const txt=items.map(it=>(S.gchecked[it.n]?'[x] ':'[ ] ')+(it.q?it.q+' ':'')+it.n).join('\n');if(navigator.share)navigator.share({title:'Grocery list · 21',text:txt}).catch(()=>{});else if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(()=>this.showToast('List copied — paste it anywhere'),()=>this.showToast('Sharing works on your phone'));else this.showToast('Sharing works on your phone');})]),
+          this.e('div',{key:'top',padding:'6px 18px 8px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10},[this.circBtn('back',()=>this.back()),this.e('div',{flex:1},this.sectionTitle('Grocery List',{m:0,sm:true})),this.circBtn('share',()=>{const txt=items.map(it=>(S.gchecked[it.n]?'[x] ':'[ ] ')+(it.q?it.q+' ':'')+it.n).join('\n');if(navigator.share)navigator.share({title:'Grocery list · 21again',text:txt}).catch(()=>{});else if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(()=>this.showToast('List copied — paste it anywhere'),()=>this.showToast('Sharing works on your phone'));else this.showToast('Sharing works on your phone');})]),
           items.length?this.e('div',{key:'prog',margin:'0 18px 10px',background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'11px 14px',boxShadow:t.shadow},[
-            this.e('div',{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:7},[this.e('span',{fontSize:13,fontWeight:800,color:t.text},pct===100?'All done — great shop! 🧺':(pct===0?'Ready to shop — '+items.length+' item'+(items.length>1?'s':'')+' to grab':(pct>=50?'Almost there! ':'Off to a good start — ')+done.length+' of '+items.length+' in the basket')),this.e('span',{fontSize:11.5,color:t.muted},srcs.length?('from '+srcs.length+' recipe'+(srcs.length>1?'s':'')):'')]),
+            this.e('div',{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:7},[this.e('span',{fontSize:13.5,fontWeight:800,color:t.text},pct===100?'All done 🧺':(open.length+' item'+(open.length===1?'':'s')+' to buy')),this.e('span',{fontSize:12,color:t.muted},done.length+' of '+items.length+' ✓')]),
             this.e('div',{height:8,borderRadius:999,background:t.soft,overflow:'hidden'},this.e('div',{height:'100%',width:pct+'%',background:t.accent,borderRadius:999,transition:'.4s'}))
           ]):null,
           this.wrap([
-            this.e('div',{key:'add',display:'flex',alignItems:'center',gap:10,background:t.card,border:'1px solid '+t.border,borderRadius:14,padding:'8px 8px 8px 14px',marginBottom:10},[this.ic('plus',18,{color:t.muted}),React.createElement('input',{key:'gi',value:S.gDraft||'',onChange:e=>this.setState({gDraft:e.target.value}),onKeyDown:e=>{if(e.key==='Enter'){const v=(this.state.gDraft||'').trim();if(v&&this.gAdd([{n:v}],'You'))this.setState({gDraft:''});}},placeholder:'Add an item\u2026',style:{flex:1,minWidth:0,border:'none',outline:'none',background:'none',fontSize:14,color:t.text,fontFamily:'inherit'}}),this.e('button',{style:{padding:'8px 14px',borderRadius:10,border:'none',background:t.ink,color:t.inkText,fontWeight:800,fontSize:12,cursor:'pointer'}},'Add',{onClick:()=>{const v=(this.state.gDraft||'').trim();if(!v){this.showToast('Type an item first');return;}if(this.gAdd([{n:v}],'You'))this.setState({gDraft:''});}})]),
-            this.e('div',{key:'qk',display:'flex',gap:8,marginBottom:14},[
-              this.e('button',{style:{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:7,padding:'10px 8px',borderRadius:13,border:'1px solid '+t.border,background:t.card,cursor:'pointer',fontWeight:800,fontSize:12.5,color:t.text}},[this.ic('calendar',15,{color:t.text}),'Add today\u2019s plan'],{onClick:()=>this.addPlanDayToList(0,this.todayIdx(),'today\u2019s plan')}),
+            this.e('div',{key:'add',display:'flex',alignItems:'center',gap:8,background:t.card,border:'1.5px solid '+t.border,borderRadius:14,padding:'7px 7px 7px 14px',marginBottom:10},[this.ic('plus',18,{color:'#22A34A'}),React.createElement('input',{key:'gi',value:S.gDraft||'',onChange:e=>this.setState({gDraft:e.target.value}),onKeyDown:e=>{if(e.key==='Enter'){const v=(this.state.gDraft||'').trim();if(v&&this.gAdd([{n:v}],'You'))this.setState({gDraft:''});}},placeholder:'Add an item\u2026',style:{flex:1,minWidth:0,border:'none',outline:'none',background:'none',fontSize:15,color:t.text,fontFamily:'inherit'}}),this.e('button',{style:{padding:'9px 16px',borderRadius:10,border:'none',background:'#22A34A',color:'#fff',fontWeight:800,fontSize:13,cursor:'pointer'}},'Add',{onClick:()=>{const v=(this.state.gDraft||'').trim();if(!v){this.showToast('Type an item first');return;}if(this.gAdd([{n:v}],'You'))this.setState({gDraft:''});}})]),
+            this.e('div',{key:'qk',display:'flex',gap:8,marginBottom:12},[
+              this.e('button',{style:{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:7,padding:'10px 8px',borderRadius:13,border:'1px solid '+t.border,background:t.card,cursor:'pointer',fontWeight:800,fontSize:12.5,color:t.text}},[this.ic('calendar',15,{color:t.text}),'Today\u2019s meals'],{onClick:()=>this.addPlanDayToList(0,this.todayIdx(),'today\u2019s plan')}),
               this.e('button',{style:{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:7,padding:'10px 8px',borderRadius:13,border:'1px solid '+t.border,background:t.card,cursor:'pointer',fontWeight:800,fontSize:12.5,color:t.text}},[this.ic('search',15,{color:t.text}),'From a recipe'],{onClick:()=>this.nav('library')})
             ]),
+            (open.length>4)?this.e('div',{key:'ctl',display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6},[
+              this.e('span',{fontSize:12,fontWeight:800,color:t.muted,textTransform:'uppercase',letterSpacing:'.04em'},'To buy \u00b7 '+open.length),
+              this.e('button',{style:{display:'flex',alignItems:'center',gap:6,background:grouped?t.ink:t.card,border:'1px solid '+(grouped?t.ink:t.border),borderRadius:999,padding:'6px 11px',color:grouped?t.inkText:t.text,fontWeight:800,fontSize:11.5,cursor:'pointer'}},[this.ic('rows',13,{color:grouped?t.inkText:t.muted}),grouped?'Grouped by aisle':'Group by aisle'],{onClick:()=>{this.setState({grocGroup:!grouped});this.showToast(!grouped?'Grouped by store aisle':'Simple checklist');}})
+            ]):null,
             items.length===0?this.e('div',{key:'empty',textAlign:'center',padding:'34px 20px',background:t.card,border:'1px dashed '+t.border,borderRadius:18},[
               this.e('div',{fontSize:34,marginBottom:8},'\uD83E\uDDFA'),
               this.e('div',{fontSize:15,fontWeight:800,color:t.text,marginBottom:5},'Your list is empty'),
-              this.e('div',{fontSize:12.5,color:t.muted,lineHeight:1.5},'Type an item above, pull in today\u2019s meal plan, or open any recipe and tap the bag to add its ingredients.')
+              this.e('div',{fontSize:12.5,color:t.muted,lineHeight:1.5},'Type an item above, or tap \u201CToday\u2019s meals\u201D to pull in everything you need to cook today.')
             ]):null,
-            ...byAisle.map(([aisle,its])=>this.e('div',{key:aisle,marginBottom:8},[this.e('div',{fontSize:12,fontWeight:800,textTransform:'uppercase',letterSpacing:'.05em',color:t.muted,margin:'8px 0 8px'},aisle+' \u00b7 '+its.length),...its.map(it=>this.groceryRow(it,false))])),
-            done.length?this.e('div',{key:'ck',marginTop:12},[this.e('div',{display:'flex',alignItems:'center',justifyContent:'space-between',margin:'8px 0'},[this.e('span',{fontSize:12,fontWeight:800,color:t.muted},'In the basket \u00b7 '+done.length),this.e('div',{display:'flex',gap:14},[this.e('span',{fontSize:12,fontWeight:700,color:t.text,cursor:'pointer'},'Un-check all',{onClick:()=>this.setState({gchecked:{}})}),this.e('span',{fontSize:12,fontWeight:700,color:t.heart,cursor:'pointer'},'Remove bought',{onClick:()=>{const gc=this.state.gchecked;this.setState({gItems:this.gList().filter(x=>!gc[x.n]),gchecked:{}});this.showToast('Bought items cleared off the list');}})])]),...done.map(it=>this.groceryRow(it,true))]):null
+            grouped
+              ? byAisle.map(([aisle,its])=>this.e('div',{key:aisle,marginBottom:8},[this.e('div',{fontSize:12,fontWeight:800,textTransform:'uppercase',letterSpacing:'.05em',color:t.muted,margin:'8px 0 8px'},aisle+' \u00b7 '+its.length),...its.map(it=>this.groceryRow(it,false))]))
+              : open.map(it=>this.groceryRow(it,false)),
+            done.length?this.e('div',{key:'ck',marginTop:12},[this.e('div',{display:'flex',alignItems:'center',justifyContent:'space-between',margin:'8px 0'},[this.e('span',{fontSize:12,fontWeight:800,color:t.muted},'In the basket \u00b7 '+done.length),this.e('div',{display:'flex',gap:14},[this.e('span',{fontSize:12,fontWeight:700,color:t.text,cursor:'pointer'},'Un-check all',{onClick:()=>this.setState({gchecked:{}})}),this.e('span',{fontSize:12,fontWeight:700,color:t.heart,cursor:'pointer'},'Clear bought',{onClick:()=>{const gc=this.state.gchecked;this.setState({gItems:this.gList().filter(x=>!gc[x.n]),gchecked:{}});this.showToast('Bought items cleared off the list');}})])]),...done.map(it=>this.groceryRow(it,true))]):null,
+            items.length?this.e('div',{key:'setlink',textAlign:'center',marginTop:16},this.e('button',{style:{background:'none',border:'none',color:t.faint,fontSize:12,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5}},[this.ic('gear',13,{color:t.faint}),'Aisle order & preferences'],{onClick:()=>this.nav('grocerySettings')})):null
           ])
         ]);
       }

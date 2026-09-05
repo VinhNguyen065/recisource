@@ -6,7 +6,7 @@ const RL = new Map<string, { n: number; t: number }>();
 function rateLimited(ip: string, mode: string): boolean {
   const now = Date.now();
   const windowMs = 60_000;
-  const caps: Record<string, number> = { signup: 4, url: 20, text: 20, calories: 30, barcode: 30, recipe: 30, chat: 40, delete_account: 5 };
+  const caps: Record<string, number> = { signup: 4, resend: 4, url: 20, text: 20, calories: 30, barcode: 30, recipe: 30, chat: 40, delete_account: 5 };
   const cap = caps[mode] ?? 30;
   const key = ip + ':' + mode;
   const cur = RL.get(key);
@@ -40,6 +40,7 @@ const SYS: Record<string, string> = {
   text: 'You turn pasted free-form recipe text (any language, any mess) into a structured Thermomix recipe. Return ONLY JSON, no prose: ' + RECIPE_JSON + '. Capture the COMPLETE recipe: include EVERY ingredient with its exact quantity and unit — the main dish AND every sauce, dressing, marinade, spice mix, side dish, garnish and topping. Do not omit, merge, or summarise components. If a sauce or side has its own ingredient list, include all of those too. List up to 30 ingredients. Write the FULL method as clear ordered steps (up to 20), keeping each step complete with its own temperatures, times and quantities; include steps for making any sauces and sides. Write ALL text in English. If the text contains no recipe at all, return {"error":"no_recipe"}.',
   chat: 'You are the cooking & nutrition assistant inside "21again", a food and wellness app. Answer briefly (2-5 sentences), practically and warmly: recipes, substitutions, techniques, portioning, macros, meal ideas. You provide general wellness information only — no medical diagnosis or treatment advice; suggest a professional for medical questions. Return ONLY JSON: {"reply":string}. Reply in English.',
   signup: 'internal',
+  resend: 'internal',
 };
 async function dbg(row: Record<string, unknown>) {
   try {
@@ -106,18 +107,40 @@ Deno.serve(async (req) => {
       const pw = String(password || '');
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return new Response(JSON.stringify({ error: 'invalid email' }), { status: 400, headers: cors });
       if (pw.length < 6) return new Response(JSON.stringify({ error: 'password too short' }), { status: 400, headers: cors });
-      const srk = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const r1 = await fetch(Deno.env.get('SUPABASE_URL') + '/auth/v1/admin/users', {
+      // Public signup endpoint → sends the confirmation email (project has mailer_autoconfirm=false).
+      // The user is created UNCONFIRMED and cannot obtain a token until they click the email link.
+      const anon = Deno.env.get('SUPABASE_ANON_KEY')!;
+      const site = 'https://vinhnguyen065.github.io/recisource/';
+      const r1 = await fetch(Deno.env.get('SUPABASE_URL') + '/auth/v1/signup', {
         method: 'POST',
-        headers: { apikey: srk, Authorization: 'Bearer ' + srk, 'content-type': 'application/json' },
-        body: JSON.stringify({ email: em, password: pw, email_confirm: true }),
+        headers: { apikey: anon, Authorization: 'Bearer ' + anon, 'content-type': 'application/json' },
+        body: JSON.stringify({ email: em, password: pw, options: { email_redirect_to: site }, email_redirect_to: site }),
       });
       const j1 = await r1.json();
-      if (j1 && j1.id) { await dbg({ mode, err: '', resp: 'signup ok' }); return new Response(JSON.stringify({ ok: true }), { headers: { ...cors, 'content-type': 'application/json' } }); }
+      // GoTrue returns the created user (id present) or, when confirmation is required, a user object with
+      // confirmation_sent_at / no session. Either way, a 200 with a user/id means the confirmation email is on its way.
+      if (r1.ok && j1 && (j1.id || j1.user || j1.confirmation_sent_at || j1.email)) {
+        const confirmed = !!(j1.confirmed_at || (j1.user && j1.user.confirmed_at));
+        await dbg({ mode, err: '', resp: 'signup ok, confirmed=' + confirmed });
+        return new Response(JSON.stringify({ ok: true, needsConfirm: !confirmed }), { headers: { ...cors, 'content-type': 'application/json' } });
+      }
       const msg = String((j1 && (j1.msg || j1.message || j1.error_description || j1.error)) || 'could not create account');
       const friendly = /already|registered|exists/i.test(msg) ? 'That email already has an account — log in instead' : msg;
       await dbg({ mode, err: 'signup: ' + msg.slice(0, 300) });
       return new Response(JSON.stringify({ error: friendly }), { status: 400, headers: cors });
+    }
+    if (mode === 'resend') {
+      const em = String(email || '').trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return new Response(JSON.stringify({ error: 'invalid email' }), { status: 400, headers: cors });
+      const anon = Deno.env.get('SUPABASE_ANON_KEY')!;
+      const site = 'https://vinhnguyen065.github.io/recisource/';
+      const rr = await fetch(Deno.env.get('SUPABASE_URL') + '/auth/v1/resend', {
+        method: 'POST',
+        headers: { apikey: anon, Authorization: 'Bearer ' + anon, 'content-type': 'application/json' },
+        body: JSON.stringify({ type: 'signup', email: em, options: { email_redirect_to: site } }),
+      });
+      await dbg({ mode, err: rr.ok ? '' : 'resend failed', resp: 'resend ' + rr.status });
+      return new Response(JSON.stringify({ ok: rr.ok }), { headers: { ...cors, 'content-type': 'application/json' } });
     }
     if (mode === 'chat') {
       if (!Array.isArray(messages) || !messages.length) return new Response(JSON.stringify({ error: 'bad request' }), { status: 400, headers: cors });
