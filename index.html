@@ -59,7 +59,7 @@ class Component extends DCLogic {
     cs:0, gchecked:{},
     toast:null, notes:'Added extra turmeric for colour and a pinch of chilli. Great with a fried egg on top.',
     tmRunning:false, list:'This week', descOpen:false, query:'', plan:'annual', activeVer:'original', myIng:null, mySteps:null, aiPrefs:{'Dinner':true,'Under 30 min':true},
-    demo:true, reminders:[], remFired:{}, checkins:{}, moodLog:{}, checkinBest:0, recId:1, scanQty:{}, t1:724, t1run:false, legalKind:'terms', coachPhase:0, water:0, scanMode:'cal', weightRange:'6M', stepRange:'W', curW:71.2, wextra:[], dlog:[], diaryDay:((new Date().getDay()+6)%7), dhide:[], kcalGoal:1900,
+    demo:true, reminders:[], remFired:{}, checkins:{}, moodLog:{}, checkinBest:0, freezes:0, frozen:{}, recId:1, scanQty:{}, t1:724, t1run:false, legalKind:'terms', coachPhase:0, water:0, scanMode:'cal', weightRange:'6M', stepRange:'W', curW:71.2, wextra:[], dlog:[], diaryDay:((new Date().getDay()+6)%7), dhide:[], kcalGoal:1900,
     wlog:[{day:0,ty:'Walk',mins:34,kcal:135},{day:1,ty:'Run',mins:52,kcal:555},{day:2,ty:'Yoga',mins:41,kcal:165},{day:3,ty:'Cycle',mins:66,kcal:550},{day:4,ty:'Walk',mins:48,kcal:190},{day:4,ty:'Strength',mins:38,kcal:230}],
     twMode:'sw', swRun:false, swAcc:0, swStart:0, swLaps:[], tmTotal:60, tmLeft:60, tmRun:false, tmStart:0, hr:68, sleepH:7, sleepM:20, stepsToday:7842, stepGoal:10000, sleepLog:[408,426,372,444,420,486], sleepSel:6, stepsLog:[6200,8100,7400,9200,7800,10400], stepsSel:6, bpSys:118, bpDia:76, bpLog:[{s:124,d:82,t:'Jul 12'},{s:121,d:80,t:'Jul 26'}], wGoal:70, conds:[], meds:[], condEdit:null, condDraft:'', medEdit:null, medDraft:'', notif:true, appearance:'Light', ahealth:true, records:'MyChart', gExtra:[], gDraft:'', userName:'Sofia', chatLog:[], chatDraft:'', mealSlot:'Snack', cookRating:0
   };
@@ -209,7 +209,7 @@ class Component extends DCLogic {
   TABMAP={healthToday:0,calorieDiary:0,manualFood:0,planPick:1,library:1,search:1,collections:1,tags:1,mealPlan:1,addMeal:1,grocery:1,addToGrocery:1,grocerySettings:1,fitness:3,weight:3,steps:3,heartRate:3,sleep:3,medicalProfile:3,aiChat:3,logWorkout:3,workoutTimer:3,liveWorkout:3,profile:4,settings:4};
   TABSCREENS=['healthToday','calorieDiary','library','mealPlan','grocery','fitness','profile'];
 
-  componentDidMount(){ if(this.props.startInGallery)this.setState({mode:'gallery'}); try{const sv=JSON.parse(localStorage.getItem('recisource_v1')||'null');if(!sv){this.setState(this.freshUserState());}if(sv){this.setState(sv);if(sv.scanRec){const i=this.RECIPES.findIndex(r=>r.id===999);if(i>=0)this.RECIPES[i]=sv.scanRec;else this.RECIPES.push(sv.scanRec);if(sv.scanRec.img)this.WIMG['food-r999']=sv.scanRec.img;}(sv.myRecs||[]).forEach(mr=>{if(!this.RECIPES.some(r=>r.id===mr.id))this.RECIPES.push(mr);if(mr.img)this.WIMG['food-r'+mr.id]=mr.img;});}}catch(e){} try{const lv=JSON.parse(localStorage.getItem('recisource_live')||'null');if(lv&&lv.lsOn){this.setState(lv);}}catch(e){} this.rollover(); this.checkUpdate(); setTimeout(()=>this.scheduleNativeReminders(),1500); if(this.isNative()){if(this.state.ahealth===false||this.state.ahealth===undefined)this.setState({ahealth:true}); setTimeout(()=>this.syncHealth(true),2000); this._hkTimer=setInterval(()=>{if(this.isNative())this.syncHealth(true);},300000);} try{if(this.state.autoSteps!==false){if(window.DeviceMotionEvent&&typeof DeviceMotionEvent.requestPermission==='function'){this._armMotionGesture();}else{window.addEventListener('devicemotion',this.onMotion);this._motionOn=true;}}}catch(e){} const sess=this.loadSess(); if(sess&&sess.user){this.setState({sessEmail:sess.user.email||null});this.cloudSyncOnLogin();} this._tk=setInterval(()=>{const S=this.state;
+  componentDidMount(){ if(this.props.startInGallery)this.setState({mode:'gallery'}); try{const sv=JSON.parse(localStorage.getItem('recisource_v1')||'null');if(!sv){this.setState(this.freshUserState());}if(sv){this.setState(sv);if(sv.scanRec){const i=this.RECIPES.findIndex(r=>r.id===999);if(i>=0)this.RECIPES[i]=sv.scanRec;else this.RECIPES.push(sv.scanRec);if(sv.scanRec.img)this.WIMG['food-r999']=sv.scanRec.img;}(sv.myRecs||[]).forEach(mr=>{if(!this.RECIPES.some(r=>r.id===mr.id))this.RECIPES.push(mr);if(mr.img)this.WIMG['food-r'+mr.id]=mr.img;});}}catch(e){} try{const lv=JSON.parse(localStorage.getItem('recisource_live')||'null');if(lv&&lv.lsOn){this.setState(lv);}}catch(e){} this.rollover(); this.maybeApplyFreeze(); this.checkUpdate(); setTimeout(()=>this.scheduleNativeReminders(),1500); if(this.isNative()){if(this.state.ahealth===false||this.state.ahealth===undefined)this.setState({ahealth:true}); setTimeout(()=>this.syncHealth(true),2000); this._hkTimer=setInterval(()=>{if(this.isNative())this.syncHealth(true);},300000);} try{if(this.state.autoSteps!==false){if(window.DeviceMotionEvent&&typeof DeviceMotionEvent.requestPermission==='function'){this._armMotionGesture();}else{window.addEventListener('devicemotion',this.onMotion);this._motionOn=true;}}}catch(e){} const sess=this.loadSess(); if(sess&&sess.user){this.setState({sessEmail:sess.user.email||null});this.cloudSyncOnLogin();} this._tk=setInterval(()=>{const S=this.state;
     if(this._asBuf){const b=this._asBuf;this._asBuf=0;this.setState({stepsToday:((this.state.stepsToday!==undefined)?this.state.stepsToday:0)+b});}
     this._tkN=(this._tkN||0)+1;if(this._tkN%5===0)this.fireReminders();if(this._tkN%60===0){if(S.stepsDate&&S.stepsDate!==this.dkToday())this.rollover();this.maybeWaterNudge();}
     if(S.mode==='phone'&&S.screen==='cookTimers'&&S.t1run&&S.t1>0)this.setState({t1:S.t1-1});
@@ -389,7 +389,9 @@ class Component extends DCLogic {
   HIITS={'Tabata 20/10 ×8':{work:20,rest:10,rounds:8},'Intervals 30/15 ×10':{work:30,rest:15,rounds:10}};
   COACH5=['5 minutes in — you’re moving beautifully!','That’s 10 — momentum is yours!','15 minutes — stronger than you started!','20 minutes! This is dedication.','25 in — legend behaviour.','Half an hour. Incredible work!'];
   _regStep=(now)=>{if(this.state.lsRun){this.setState({lsSteps:(this.state.lsSteps||0)+1});if(this.state.lsTick!==false)this.beep(920,0.05,0.14);}else if(this.state.autoSteps!==false){this._asBuf=(this._asBuf||0)+1;}};
-  onMotion=(e)=>{try{const a=e.accelerationIncludingGravity||e.acceleration;if(!a)return;const m=Math.sqrt((a.x||0)*(a.x||0)+(a.y||0)*(a.y||0)+(a.z||0)*(a.z||0));const now=Date.now();
+  motionActive=()=>!!(this._motionSeen&&Date.now()-this._motionSeen<6000);
+  enableMotion=async()=>{const ok=await this.startMotion();this.setState({autoSteps:true});if(ok)this.showToast('Step counting on — walk with 21again open and watch it climb');};
+  onMotion=(e)=>{try{const a=e.accelerationIncludingGravity||e.acceleration;if(!a)return;this._motionSeen=Date.now();const m=Math.sqrt((a.x||0)*(a.x||0)+(a.y||0)*(a.y||0)+(a.z||0)*(a.z||0));const now=Date.now();
     // gravity low-pass → linear acceleration that oscillates around zero as you step
     if(this._g===undefined)this._g=m;this._g=this._g*0.9+m*0.1;const lin=m-this._g;
     // adaptive threshold: tracks the walker's own peak amplitude so gentle and vigorous walkers both register
@@ -555,7 +557,7 @@ class Component extends DCLogic {
   cancelHR=()=>{try{clearInterval(this._hrIv);}catch(e){}this.setState({hrMeas:null,hrResult:null,hrWave:[]});};
 
   // ---- Accounts & cloud sync (Supabase Auth + user_state table, RLS-isolated) ----
-  VERSION='20260905.1035';
+  VERSION='20260905.1050';
   checkUpdate=async()=>{try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();
     if(j&&j.v&&this.VERSION!=='__BUILD'+'_TS__'&&j.v!==this.VERSION){
       if(!this.state.lsOn){this.showToast('Updating to the latest version…');setTimeout(()=>{try{location.replace(location.pathname+'?v='+encodeURIComponent(j.v));}catch(e){location.reload();}},900);}
@@ -563,7 +565,7 @@ class Component extends DCLogic {
     }}catch(e){}};
   AUTH_URL='https://czbetvehfqqfhggqlqfp.supabase.co/auth/v1';
   REST_URL='https://czbetvehfqqfhggqlqfp.supabase.co/rest/v1';
-  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog','planFilter','planTier','hhMembers','myTpls','wlogD','wDemoOff','autoSteps','demo','following','likes','cookCount','aisleOrd','grocCombine','grocStaples','grocLayout','reminders','remFired','remAck','checkins','moodLog','checkinBest'];
+  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog','planFilter','planTier','hhMembers','myTpls','wlogD','wDemoOff','autoSteps','demo','following','likes','cookCount','aisleOrd','grocCombine','grocStaples','grocLayout','reminders','remFired','remAck','checkins','moodLog','checkinBest','freezes','frozen','recSort'];
   snapshotState=()=>{const S=this.state;const o={_ts:Date.now()};this.SYNC_KEYS.forEach(k=>{o[k]=S[k];});return o;};
   loadSess=()=>{try{return JSON.parse(localStorage.getItem('recisource_auth')||'null');}catch(e){return null;}};
   saveSess=(s)=>{try{if(s)localStorage.setItem('recisource_auth',JSON.stringify(s));else localStorage.removeItem('recisource_auth');}catch(e){}};
@@ -821,7 +823,15 @@ class Component extends DCLogic {
     if((f.allergens||[]).some(a=>this.recAllergens(r).includes(a)))return false;
     if(r.kcal>(f.maxKcal||800))return false;
     return true;
-  }).sort((a,b)=>(favs[b.id]?1:0)-(favs[a.id]?1:0));};
+  }).sort((a,b)=>this.recCmp(a,b,favs));};
+  recCmp=(a,b,favs)=>{favs=favs||this.state.favs||{};const s=this.state.recSort||'new';
+    const mine=r=>(r.id||0)>=999;const aMine=mine(a),bMine=mine(b);
+    if(s==='az')return (a.title||'').localeCompare(b.title||'');
+    if(s==='fav'){const d=(favs[b.id]?1:0)-(favs[a.id]?1:0);if(d)return d;}
+    // default 'new' (and 'fav' tiebreak, and 'old'): your imported recipes lead, newest import first
+    if(aMine!==bMine)return aMine?-1:1;
+    if(aMine&&bMine)return s==='old'?(a.id-b.id):(b.id-a.id);
+    return 0;};
   fmt=(n)=>{const v=Math.round(n*100)/100;return v%1===0?String(v):String(v);};
   scaleQ=(q,u)=>{const v=q*(this.state.servings/4);if(!u)return String(Math.max(1,Math.round(v)));return this.fmt(v);};
 
@@ -884,16 +894,27 @@ class Component extends DCLogic {
 
   // ── Daily check-in & streaks ─────────────────────────────
   checkedInToday=()=>!!(this.state.checkins||{})[this.dkToday()];
-  checkinStreak=()=>{const c=this.state.checkins||{};let n=0;const d=new Date();
-    if(!c[this.dkey(d)])d.setDate(d.getDate()-1); // today not yet done → count up to yesterday
-    while(c[this.dkey(d)]){n++;d.setDate(d.getDate()-1);}return n;};
+  _day=(c,fz,d)=>!!(c[this.dkey(d)]||fz[this.dkey(d)]);
+  checkinStreak=()=>{const c=this.state.checkins||{};const fz=this.state.frozen||{};let n=0;const d=new Date();
+    if(!this._day(c,fz,d))d.setDate(d.getDate()-1); // today not yet done → count up to yesterday
+    while(this._day(c,fz,d)){n++;d.setDate(d.getDate()-1);}return n;};
+  // Auto-apply a banked freeze to bridge a single missed day so one slip doesn't wipe a streak.
+  maybeApplyFreeze=()=>{const c=this.state.checkins||{};const fz={...(this.state.frozen||{})};let freezes=this.state.freezes||0;let changed=false;
+    if(freezes<=0)return;
+    const y=new Date();y.setDate(y.getDate()-1);const yk=this.dkey(y);
+    const dby=new Date();dby.setDate(dby.getDate()-2);
+    // yesterday missed, but the day before was covered, and today not yet done → protect yesterday
+    if(!c[yk]&&!fz[yk]&&this._day(c,fz,dby)){fz[yk]=true;freezes--;changed=true;}
+    if(changed)this.setState({frozen:fz,freezes:freezes});};
   CHECKIN_MILESTONES={3:'3-day streak! You’re building the habit 🔥',7:'A full week! 7-day streak 🎉',14:'Two weeks straight — unstoppable 💪',21:'21 days on 21again — this is who you are now ⭐',30:'30-day streak! A whole month 🏆',50:'50 days. Legend behaviour 👑',100:'100 days!!! Absolutely elite 🚀'};
   doCheckin=(mood)=>{const today=this.dkToday();const c={...(this.state.checkins||{})};const already=!!c[today];c[today]=true;
     const ml={...(this.state.moodLog||{})};if(mood)ml[today]=mood;
     // compute streak with today counted
     let n=0;const d=new Date();while(c[this.dkey(d)]){n++;d.setDate(d.getDate()-1);}
     const best=Math.max(this.state.checkinBest||0,n);
-    this.setState({checkins:c,moodLog:ml,checkinBest:best,checkinOpen:false});
+    // earn a freeze every 7-day milestone (max 2 banked)
+    let freezes=this.state.freezes||0;if(n>0&&n%7===0)freezes=Math.min(2,freezes+1);
+    this.setState({checkins:c,moodLog:ml,checkinBest:best,freezes:freezes,checkinOpen:false});
     this.haptic&&this.haptic([200,100,200]);
     const mile=this.CHECKIN_MILESTONES[n];
     if(mile){if(this.boom)this.boom(4);if(this.chime)this.chime();this.showToast(mile);}
@@ -915,7 +936,8 @@ class Component extends DCLogic {
             this.e('div',{fontSize:46,lineHeight:1},streak>0?'🔥':'✨'),
             this.e('div',{fontSize:30,fontWeight:800,color:t.text,letterSpacing:'-.02em',marginTop:4},streak+(streak===1?' day':' days')),
             this.e('div',{fontSize:12.5,color:t.muted,marginTop:2},done?'Checked in today ✓ · best '+best+' days':(streak>0?'Keep the streak alive — check in for today':'Start your streak today')),
-            nextMile?this.e('div',{fontSize:11.5,color:t.faint,marginTop:6},(nextMile-streak)+' more day'+(nextMile-streak===1?'':'s')+' to your '+nextMile+'-day milestone'):null
+            (S.freezes||0)>0?this.e('div',{fontSize:11.5,color:t.text,marginTop:6,fontWeight:700},'❄️ '+(S.freezes||0)+' streak freeze'+((S.freezes||0)>1?'s':'')+' banked — miss a day and one auto-protects you'):this.e('div',{fontSize:11,color:t.faint,marginTop:6},'Reach a 7-day streak to earn a ❄️ freeze (protects one missed day)'),
+            nextMile?this.e('div',{fontSize:11.5,color:t.faint,marginTop:4},(nextMile-streak)+' more day'+(nextMile-streak===1?'':'s')+' to your '+nextMile+'-day milestone'):null
           ]),
           // mood
           this.e('div',{key:'moodL',fontSize:12.5,fontWeight:800,color:t.text,marginBottom:9},'How are you feeling today?'),
@@ -1073,7 +1095,9 @@ class Component extends DCLogic {
           this.e('div',{key:'cats',className:'scr',style:{display:'flex',gap:9,overflowX:'auto',margin:'0 -18px 18px',padding:'0 18px 4px'}},this.CATS.map(([icn,lab,meal])=>{const on=S.filters.meal===meal;return this.e('button',{key:lab,onClick:()=>this.setF('meal',meal),style:{flexShrink:0,display:'flex',alignItems:'center',gap:8,padding:'9px 15px 9px 10px',borderRadius:999,border:'1px solid '+(on?t.accent:t.border),background:on?t.accent:t.card,color:on?t.accentText:t.text,cursor:'pointer',fontWeight:700,fontSize:13}},[this.e('span',{width:28,height:28,borderRadius:999,background:on?'rgba(23,25,29,.14)':t.soft,display:'flex',alignItems:'center',justifyContent:'center'},this.ic(icn,16,{color:on?t.accentText:t.text})),lab]);})),
           this.e('div',{key:'seg',className:'scr',style:{display:'flex',gap:8,overflowX:'auto',margin:'0 -18px 14px',padding:'0 18px'}},['All','Favorites','Want to Try','Recently Added','Recently Cooked'].map(s=>this.chip(s,S.seg===s,()=>this.setState({seg:s}),{sm:true}))),
           fc>0?this.e('div',{key:'fp',display:'flex',alignItems:'center',gap:8,marginBottom:14,flexWrap:'wrap'},this.activeFilterPills()):null,
-          this.e('div',{key:'gh',display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12},[this.e('div',{fontSize:16,fontWeight:800,color:t.text},[S.seg==='All'?'Recommended':S.seg,this.e('span',{fontSize:13,color:t.muted,fontWeight:600},'  '+recs.length)]),this.e('div',{display:'flex',gap:6},[this.circBtn('grid',()=>this.setState({grid:true}),{sz:34,bg:S.grid?t.ink:t.card,color:S.grid?t.inkText:t.muted,border:S.grid?t.ink:t.border,icsz:16}),this.circBtn('rows',()=>this.setState({grid:false}),{sz:34,bg:!S.grid?t.ink:t.card,color:!S.grid?t.inkText:t.muted,border:!S.grid?t.ink:t.border,icsz:16})])]),
+          this.e('div',{key:'gh',display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12},[this.e('div',{fontSize:16,fontWeight:800,color:t.text},[S.seg==='All'?'Recommended':S.seg,this.e('span',{fontSize:13,color:t.muted,fontWeight:600},'  '+recs.length)]),this.e('div',{display:'flex',gap:6,alignItems:'center'},[
+            (()=>{const order=['new','old','az','fav'];const lab={'new':'Newest','old':'Oldest','az':'A–Z','fav':'Favourites'};const cur=S.recSort||'new';return this.e('button',{style:{display:'flex',alignItems:'center',gap:5,background:t.card,border:'1px solid '+t.border,borderRadius:999,padding:'7px 11px',color:t.text,fontWeight:800,fontSize:12,cursor:'pointer'}},[this.ic('filter',13,{color:t.muted}),lab[cur]],{onClick:()=>{const nx=order[(order.indexOf(cur)+1)%order.length];this.setState({recSort:nx});this.showToast('Sorted by '+lab[nx].toLowerCase());}});})(),
+            this.circBtn('grid',()=>this.setState({grid:true}),{sz:34,bg:S.grid?t.ink:t.card,color:S.grid?t.inkText:t.muted,border:S.grid?t.ink:t.border,icsz:16}),this.circBtn('rows',()=>this.setState({grid:false}),{sz:34,bg:!S.grid?t.ink:t.card,color:!S.grid?t.inkText:t.muted,border:!S.grid?t.ink:t.border,icsz:16})])]),
           recs.length===0
             ? this.e('div',{key:'empty',textAlign:'center',padding:'40px 20px'},[this.e('div',{width:74,height:74,borderRadius:24,background:t.soft,margin:'0 auto 16px',display:'flex',alignItems:'center',justifyContent:'center',color:t.faint},this.ic('search',34,{color:t.faint})),this.e('div',{fontWeight:800,fontSize:16,color:t.text,marginBottom:6},'No recipes match'),this.e('div',{fontSize:13.5,color:t.muted,marginBottom:16},'Try loosening your filters.'),this.btn('Reset filters',this.resetF,{auto:true,variant:'dark',sm:true,style:{margin:'0 auto'}})])
             : this.e('div',{key:'grid',style:S.grid?{display:'grid',gridTemplateColumns:'1fr 1fr',gap:13}:{display:'flex',flexDirection:'column',gap:11}},recs.map(r=>React.createElement('div',{key:r.id},this.recipeCard(r,!S.grid))))
@@ -2374,11 +2398,16 @@ class Component extends DCLogic {
               this.e('div',{key:'bar',height:9,borderRadius:999,background:t.soft,margin:'10px 40px 0',overflow:'hidden'},this.e('div',{height:'100%',width:Math.min(100,Math.round(stp/gl*100))+'%',background:t.accent,borderRadius:999})),
               this.e('div',{key:'goal',display:'flex',alignItems:'center',gap:12,background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'11px 14px',margin:'14px 0 0',textAlign:'left'},[this.e('span',{fontSize:13,fontWeight:800,color:t.text,flex:1},'Daily goal'),this.e('button',{style:{width:32,height:32,borderRadius:999,border:'1px solid '+t.border,background:t.soft,cursor:'pointer',fontSize:16,color:t.text,lineHeight:'1',padding:0,fontWeight:800}},'−',{onClick:()=>this.setState({stepGoal:Math.max(2000,(this.state.stepGoal||10000)-500)})}),this.e('span',{fontSize:14,fontWeight:800,minWidth:56,textAlign:'center',color:t.text},gl.toLocaleString()),this.e('button',{style:{width:32,height:32,borderRadius:999,border:'1px solid '+t.border,background:t.soft,cursor:'pointer',fontSize:16,color:t.text,lineHeight:'1',padding:0,fontWeight:800}},'+',{onClick:()=>this.setState({stepGoal:Math.min(40000,(this.state.stepGoal||10000)+500)})})])
             ];})()),
-            this.e('div',{key:'auto',display:'flex',alignItems:'center',gap:12,background:t.card,border:'1.5px solid '+(S.autoSteps!==false?t.accent:t.border),borderRadius:16,padding:'12px 14px',marginBottom:12,boxShadow:t.shadow},[
+            this.e('div',{key:'auto',display:'flex',alignItems:'center',gap:12,background:t.card,border:'1.5px solid '+(S.autoSteps!==false?t.accent:t.border),borderRadius:16,padding:'12px 14px',marginBottom:10,boxShadow:t.shadow},[
               this.e('div',{width:40,height:40,borderRadius:13,background:S.autoSteps!==false?t.accent:t.soft,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic('flame',19,{color:S.autoSteps!==false?t.accentText:t.text})),
-              this.e('div',{flex:1,minWidth:0},[this.e('div',{fontSize:13,fontWeight:800,color:t.text},'Automatic counting'),this.e('div',{fontSize:11,color:t.muted,marginTop:2},S.autoSteps!==false?'On — 21 counts your steps automatically while open and resets them into history at midnight':'Off — turn on to count steps from your phone’s motion sensor. Apple Health covers the rest in the iOS app.')]),
+              this.e('div',{flex:1,minWidth:0},[this.e('div',{fontSize:13,fontWeight:800,color:t.text},'Automatic counting'),this.e('div',{fontSize:11,color:t.muted,marginTop:2},S.autoSteps!==false?'On — 21again counts your steps automatically while open and rolls them into history at midnight':'Off — turn on to count steps from your phone’s motion sensor. Apple Health covers the rest in the iOS app.')]),
               this.e('button',{style:{padding:'9px 14px',borderRadius:999,border:'none',background:S.autoSteps!==false?t.soft:t.ink,color:S.autoSteps!==false?t.text:t.inkText,fontWeight:800,fontSize:12,cursor:'pointer',flexShrink:0}},S.autoSteps!==false?'Turn off':'Turn on',{onClick:this.toggleAutoSteps})
             ]),
+            (S.autoSteps!==false&&!this.motionActive())?this.e('div',{key:'motfix',background:'rgba(52,211,153,.10)',border:'1.5px solid '+t.accent,borderRadius:16,padding:'12px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:12},[
+              this.e('div',{flex:1,minWidth:0},[this.e('div',{fontSize:12.5,fontWeight:800,color:t.text},'Tap to start counting 👣'),this.e('div',{fontSize:11,color:t.muted,marginTop:2,lineHeight:1.45},this.isNative()?'iPhone needs your OK to read motion. Tap Enable, then walk with the app open — your steps climb live.':'Your phone needs permission to read motion. Tap Enable, then take a few steps to see the counter move.')]),
+              this.e('button',{style:{padding:'10px 16px',borderRadius:999,border:'none',background:'#22A34A',color:'#fff',fontWeight:800,fontSize:12.5,cursor:'pointer',flexShrink:0}},'Enable',{onClick:this.enableMotion})
+            ]):(S.autoSteps!==false?this.e('div',{key:'motok',fontSize:11.5,color:t.accent,fontWeight:700,textAlign:'center',marginBottom:12},'● Counting live — walk and watch it climb'):null),
+            this.e('div',{key:'bgnote',fontSize:11,color:t.faint,textAlign:'center',marginBottom:12,lineHeight:1.5},this.isNative()?'While the app is closed, the iPhone keeps counting through Apple Health and 21again fills your day in when you reopen it.':'Steps count while 21again is open. On the iPhone app, Apple Health counts all day — even when 21again is closed.'),
             this.e('div',{key:'chips',display:'flex',gap:8,marginBottom:12,justifyContent:'center'},[['W','Week'],['M','Month'],['6M','6 months'],['Y','Year']].map(([k,l])=>this.chip(l,key===k,()=>this.setState({stepRange:k}),{sm:true}))),
             this.e('div',{key:'chart',background:t.card,border:'1px solid '+t.border,borderRadius:18,padding:'14px 16px',marginBottom:14,boxShadow:t.shadow},[
               this.e('div',{fontSize:11.5,color:t.muted,marginBottom:12},DS.cap),
