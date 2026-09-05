@@ -561,7 +561,7 @@ class Component extends DCLogic {
   cancelHR=()=>{try{clearInterval(this._hrIv);}catch(e){}this.setState({hrMeas:null,hrResult:null,hrWave:[]});};
 
   // ---- Accounts & cloud sync (Supabase Auth + user_state table, RLS-isolated) ----
-  VERSION='20260905.1221';
+  VERSION='20260905.1415';
   checkUpdate=async()=>{try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();
     if(j&&j.v&&this.VERSION!=='__BUILD'+'_TS__'&&j.v!==this.VERSION){
       if(!this.state.lsOn){this.showToast('Updating to the latest version…');setTimeout(()=>{try{location.replace(location.pathname+'?v='+encodeURIComponent(j.v));}catch(e){location.reload();}},900);}
@@ -860,6 +860,16 @@ class Component extends DCLogic {
     return 0;};
   fmt=(n)=>{const v=Math.round(n*100)/100;return v%1===0?String(v):String(v);};
   scaleQ=(q,u)=>{const v=q*(this.state.servings/4);if(!u)return String(Math.max(1,Math.round(v)));return this.fmt(v);};
+  // Dated weight series used by the chart. Real logs when we have them; a believable 6-month journey in demo mode.
+  wRealPts=()=>(this.state.wlogD||[]).map(e=>({t:+new Date(e.ts),w:e.w})).filter(x=>isFinite(x.t)&&isFinite(x.w)).sort((a,b)=>a.t-b.t);
+  wSeries=()=>{const S=this.state;
+    const real=this.wRealPts();
+    if(real.length>=2)return real;
+    const endW=real.length?real[real.length-1].w:((S.curW!==undefined)?S.curW:(this.WLOG.length?this.WLOG[this.WLOG.length-1]:71.2));
+    const startW=Math.round((endW+3.4)*10)/10;const now=Date.now();const out=[];const N=182;
+    for(let i=N;i>=0;i-=2){const f=1-i/N;const base=startW+(endW-startW)*f;const noise=Math.sin(i*0.7)*0.32+Math.cos(i*0.21)*0.16;out.push({t:now-i*864e5,w:Math.round((base+noise)*10)/10});}
+    real.forEach(r=>out.push(r));
+    return out.sort((a,b)=>a.t-b.t);};
 
   T(){return this._t;}
   // ── Colour themes: user-selectable accent families, each with tuned neutrals + per-section tints ──
@@ -2346,7 +2356,7 @@ class Component extends DCLogic {
 
       case 'weight': {const demoOff=!!S.wDemoOff;const wlogD=S.wlogD||[];
         const LOGALL=(demoOff?[]:this.WLOG).concat(S.wextra||[]);
-        const has=LOGALL.length>0;
+        const has=LOGALL.length>0;const sample=this.wRealPts().length<2;
         const wlast=has?LOGALL[LOGALL.length-1]:((S.curW!==undefined)?S.curW:71.2);
         const wg=(S.wGoal!==undefined)?S.wGoal:70;
         const start=has?LOGALL[0]:wlast;const losing=wg<=start;
@@ -2363,20 +2373,27 @@ class Component extends DCLogic {
         const fmtDate=(d)=>d.toLocaleString('en',{day:'numeric',month:'short'});
         const goalReached=losing?wlast<=wg:wlast>=wg;
         const gt=S.wGraph||'Trend';const wr=S.weightRange||'M';
-        const cut={'W':7,'M':31,'3M':92,'6M':184,'1Y':366,'All':99999}[wr]||31;
-        const datedIn=wlogD.filter(e2=>(Date.now()-new Date(e2.ts))/864e5<=cut);
-        let vals;let usingDated=false;
-        if(datedIn.length>=2){vals=datedIn.map(e2=>e2.w);usingDated=true;}
-        else{const nb={'W':5,'M':8,'3M':7,'6M':13,'1Y':26,'All':LOGALL.length}[wr]||8;vals=LOGALL.slice(-nb);}
-        if(vals.length<2&&has)vals=[wlast,wlast];
-        const first=vals.length?vals[0]:wlast;const last=vals.length?vals[vals.length-1]:wlast;
-        // projection points (8 weeks ahead)
-        const projPts=(()=>{const rate=ratePerDay!==null?ratePerDay*7:(towardCk?rateCk:0);if(!rate)return null;
+        const cutDays={'W':7,'M':30,'3M':91,'6M':182,'1Y':365,'All':1e6}[wr]||30;
+        const series=this.wSeries();const now2=Date.now();
+        let win=series.filter(p=>(now2-p.t)/864e5<=cutDays);
+        if(win.length<2)win=series.slice(-8);
+        if(win.length<2)win=[{t:now2-864e5,w:wlast},{t:now2,w:wlast}];
+        const vals=win.map(p=>p.w);
+        const first=vals[0],last=vals[vals.length-1];
+        const wMin=Math.min.apply(null,vals),wMax=Math.max.apply(null,vals);
+        const winChg=Math.round((last-first)*10)/10;
+        const spanD=Math.max(1,(win[win.length-1].t-win[0].t)/864e5);
+        const perWk=Math.round((winChg/spanD*7)*10)/10;
+        const dayRate=ratePerDay!==null?ratePerDay:(winChg/spanD);
+        const trend=(()=>{const a=0.3;let m=vals[0];return vals.map((v,i)=>{m=i?a*v+(1-a)*m:v;return Math.round(m*100)/100;});})();
+        const rangeLbl={'W':'7-day','M':'30-day','3M':'3-month','6M':'6-month','1Y':'1-year','All':'all-time'}[wr]||'';
+        // projection points (8 weeks ahead), rate from real logs or this window
+        const projPts=(()=>{const rate=dayRate*7;if(!rate)return null;
           const out=[];for(let k=1;k<=8;k++){let v=wlast+rate*k;if(losing&&v<wg)v=wg;if(!losing&&v>wg)v=wg;out.push(Math.round(v*10)/10);if(v===wg)break;}return out;})();
         const chartBox=(cap,inner,foot)=>this.e('div',{key:'chart',background:t.card,border:'1px solid '+t.border,borderRadius:18,padding:'14px 16px',marginBottom:14,boxShadow:t.shadow},[
           this.e('div',{fontSize:11.5,color:t.muted,marginBottom:8},cap),inner,foot||null]);
         let chart;
-        if(!has&&!wlogD.length){chart=chartBox('Your chart builds itself from every weigh-in',this.e('div',{textAlign:'center',padding:'22px 10px',color:t.muted,fontSize:12.5,lineHeight:1.5},'Nothing here yet — log your first weigh-in below and watch this space come alive 📈'));}
+        if(win.length<2){chart=chartBox('Your chart builds itself from every weigh-in',this.e('div',{textAlign:'center',padding:'22px 10px',color:t.muted,fontSize:12.5,lineHeight:1.5},'Nothing here yet — log your first weigh-in below and watch this space come alive 📈'));}
         else if(gt==='Future'){
           const hist=vals.slice(-6);const fut=projPts||[];
           const all=hist.concat(fut);const mn=Math.min.apply(null,all.concat([wg]))-0.6;const mx=Math.max.apply(null,all)+0.6;
@@ -2406,17 +2423,33 @@ class Component extends DCLogic {
             diffs.length?null:this.e('div',{fontSize:12,color:t.muted},'Log more weigh-ins to see your week-to-week swings.'));
         }
         else{
-          const mn=Math.min.apply(null,vals.concat([wg]))-0.6;const mx=Math.max.apply(null,vals)+0.6;
-          const n=Math.max(2,vals.length);const px=(i)=>Math.round(i/(n-1)*300);const py=(v)=>Math.round(66-(v-mn)/(mx-mn)*56);
-          const pts=vals.map((v,i)=>px(i)+','+py(v)).join(' ');
-          chart=chartBox((usingDated?'Your real logs · ':'')+(wr==='All'?'All '+vals.length+' check-ins':'Last '+vals.length+' check-ins')+' · '+first+' → '+last+' kg',
-            React.createElement('svg',{key:'svg',width:'100%',height:74,viewBox:'0 0 300 74',preserveAspectRatio:'none'},[
-              React.createElement('line',{key:'g',x1:0,y1:py(wg),x2:300,y2:py(wg),stroke:t.faint,strokeWidth:1,strokeDasharray:'5 4'}),
-              React.createElement('polygon',{key:'a',points:'0,'+py(first)+' '+pts+' 300,74 0,74',fill:'rgba(52,211,153,.18)',stroke:'none'}),
-              React.createElement('polyline',{key:'l',points:pts,fill:'none',stroke:'#5E9463',strokeWidth:2.5,strokeLinejoin:'round',strokeLinecap:'round'}),
-              React.createElement('circle',{key:'d',cx:300,cy:py(last),r:4,fill:'#5E9463',stroke:'#fff',strokeWidth:2})
+          const W=300,H=120,pad=9,plotB=H-2*pad;
+          const hi=Math.max(wMax,wg)+0.5,lo=Math.min(wMin,wg)-0.5,rng=Math.max(0.6,hi-lo);
+          const n=Math.max(2,vals.length);const X=(i)=>Math.round(pad+i/(n-1)*(W-2*pad));const Y=(v)=>Math.round(pad+(hi-v)/rng*plotB);
+          const line=vals.map((v,i)=>X(i)+','+Y(v)).join(' ');
+          const trLine=trend.map((v,i)=>X(i)+','+Y(v)).join(' ');
+          const area='0,'+H+' '+vals.map((v,i)=>X(i)+','+Y(v)).join(' ')+' '+W+','+H;
+          const gY=Y(wg);const sel=(S.wSel!=null&&S.wSel<vals.length&&S.wSel>=0)?S.wSel:null;
+          const dfmt=(ms)=>new Date(ms).toLocaleDateString('en',{day:'numeric',month:'short'});
+          chart=chartBox((sample?'Sample preview · ':'')+'Your weight · '+rangeLbl+' · '+this.fmt(first)+' → '+this.fmt(last)+' kg',
+            this.e('div',{style:{position:'relative',paddingBottom:'18px'}},[
+              this.e('div',{key:'yhi',style:{position:'absolute',left:0,top:-2,fontSize:9.5,fontWeight:700,color:t.faint}},this.fmt(Math.round(hi*10)/10)),
+              this.e('div',{key:'ylo',style:{position:'absolute',left:0,bottom:22,fontSize:9.5,fontWeight:700,color:t.faint}},this.fmt(Math.round(lo*10)/10)),
+              React.createElement('svg',{key:'svg',width:'100%',height:H,viewBox:'0 0 '+W+' '+H,preserveAspectRatio:'none',style:{display:'block'}},[
+                React.createElement('polygon',{key:'a',points:area,fill:'rgba(52,211,153,.15)',stroke:'none'}),
+                React.createElement('line',{key:'g',x1:0,y1:gY,x2:W,y2:gY,stroke:t.faint,strokeWidth:1,strokeDasharray:'5 4'}),
+                React.createElement('polyline',{key:'tr',points:trLine,fill:'none',stroke:t.accent,strokeWidth:1.5,strokeDasharray:'4 4',opacity:0.5,strokeLinejoin:'round'}),
+                React.createElement('polyline',{key:'l',points:line,fill:'none',stroke:'#5E9463',strokeWidth:2.5,strokeLinejoin:'round',strokeLinecap:'round'}),
+                sel!==null?React.createElement('line',{key:'sl',x1:X(sel),y1:0,x2:X(sel),y2:H,stroke:t.border,strokeWidth:1}):null,
+                React.createElement('circle',{key:'d',cx:X(n-1),cy:Y(last),r:3.5,fill:'#5E9463',stroke:'#fff',strokeWidth:2}),
+                sel!==null?React.createElement('circle',{key:'ds',cx:X(sel),cy:Y(vals[sel]),r:4.5,fill:t.accent,stroke:'#fff',strokeWidth:2}):null
+              ]),
+              this.e('div',{key:'gl',style:{position:'absolute',right:2,top:Math.max(0,Math.min(H-28,gY-13))+'px',fontSize:9,fontWeight:800,color:t.muted,background:t.card,padding:'0 3px',borderRadius:4}},'goal '+this.fmt(wg)),
+              this.e('div',{key:'zones',style:{position:'absolute',left:0,right:0,top:0,bottom:16,display:'flex'}},vals.map((v,i)=>this.e('div',{key:'z'+i,style:{flex:1,cursor:'pointer'},onClick:()=>this.setState({wSel:(sel===i?null:i)})}))),
+              sel!==null?this.e('div',{key:'tip',style:{position:'absolute',top:'-4px',left:'calc('+(X(sel)/W*100).toFixed(1)+'% - 46px)',width:92,background:t.ink,color:t.inkText,borderRadius:10,padding:'5px 6px',textAlign:'center',pointerEvents:'none',boxShadow:t.shadow,zIndex:2}},[this.e('div',{fontSize:12.5,fontWeight:800},this.fmt(vals[sel])+' kg'),this.e('div',{fontSize:9,opacity:.85},dfmt(win[sel].t))]):null,
+              this.e('div',{key:'xax',style:{position:'absolute',left:0,right:0,bottom:0,display:'flex',justifyContent:'space-between',fontSize:9.5,color:t.faint}},[this.e('span',{},dfmt(win[0].t)),this.e('span',{style:{fontWeight:700}},sel!==null?'tap again to clear':'tap the line to inspect'),this.e('span',{},dfmt(win[win.length-1].t))])
             ]),
-            this.e('div',{display:'flex',justifyContent:'space-between',fontSize:10.5,color:t.faint,marginTop:6},[this.e('span',{},'earlier'),this.e('span',{},'goal '+this.fmt(wg)+' kg ---'),this.e('span',{},'latest')]));
+            null);
         }
         const doLog=()=>{const w=Math.round((this.state.curW!==undefined?this.state.curW:wlast)*10)/10;const now=new Date();
           const prevBest=(this.state.wlogD||[]).reduce((a,e2)=>losing?Math.min(a,e2.w):Math.max(a,e2.w),losing?1e9:-1e9);
@@ -2449,10 +2482,10 @@ class Component extends DCLogic {
                 this.btn(loggedToday?'Update':'Log',doLog,{sm:true,auto:true})
               ])
             ]),
-            this.e('div',{key:'gtabs',display:'flex',background:t.soft,borderRadius:999,padding:3,marginBottom:10},['Trend','Change','Future'].map(g2=>this.e('button',{key:g2,style:{flex:1,padding:'8px 0',borderRadius:999,border:'none',cursor:'pointer',fontSize:12,fontWeight:800,background:gt===g2?t.ink:'transparent',color:gt===g2?t.inkText:t.muted}},g2==='Future'?'Future 🔮':g2,{onClick:()=>this.setState({wGraph:g2})}))),
-            gt!=='Future'?this.e('div',{key:'chips',display:'flex',gap:8,marginBottom:12,justifyContent:'center'},['W','M','3M','6M','1Y','All'].map(r2=>this.chip(r2,wr===r2,()=>this.setState({weightRange:r2}),{sm:true}))):null,
+            this.e('div',{key:'gtabs',display:'flex',background:t.soft,borderRadius:999,padding:3,marginBottom:10},['Trend','Change','Future'].map(g2=>this.e('button',{key:g2,style:{flex:1,padding:'8px 0',borderRadius:999,border:'none',cursor:'pointer',fontSize:12,fontWeight:800,background:gt===g2?t.ink:'transparent',color:gt===g2?t.inkText:t.muted}},g2==='Future'?'Future 🔮':g2,{onClick:()=>this.setState({wGraph:g2,wSel:null})}))),
+            gt!=='Future'?this.e('div',{key:'chips',display:'flex',gap:8,marginBottom:12,justifyContent:'center'},['W','M','3M','6M','1Y','All'].map(r2=>this.chip(r2,wr===r2,()=>this.setState({weightRange:r2,wSel:null}),{sm:true}))):null,
             chart,
-            has?this.e('div',{key:'stats',display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:0,background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'13px 8px',marginBottom:14},[[this.fmt(start),'start kg'],[this.fmt(wlast),'now kg'],[(tot>0?'+':'')+this.fmt(tot),'change kg'],[this.fmt(Math.round((wlast-wg)*10)/10),'to goal kg']].map(([v,l],i)=>this.e('div',{key:l,style:{textAlign:'center',borderRight:i<3?'1px solid '+t.border:'none'}},[this.e('div',{fontSize:16,fontWeight:800,color:t.text},v),this.e('div',{fontSize:10,color:t.muted,marginTop:2},l)]))):null,
+            (has||sample)?this.e('div',{key:'stats',display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:0,background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'13px 8px',marginBottom:14,opacity:sample?0.75:1},[[((winChg>0?'+':'')+this.fmt(winChg)),rangeLbl+' change',winChg===0?t.text:((losing?winChg<0:winChg>0)?'#3d6b42':t.heart)],[((perWk>0?'+':'')+this.fmt(perWk)),'per week',t.text],[this.fmt(wMin),'lowest',t.text],[this.fmt(wMax),'highest',t.text]].map(([v,l,col],i)=>this.e('div',{key:l,style:{textAlign:'center',borderRight:i<3?'1px solid '+t.border:'none'}},[this.e('div',{fontSize:15.5,fontWeight:800,color:col||t.text},v),this.e('div',{fontSize:9.5,color:t.muted,marginTop:2},l)]))):null,
             this.e('div',{key:'goalrow',display:'flex',alignItems:'center',gap:12,background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'12px 14px',marginBottom:14},[
               this.e('span',{fontSize:13,fontWeight:800,color:t.text,flex:1},'Goal weight'),
               this.e('button',{style:{width:36,height:36,borderRadius:999,border:'1px solid '+t.border,background:t.soft,cursor:'pointer',fontSize:17,color:t.text,lineHeight:1}},'−',{onClick:()=>this.setState({wGoal:Math.max(40,Math.round((((this.state.wGoal!==undefined)?this.state.wGoal:70)-0.5)*10)/10)})}),
