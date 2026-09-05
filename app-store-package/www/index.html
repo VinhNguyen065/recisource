@@ -411,8 +411,9 @@ class Component extends DCLogic {
     window.addEventListener('devicemotion',this.onMotion);this._motionOn=true;this.setState({_mArm:Date.now()});return true;}catch(e){return false;}};
   stopMotion=(force)=>{if(this.state.autoSteps!==false&&!force)return;try{window.removeEventListener('devicemotion',this.onMotion);}catch(e){}this._motionOn=false;};
   hav=(a,b)=>{const R=6371000,dLa=(b.lat-a.lat)*Math.PI/180,dLo=(b.lon-a.lon)*Math.PI/180;const x=Math.sin(dLa/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLo/2)**2;return 2*R*Math.asin(Math.sqrt(x));};
-  startGPS=()=>{try{if(!navigator.geolocation){this.showToast('No GPS here');return;}this._gw=navigator.geolocation.watchPosition(p=>{const c={lat:p.coords.latitude,lon:p.coords.longitude};if(p.coords.accuracy>60)return;if(this._gLast&&this.state.lsRun){const d=this.hav(this._gLast,c);if(d>1&&d<200)this.setState({lsDist:(this.state.lsDist||0)+d});}this._gLast=c;},()=>this.showToast('GPS unavailable — distance off'),{enableHighAccuracy:true,maximumAge:2000});}catch(e){}};
+  startGPS=()=>{try{if(!navigator.geolocation){this.showToast('No GPS here');return;}if(!this._path)this._path=[];this._gw=navigator.geolocation.watchPosition(p=>{const c={lat:p.coords.latitude,lon:p.coords.longitude};if(p.coords.accuracy>60)return;if(!this._path)this._path=[];if(!this._gLast){this._path.push(c);}else if(this.state.lsRun){const d=this.hav(this._gLast,c);if(d>1&&d<200){this.setState({lsDist:(this.state.lsDist||0)+d});this._path.push(c);this._pathN=(this._pathN||0)+1;}}this._gLast=c;},()=>this.showToast('GPS unavailable — distance off'),{enableHighAccuracy:true,maximumAge:2000});}catch(e){}};
   stopGPS=()=>{try{if(this._gw!==undefined)navigator.geolocation.clearWatch(this._gw);}catch(e){}this._gw=undefined;this._gLast=null;};
+  gpsWanted=()=>{const S=this.state;return this.OUTDOOR.includes(S.lsTy||'Walk')?(S.lsGps!==false):!!S.lsGps;};
   startClap=async()=>{try{const st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});this._clapStream=st;
     // iOS quirk: an AudioContext created BEFORE mic access can process silence.
     // Use a dedicated context created after the stream exists, and resume it.
@@ -470,9 +471,9 @@ class Component extends DCLogic {
   startLive=async()=>{const S=this.state;this.audioCtx();
     const hi=S.lsHiit?this.HIITS[S.lsHiit]:null;
     this.setState({lsOn:true,lsDone:false,lsRun:true,lsAcc:0,lsStart:Date.now(),lsSteps:0,lsDist:0,lsRound:1,lsPhase:'work',lsPhaseLeft:hi?hi.work:0,lsMilestone:0});
-    this._mBase=undefined;this._mLast=0;
+    this._mBase=undefined;this._mLast=0;this._path=[];this._gLast=null;this._pathN=0;
     await this.startMotion();
-    if(S.lsGps)this.startGPS();
+    if(this.gpsWanted())this.startGPS();
     if(S.lsClap)await this.startClap();
     if(S.lsVoiceCmd)this.startVoice();
     this.startGroove();
@@ -487,14 +488,17 @@ class Component extends DCLogic {
   exitLive=()=>{this.stopMotion();this.stopGPS();this.stopClap();this.stopVoice();this.stopBeat();this.stopGroove();this.dropWake();this.clearLive();this.setState({lsOn:false,lsRun:false,lsDone:false,lsAcc:0,lsSteps:0,lsDist:0,lsDiscArm:0});};
   saveLive=()=>{const S=this.state;const mins=Math.max(1,Math.round(this.liveNow()/60000));const entry={day:this.todayIdx(),dt:this.dkToday(),ty:S.lsTy||'Walk',mins,kcal:this.wkKcal(S.lsTy||'Walk',mins,'Moderate')};
     if((S.lsSteps||0)>0)entry.steps=S.lsSteps;if((S.lsDist||0)>50)entry.dist=Math.round(S.lsDist);
+    // Save the mapped route (places been to) when we have a real trace
+    let newRoutes=this.state.routes||[];const trace=this._path||[];
+    if(trace.length>=2&&(S.lsDist||0)>50){const rt={t:Date.now(),dt:this.dkToday(),ty:entry.ty,mins,kcal:entry.kcal,dist:Math.round(S.lsDist||0),steps:entry.steps||0,path:this.dsPath(trace,80)};newRoutes=[rt].concat(newRoutes).slice(0,40);entry.route=rt.t;}
     const newLog=(S.wlog||[]).concat(entry);
-    this.setState({wlog:newLog,
+    this.setState({wlog:newLog,routes:newRoutes,
       stepsToday:(S.stepsToday||0)+(entry.steps||0),
       totSteps:(S.totSteps||0)+(entry.steps||0),
       totMins:(S.totMins||0)+mins,
       totKcalBurn:(S.totKcalBurn||0)+entry.kcal});
     // flush to disk + cloud immediately — do not rely on the debounce surviving a tab close
-    try{localStorage.setItem('recisource_v1',JSON.stringify({...this.snapshotState(),wlog:newLog,_ts:Date.now()}));}catch(e){}
+    try{localStorage.setItem('recisource_v1',JSON.stringify({...this.snapshotState(),wlog:newLog,routes:newRoutes,_ts:Date.now()}));}catch(e){}
     setTimeout(()=>this.cloudPush(),350);
     this.exitLive();
     const days=this.activeDays();
@@ -557,7 +561,7 @@ class Component extends DCLogic {
   cancelHR=()=>{try{clearInterval(this._hrIv);}catch(e){}this.setState({hrMeas:null,hrResult:null,hrWave:[]});};
 
   // ---- Accounts & cloud sync (Supabase Auth + user_state table, RLS-isolated) ----
-  VERSION='20260905.1207';
+  VERSION='20260905.1221';
   checkUpdate=async()=>{try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();
     if(j&&j.v&&this.VERSION!=='__BUILD'+'_TS__'&&j.v!==this.VERSION){
       if(!this.state.lsOn){this.showToast('Updating to the latest version…');setTimeout(()=>{try{location.replace(location.pathname+'?v='+encodeURIComponent(j.v));}catch(e){location.reload();}},900);}
@@ -565,7 +569,7 @@ class Component extends DCLogic {
     }}catch(e){}};
   AUTH_URL='https://czbetvehfqqfhggqlqfp.supabase.co/auth/v1';
   REST_URL='https://czbetvehfqqfhggqlqfp.supabase.co/rest/v1';
-  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog','planFilter','planTier','hhMembers','myTpls','wlogD','wDemoOff','autoSteps','demo','following','likes','cookCount','aisleOrd','grocCombine','grocStaples','grocLayout','reminders','remFired','remAck','checkins','moodLog','checkinBest','freezes','frozen','recSort','cookAt','grocGroup','theme'];
+  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog','planFilter','planTier','hhMembers','myTpls','wlogD','wDemoOff','autoSteps','demo','following','likes','cookCount','aisleOrd','grocCombine','grocStaples','grocLayout','reminders','remFired','remAck','checkins','moodLog','checkinBest','freezes','frozen','recSort','cookAt','grocGroup','theme','routes'];
   snapshotState=()=>{const S=this.state;const o={_ts:Date.now()};this.SYNC_KEYS.forEach(k=>{o[k]=S[k];});return o;};
   loadSess=()=>{try{return JSON.parse(localStorage.getItem('recisource_auth')||'null');}catch(e){return null;}};
   saveSess=(s)=>{try{if(s)localStorage.setItem('recisource_auth',JSON.stringify(s));else localStorage.removeItem('recisource_auth');}catch(e){}};
@@ -715,7 +719,7 @@ class Component extends DCLogic {
   dueReminders=()=>{const now=new Date();const nowMin=now.getHours()*60+now.getMinutes();const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
     return (this.state.reminders||[]).filter(r=>r.on&&this.remAppliesOn(r,today)).map(r=>{const p=(r.time||'09:00').split(':');return {...r,_min:(+p[0])*60+(+p[1])};}).filter(r=>r._min<=nowMin&&(this.state.remAck||{})[this.remOccKey(r,today)]!==1&&(nowMin-r._min)<180);};
   ackReminder=(r)=>{const today=new Date();const ack={...(this.state.remAck||{})};ack[this.remOccKey(r,new Date(today.getFullYear(),today.getMonth(),today.getDate()))]=1;this.setState({remAck:ack});};
-  freshUserState=()=>({demo:false,conds:[],meds:[],wlog:[],bpLog:[],bpSys:120,bpDia:80,sleepLog:[0,0,0,0,0,0],sleepH:0,sleepM:0,stepsLog:[0,0,0,0,0,0],stepsToday:0,stepsHist:{},wextra:[],wlogD:[],wDemoOff:true,dlog:[],dhide:['latte','rice','avoc'],water:0,hr:0,totSteps:0,totMins:0,totKcalBurn:0,records:'None',ahealth:false,following:false,likes:{},cookCount:{},cookAt:{},theme:'bloom',appearance:'Light',userName:''});
+  freshUserState=()=>({demo:false,conds:[],meds:[],wlog:[],bpLog:[],bpSys:120,bpDia:80,sleepLog:[0,0,0,0,0,0],sleepH:0,sleepM:0,stepsLog:[0,0,0,0,0,0],stepsToday:0,stepsHist:{},wextra:[],wlogD:[],wDemoOff:true,dlog:[],dhide:['latte','rice','avoc'],water:0,hr:0,totSteps:0,totMins:0,totKcalBurn:0,records:'None',ahealth:false,following:false,likes:{},cookCount:{},cookAt:{},routes:[],theme:'bloom',appearance:'Light',userName:''});
   isDemo=()=>this.state.demo!==false;
   _armMotionGesture=()=>{if(this._motionArmed)return;this._motionArmed=true;
     const go=async()=>{try{const p=await DeviceMotionEvent.requestPermission();if(p==='granted'){window.addEventListener('devicemotion',this.onMotion);this._motionOn=true;}}catch(e){}
@@ -872,9 +876,33 @@ class Component extends DCLogic {
   L(){const T=this.activeTheme();return {bg:T.bg,card:'#FFFFFF',soft:T.soft,text:T.text||'#23202B',muted:T.muted||'#6B6578',faint:T.faint||'#9A94A6',border:T.border,ink:T.ink,inkText:'#FFFFFF',accent:T.a,accentText:T.aTx,heart:'#EF4466',shadow:T.shadow||'0 2px 8px rgba(40,34,60,.08)'};}
   SEC_FOOD=['library','search','collections','tags','recipeDetail','editRecipe','manualEntry','moreMenu','addMenu','urlImport','photoImport','textImport','importReview','mealPlan','addMeal','planPick','grocery','addToGrocery','grocerySettings','nutrition','dietaryFilters','calorieDiary','manualFood','mealScanResult','goalEdit'];
   SEC_HEALTH=['weight','steps','heartRate','sleep','medicalProfile','aiChat','alerts','reminders'];
-  SEC_FIT=['fitness','logWorkout','liveWorkout'];
+  SEC_FIT=['fitness','logWorkout','liveWorkout','routes'];
   secBg=(id)=>{const T=this.activeTheme();return this.SEC_FOOD.includes(id)?T.sec.food:(this.SEC_HEALTH.includes(id)?T.sec.health:(this.SEC_FIT.includes(id)?T.sec.fit:T.def));};
   D(){const T=this.activeTheme();return {bg:'#17161D',card:'#211F29',soft:'#2B2935',text:'#F3F1F8',muted:'#B7B3C4',faint:'#89849A',border:'#34313F',ink:T.a,inkText:T.aTx,accent:T.a,accentText:T.aTx,heart:'#FB7185',shadow:'0 2px 6px rgba(0,0,0,.5)'};}
+  OUTDOOR=['Walk','Run','Cycle'];
+  dsPath=(path,max)=>{const p=(path||[]).filter(x=>x&&isFinite(x.lat)&&isFinite(x.lon));max=max||80;if(p.length<=max)return p.slice();const out=[];const step=(p.length-1)/(max-1);for(let i=0;i<max;i++)out.push(p[Math.round(i*step)]);return out;};
+  // Draws the GPS trace as a self-contained SVG "map" — no external tiles, works offline, theme-aware.
+  routeMap=(path,o={})=>{const t=this.T();const W=320,H=o.h||180;const pad=14;
+    const pts=(path||[]).filter(p=>p&&isFinite(p.lat)&&isFinite(p.lon));
+    const shell=(inner)=>this.e('div',{style:{width:'100%',borderRadius:o.r||16,overflow:'hidden',border:'1px solid '+t.border,background:t.soft,...(o.style||{})}},inner);
+    if(pts.length<2)return shell([this.e('div',{style:{width:'100%',height:H,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:7,color:t.faint}},[this.ic('pin',26,{color:t.faint}),this.e('div',{fontSize:12,fontWeight:700},o.empty||'Start moving to draw your route')])]);
+    let mnLa=1e9,mxLa=-1e9,mnLo=1e9,mxLo=-1e9;pts.forEach(p=>{mnLa=Math.min(mnLa,p.lat);mxLa=Math.max(mxLa,p.lat);mnLo=Math.min(mnLo,p.lon);mxLo=Math.max(mxLo,p.lon);});
+    const kx=Math.cos(((mnLa+mxLa)/2)*Math.PI/180);
+    const spanLo=Math.max(1e-7,(mxLo-mnLo)*kx),spanLa=Math.max(1e-7,(mxLa-mnLa));
+    const sc=Math.min((W-2*pad)/spanLo,(H-2*pad)/spanLa);
+    const ox=(W-spanLo*sc)/2,oy=(H-spanLa*sc)/2;
+    const X=p=>ox+(p.lon-mnLo)*kx*sc,Y=p=>H-(oy+(p.lat-mnLa)*sc);
+    const d=pts.map((p,i)=>(i?'L':'M')+X(p).toFixed(1)+' '+Y(p).toFixed(1)).join(' ');
+    const a=pts[0],b=pts[pts.length-1];let g='';for(let x=0;x<=W;x+=W/6)g+='<line x1="'+x.toFixed(0)+'" y1="0" x2="'+x.toFixed(0)+'" y2="'+H+'"/>';for(let y=0;y<=H;y+=H/4)g+='<line x1="0" y1="'+y.toFixed(0)+'" x2="'+W+'" y2="'+y.toFixed(0)+'"/>';
+    const esc=c=>String(c).replace(/"/g,'');
+    const svg='<svg viewBox="0 0 '+W+' '+H+'" width="100%" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" style="display:block">'
+      +'<rect width="'+W+'" height="'+H+'" fill="'+esc(t.soft)+'"/>'
+      +'<g stroke="'+esc(t.border)+'" stroke-width="1" opacity="0.55">'+g+'</g>'
+      +'<path d="'+d+'" fill="none" stroke="'+esc(t.accent)+'" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>'
+      +'<circle cx="'+X(a).toFixed(1)+'" cy="'+Y(a).toFixed(1)+'" r="6" fill="#22C55E" stroke="#fff" stroke-width="2.5"/>'
+      +'<circle cx="'+X(b).toFixed(1)+'" cy="'+Y(b).toFixed(1)+'" r="6" fill="'+esc(t.accent)+'" stroke="#fff" stroke-width="2.5"/>'
+      +'</svg>';
+    return shell([React.createElement('div',{key:'svg',style:{width:'100%',lineHeight:0},dangerouslySetInnerHTML:{__html:svg}})]);};
 
   btn(label,onClick,o={}){const t=this.T();const v=o.variant||'primary';
     const base={width:o.auto?'auto':'100%',padding:o.sm?'11px 16px':'16px 18px',borderRadius:o.square?16:999,fontWeight:800,fontSize:o.sm?13.5:15,border:'none',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,transition:'background .15s,color .15s,transform .15s,box-shadow .15s',...(o.style||{})};
@@ -2000,7 +2028,25 @@ class Component extends DCLogic {
             this.e('button',{style:{width:26,height:26,borderRadius:8,border:'none',background:t.soft,color:t.muted,cursor:'pointer',fontWeight:800,fontSize:13,lineHeight:'1',padding:0}},'×',{onClick:()=>{const nl=(this.state.wlog||[]).slice();nl.splice(wi,1);this.setState({wlog:nl,totMins:Math.max(0,(this.state.totMins||0)-(w.mins||0)),totKcalBurn:Math.max(0,(this.state.totKcalBurn||0)-(w.kcal||0))});this.showToast('Workout removed');}})
           ]);}),
           this.h('Your health'),
-          ...(()=>{const wv=(S.wextra&&S.wextra.length)?S.wextra[S.wextra.length-1]:(S.curW||0);const stp=(S.stepsToday!==undefined)?S.stepsToday:0;const hrv=(S.hr!==undefined)?S.hr:0;const slH=(S.sleepH!==undefined)?S.sleepH:0,slM=(S.sleepM!==undefined)?S.sleepM:0;const slMin=slH*60+slM;const slSc=Math.max(40,Math.min(100,Math.round(100-Math.abs(480-slMin)/6)));const bestStp=Math.max.apply(null,((S.stepsLog&&S.stepsLog.length===6)?S.stepsLog:[0,0,0,0,0,0]).concat([stp]));return [['trend','Weight',wv?this.fmt(wv)+' kg · goal '+this.fmt((S.wGoal!==undefined)?S.wGoal:70)+' kg':'Log your first weigh-in','weight'],['flame','Step history',stp.toLocaleString()+' today'+(bestStp>0?' · best '+bestStp.toLocaleString():''),'steps'],['pulse','Heart rate',hrv>0?hrv+' bpm · last reading':'Tap to measure your pulse','heartRate'],['moon','Sleep',slMin>0?slH+'h '+String(slM).padStart(2,'0')+'m · score '+slSc:'Log last night’s sleep','sleep'],['shield','Medical profile',((S.conds||[]).length)+' condition'+((S.conds||[]).length===1?'':'s'),'medicalProfile'],['spark','AI assistant','Meal ideas, swaps & healthy habits — live','aiChat']];})().map(([icn,l,sub,go])=>this.e('div',{key:l,display:'flex',alignItems:'center',gap:13,padding:'13px 0',borderBottom:'1px solid '+t.border,cursor:'pointer'},[this.e('div',{width:40,height:40,borderRadius:13,background:t.soft,display:'flex',alignItems:'center',justifyContent:'center'},this.ic(icn,19,{color:t.text})),this.e('div',{flex:1},[this.e('div',{fontSize:14,fontWeight:700,color:t.text},l),this.e('div',{fontSize:12,color:t.muted},sub)]),this.ic('chev',17,{color:t.faint})],{onClick:()=>{if(go==='aiChat'){this.openChat(null);return;}this.nav(go);}}))
+          ...(()=>{const wv=(S.wextra&&S.wextra.length)?S.wextra[S.wextra.length-1]:(S.curW||0);const stp=(S.stepsToday!==undefined)?S.stepsToday:0;const hrv=(S.hr!==undefined)?S.hr:0;const slH=(S.sleepH!==undefined)?S.sleepH:0,slM=(S.sleepM!==undefined)?S.sleepM:0;const slMin=slH*60+slM;const slSc=Math.max(40,Math.min(100,Math.round(100-Math.abs(480-slMin)/6)));const bestStp=Math.max.apply(null,((S.stepsLog&&S.stepsLog.length===6)?S.stepsLog:[0,0,0,0,0,0]).concat([stp]));const rts=S.routes||[];const rkm=(rts.reduce((a,r)=>a+(r.dist||0),0)/1000).toFixed(1);return [['pin','Places & routes',rts.length?(rts.length+' route'+(rts.length===1?'':'s')+' · '+rkm+' km mapped'):'Map your walks & rides with GPS','routes'],['trend','Weight',wv?this.fmt(wv)+' kg · goal '+this.fmt((S.wGoal!==undefined)?S.wGoal:70)+' kg':'Log your first weigh-in','weight'],['flame','Step history',stp.toLocaleString()+' today'+(bestStp>0?' · best '+bestStp.toLocaleString():''),'steps'],['pulse','Heart rate',hrv>0?hrv+' bpm · last reading':'Tap to measure your pulse','heartRate'],['moon','Sleep',slMin>0?slH+'h '+String(slM).padStart(2,'0')+'m · score '+slSc:'Log last night’s sleep','sleep'],['shield','Medical profile',((S.conds||[]).length)+' condition'+((S.conds||[]).length===1?'':'s'),'medicalProfile'],['spark','AI assistant','Meal ideas, swaps & healthy habits — live','aiChat']];})().map(([icn,l,sub,go])=>this.e('div',{key:l,display:'flex',alignItems:'center',gap:13,padding:'13px 0',borderBottom:'1px solid '+t.border,cursor:'pointer'},[this.e('div',{width:40,height:40,borderRadius:13,background:t.soft,display:'flex',alignItems:'center',justifyContent:'center'},this.ic(icn,19,{color:t.text})),this.e('div',{flex:1},[this.e('div',{fontSize:14,fontWeight:700,color:t.text},l),this.e('div',{fontSize:12,color:t.muted},sub)]),this.ic('chev',17,{color:t.faint})],{onClick:()=>{if(go==='aiChat'){this.openChat(null);return;}this.nav(go);}}))
+        ]);
+      }
+
+      case 'routes': {const rts=S.routes||[];const totKm=(rts.reduce((a,r)=>a+(r.dist||0),0)/1000);const totMin=rts.reduce((a,r)=>a+(r.mins||0),0);const dfmt=(ts)=>new Date(ts).toLocaleDateString('en',{weekday:'short',month:'short',day:'numeric'});
+        return this.e('div',{flex:1,minHeight:0,display:'flex',flexDirection:'column'},[
+          this.topbar('Places & routes'),
+          this.wrap([
+            rts.length?this.e('div',{key:'tot',display:'flex',gap:10,marginBottom:14},[[String(rts.length),rts.length===1?'route':'routes'],[totKm.toFixed(1),'km'],[String(totMin),'minutes']].map(([v,l])=>this.e('div',{key:l,flex:1,background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'13px 8px',textAlign:'center',boxShadow:t.shadow},[this.e('div',{fontSize:19,fontWeight:800,color:t.text},v),this.e('div',{fontSize:11,color:t.muted,marginTop:2},l)]))):null,
+            rts.length===0?this.e('div',{key:'empty',textAlign:'center',padding:'40px 20px'},[this.e('div',{width:74,height:74,borderRadius:24,background:t.soft,margin:'0 auto 16px',display:'flex',alignItems:'center',justifyContent:'center'},this.ic('pin',34,{color:t.faint})),this.e('div',{fontWeight:800,fontSize:16,color:t.text,marginBottom:6},'No routes yet'),this.e('div',{fontSize:13.5,color:t.muted,marginBottom:18,lineHeight:1.5,maxWidth:264,marginLeft:'auto',marginRight:'auto'},'Start a live Walk, Run or Cycle with “Map my route” on — your path, distance and time save here as places you’ve been.'),this.btn('Start a walk',()=>{this.setState({lsTy:'Walk',lsGps:true});this.nav('liveWorkout');},{auto:true,variant:'dark',sm:true,style:{margin:'0 auto'}})]):null,
+            ...rts.map((r,ri)=>{const em=(this.WTYPES.find(x=>x[1]===r.ty)||['🚶'])[0];return this.e('div',{key:'r'+ri,style:{background:t.card,border:'1px solid '+t.border,borderRadius:18,overflow:'hidden',marginBottom:12,boxShadow:t.shadow}},[
+              this.routeMap(r.path,{h:150,r:0,style:{borderRadius:0,border:'none',borderBottom:'1px solid '+t.border}}),
+              this.e('div',{style:{display:'flex',alignItems:'center',gap:12,padding:'12px 14px'}},[
+                this.e('div',{width:40,height:40,borderRadius:12,background:t.soft,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20},em),
+                this.e('div',{flex:1,minWidth:0},[this.e('div',{fontSize:14.5,fontWeight:800,color:t.text},r.ty+' · '+((r.dist||0)/1000).toFixed(2)+' km'),this.e('div',{fontSize:12,color:t.muted,marginTop:1},dfmt(r.t)+' · '+r.mins+' min · ~'+r.kcal+' kcal')]),
+                this.e('button',{style:{width:28,height:28,borderRadius:9,border:'none',background:t.soft,color:t.muted,cursor:'pointer',fontWeight:800,fontSize:14,lineHeight:'1',padding:0},title:'Delete route'},'×',{onClick:()=>{const nr=(this.state.routes||[]).slice();nr.splice(ri,1);this.setState({routes:nr});this.showToast('Route removed');}})
+              ])
+            ]);})
+          ])
         ]);
       }
 
@@ -2032,14 +2078,14 @@ class Component extends DCLogic {
         const tog=(lab,on,fn)=>this.e('button',{key:lab,style:{flex:1,padding:'9px 4px',borderRadius:12,border:on?'2px solid '+t.accent:'1px solid '+t.border,background:on?'rgba(52,211,153,.15)':t.card,color:t.text,cursor:'pointer',fontSize:11,fontWeight:800,textAlign:'center'}},lab,{onClick:fn});
         if(!S.lsOn) return this.e('div',{key:'lw0',flex:1,minHeight:0,display:'flex',flexDirection:'column',padding:'4px 20px 26px',overflowY:'auto'},[
           this.e('div',{key:'top',display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12},[this.circBtn('close',this.back,{bg:t.card,color:t.text}),this.e('div',{fontWeight:800,fontSize:15,color:t.text},'Live workout'),this.e('div',{width:38,height:38})]),
-          this.e('div',{key:'ty',display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:14},this.WTYPES.map(([em,nm])=>this.e('button',{key:nm,style:{padding:'10px 4px',borderRadius:13,border:ty2===nm?'2px solid '+t.accent:'1px solid '+t.border,background:ty2===nm?'rgba(52,211,153,.15)':t.card,cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:4}},[this.e('span',{fontSize:20},em),this.e('span',{fontSize:11,fontWeight:800,color:t.text},nm)],{onClick:()=>this.setState({lsTy:nm})}))),
+          this.e('div',{key:'ty',display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:14},this.WTYPES.map(([em,nm])=>this.e('button',{key:nm,style:{padding:'10px 4px',borderRadius:13,border:ty2===nm?'2px solid '+t.accent:'1px solid '+t.border,background:ty2===nm?'rgba(52,211,153,.15)':t.card,cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:4}},[this.e('span',{fontSize:20},em),this.e('span',{fontSize:11,fontWeight:800,color:t.text},nm)],{onClick:()=>this.setState({lsTy:nm,lsGps:this.OUTDOOR.includes(nm)})}))),
           this.e('div',{key:'hih',fontSize:12,fontWeight:800,color:t.muted,marginBottom:8},'INTERVALS (OPTIONAL)'),
           this.e('div',{key:'hi',display:'flex',gap:8,marginBottom:14,flexWrap:'wrap'},[null].concat(Object.keys(this.HIITS)).map(k=>this.chip(k||'Free session',(S.lsHiit||null)===k,()=>this.setState({lsHiit:k}),{sm:true}))),
           this.e('div',{key:'exh',fontSize:12,fontWeight:800,color:t.muted,marginBottom:8},'EXTRAS'),
           this.e('div',{key:'tg',display:'flex',gap:8,marginBottom:8},[
             tog('🎙 Voice coach',!!S.lsCoach,()=>this.setState({lsCoach:!S.lsCoach})),
             tog('👏 Clap to pause',!!S.lsClap,()=>this.setState({lsClap:!S.lsClap})),
-            tog('📍 GPS distance',!!S.lsGps,()=>this.setState({lsGps:!S.lsGps}))
+            tog('🗺 Map my route',this.gpsWanted(),()=>this.setState({lsGps:!this.gpsWanted()}))
           ]),
           this.hasVoice()?this.e('div',{key:'tg2',display:'flex',gap:8,marginBottom:10},[tog('🗣 Voice control — say "pause" / "go" / "finish"',!!S.lsVoiceCmd,()=>this.setState({lsVoiceCmd:!S.lsVoiceCmd}))]):this.e('div',{key:'tg2',fontSize:10.5,color:t.faint,marginBottom:10},'Voice commands aren’t supported by this phone’s browser — clap control works everywhere.'),
           this.e('div',{key:'bt',display:'flex',gap:8,marginBottom:8,flexWrap:'wrap'},[null,'Chill','Drive','Power'].map(g=>this.chip(g?('🎵 '+g+' · '+this.GROOVES[g].bpm+' bpm'):'No music',(S.lsMusic||null)===g,()=>this.setState({lsMusic:g}),{sm:true}))),
@@ -2052,6 +2098,7 @@ class Component extends DCLogic {
           this.e('div',{key:'em',fontSize:64,animation:'float 2.2s ease-in-out infinite'},'🎉'),
           this.sectionTitle('Session complete!',{m:'10px 0 4px'}),
           this.e('div',{key:'pr',fontSize:13.5,color:t.muted,marginBottom:18},this.PRAISE[mins2%this.PRAISE.length]),
+          ((this._path||[]).length>=2)?this.e('div',{key:'map',style:{width:'100%',maxWidth:300,marginBottom:14}},[this.routeMap(this._path,{h:150}),this.e('div',{style:{fontSize:11,color:t.faint,marginTop:6,display:'flex',alignItems:'center',justifyContent:'center',gap:5}},[this.e('span',{style:{width:8,height:8,borderRadius:999,background:'#22C55E'}}),'Start',this.e('span',{style:{width:8,height:8,borderRadius:999,background:t.accent,marginLeft:8}}),'Finish · your route'])]):null,
           this.e('div',{key:'st',display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,width:'100%',maxWidth:300,marginBottom:20},[[this.fmtSW(el2),'time'],[String(S.lsSteps||0),'movements'],['~'+this.wkKcal(ty2,mins2,'Moderate'),'kcal'],[(S.lsDist||0)>50?((S.lsDist/1000).toFixed(2)+' km'):'—','distance']].map(([v,l])=>this.e('div',{key:l,background:t.card,border:'1px solid '+t.border,borderRadius:14,padding:'12px 8px'},[this.e('div',{fontSize:19,fontWeight:800,color:t.text},v),this.e('div',{fontSize:11,color:t.muted,marginTop:2},l)]))),
           this.btn('Save workout ✓',this.saveLive,{style:{width:'100%',maxWidth:300,marginBottom:10}}),
           this.btn((Date.now()-(S.lsDiscArm||0)<3000)?'Tap again to discard':'Discard',()=>{const now=Date.now();if(now-(this.state.lsDiscArm||0)<3000){this.exitLive();this.back();}else{this.setState({lsDiscArm:now});this.showToast('Not saved yet — tap Discard again to throw it away');}},{variant:'secondary',style:{width:'100%',maxWidth:300}})
@@ -2065,7 +2112,8 @@ class Component extends DCLogic {
               this.e('div',{fontSize:12,color:t.muted,fontWeight:700},S.lsRun?'tap ring to pause':'tap ring to resume'),
               (Date.now()-(S.lsClapFlash||0)<2000)?this.e('div',{fontSize:12,fontWeight:800,color:t.text},'✓ got it!'):null
             ],{onClick:this.liveToggle}),
-            this.e('div',{key:'st',display:'flex',gap:10},[['👟',String(S.lsSteps||0),'moves'],['🔥','~'+this.wkKcal(ty2,mins2,'Moderate'),'kcal']].concat(S.lsGps?[['📍',(((S.lsDist||0))/1000).toFixed(2),'km']]:[]).map(([em3,v,l])=>this.e('div',{key:l,background:t.card,border:'1px solid '+t.border,borderRadius:14,padding:'10px 14px',textAlign:'center',minWidth:76},[this.e('div',{fontSize:16,fontWeight:800,color:t.text},em3+' '+v),this.e('div',{fontSize:10.5,color:t.muted},l)])))
+            this.e('div',{key:'st',display:'flex',gap:10},[['👟',String(S.lsSteps||0),'moves'],['🔥','~'+this.wkKcal(ty2,mins2,'Moderate'),'kcal']].concat(this.gpsWanted()?[['📍',(((S.lsDist||0))/1000).toFixed(2),'km']]:[]).map(([em3,v,l])=>this.e('div',{key:l,background:t.card,border:'1px solid '+t.border,borderRadius:14,padding:'10px 14px',textAlign:'center',minWidth:76},[this.e('div',{fontSize:16,fontWeight:800,color:t.text},em3+' '+v),this.e('div',{fontSize:10.5,color:t.muted},l)]))),
+            this.gpsWanted()?this.e('div',{key:'livemap',style:{width:'100%',maxWidth:320}},this.routeMap(this._path,{h:130,empty:'Walk a little and your route appears here 🗺'})):null
           ]),
           (!this._motionOn)?this.e('div',{key:'rearm',marginBottom:8},this.e('button',{style:{width:'100%',padding:'9px',borderRadius:12,border:'1px dashed '+t.accent,background:'rgba(52,211,153,.1)',color:t.text,fontWeight:800,fontSize:12,cursor:'pointer'}},'🔄 Re-enable movement counting',{onClick:()=>this.startMotion()})):null,
           (S.lsClap&&this._clapStream)?this.e('div',{key:'mic',display:'flex',alignItems:'center',gap:8,marginBottom:8},[this.e('span',{fontSize:12},'🎤'),this.e('div',{flex:1,height:8,borderRadius:999,background:t.soft,overflow:'hidden'},this.e('div',{id:'micbar21',height:'100%',width:Math.min(100,(this._micPk||0)*2)+'%',background:t.accent,borderRadius:999,transition:'width .08s linear'})),(Date.now()-(S.lsClapFlash||0)<2000)?this.e('span',{fontSize:12,fontWeight:800,color:t.text},'👏 heard!'):null]):null,
