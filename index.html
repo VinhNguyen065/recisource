@@ -364,6 +364,8 @@ class Component extends DCLogic {
     return this._ac;}catch(e){return null;}};
   beep=(freq,dur,vol)=>{try{const ac=this.audioCtx();if(!ac)return;const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=freq||880;g.gain.value=vol||0.15;o.connect(g);g.connect(ac.destination);o.start();g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+(dur||0.12));o.stop(ac.currentTime+(dur||0.12));}catch(e){}};
   chime=()=>{[523,659,784,1047].forEach((f,i)=>setTimeout(()=>this.beep(f,0.18,0.18),i*110));};
+  // Louder, attention-grabbing alert tone for reminders (a short repeating alarm).
+  alarmChime=()=>{const seq=[880,1175,880,1175,988,1319];seq.forEach((f,i)=>setTimeout(()=>this.beep(f,0.24,0.32),i*180));};
   // Firecracker celebration: radial particle bursts via the Web Animations API
   boom=(bursts)=>{try{
     const host=document.createElement('div');host.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:99999;overflow:hidden';document.body.appendChild(host);
@@ -562,7 +564,7 @@ class Component extends DCLogic {
   cancelHR=()=>{try{clearInterval(this._hrIv);}catch(e){}this.setState({hrMeas:null,hrResult:null,hrWave:[]});};
 
   // ---- Accounts & cloud sync (Supabase Auth + user_state table, RLS-isolated) ----
-  VERSION='20260905.1956';
+  VERSION='20260905.2107';
   checkUpdate=async()=>{try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();
     if(j&&j.v&&this.VERSION!=='__BUILD'+'_TS__'&&j.v!==this.VERSION){
       if(!this.state.lsOn){this.showToast('Updating to the latest version…');setTimeout(()=>{try{location.replace(location.pathname+'?v='+encodeURIComponent(j.v));}catch(e){location.reload();}},900);}
@@ -598,7 +600,7 @@ class Component extends DCLogic {
       }
       const r=await fetch(this.AUTH_URL+'/token?grant_type=password',{method:'POST',headers:{apikey:this.SCAN_KEY,'Content-Type':'application/json'},body:JSON.stringify({email:em,password:pw})});
       const j=await r.json();
-      if(j&&j.access_token){this.saveSess(j);this.setState({authBusy:false,sessEmail:em,authPwd:''});this.showToast(login?'Welcome back — syncing…':'Account created ✓ syncing…');await this.cloudSyncOnLogin();if(login){this.jump('healthToday');}else{this.setState({...this.freshUserState(),postAuth:true});this.jump('paywall');}}
+      if(j&&j.access_token){this.saveSess(j);this.setState({authBusy:false,sessEmail:em,authPwd:''});this.showToast(login?'Welcome back — syncing…':'Account created ✓ syncing…');await this.cloudSyncOnLogin();if(login){this.jump('healthToday');}else{this.setState({...this.freshUserState(),postAuth:true});this.jump('setup');}}
       else{
         const raw=String((j&&(j.error_code||j.error_description||j.msg||j.error))||'');
         if(/not.?confirm|email_not_confirmed|confirm/i.test(raw)){this.setState({authBusy:false,confirmEmail:em});this.jump('confirmEmail');return;}
@@ -614,7 +616,7 @@ class Component extends DCLogic {
     this.setState({authBusy:true});
     try{const r=await fetch(this.AUTH_URL+'/token?grant_type=password',{method:'POST',headers:{apikey:this.SCAN_KEY,'Content-Type':'application/json'},body:JSON.stringify({email:em,password:pw})});
       const j=await r.json();
-      if(j&&j.access_token){this.saveSess(j);this.setState({authBusy:false,sessEmail:em,authPwd:'',confirmEmail:null});this.showToast('Email confirmed ✓ welcome!');await this.cloudSyncOnLogin();this.setState({...this.freshUserState(),postAuth:true});this.jump('paywall');}
+      if(j&&j.access_token){this.saveSess(j);this.setState({authBusy:false,sessEmail:em,authPwd:'',confirmEmail:null});this.showToast('Email confirmed ✓ welcome!');await this.cloudSyncOnLogin();this.setState({...this.freshUserState(),postAuth:true});this.jump('setup');}
       else{const raw=String((j&&(j.error_code||j.error_description||j.msg||j.error))||'');this.setState({authBusy:false});this.showToast(/not.?confirm|confirm/i.test(raw)?'Not confirmed yet — tap the link in your email first':(raw?raw.slice(0,90):'Wrong password — try again'));}
     }catch(e){this.setState({authBusy:false});this.showToast('No connection — try again');}};
   logOut=()=>{this.saveSess(null);this.setState({sessEmail:null});this.showToast('Logged out — your data stays on this device');};
@@ -677,7 +679,7 @@ class Component extends DCLogic {
   slug=(s)=>s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
   SLOT_TIMES={Breakfast:[8,0],Lunch:[12,30],Dinner:[18,30],Snack:[15,0]};
   _hour=()=>new Date().getHours();
-  addReminder=(label,time,emoji,repeat,date)=>{const id=Date.now();const r={id,label:(label||'Reminder').slice(0,60),time:time||'09:00',emoji:emoji||'⏰',repeat:repeat||'daily',date:date||null,on:true};this.setState({reminders:(this.state.reminders||[]).concat(r)},()=>this.scheduleNativeReminders());if(this.state.notif&&typeof Notification!=='undefined'&&Notification.permission==='default')Notification.requestPermission();this.showToast('Reminder set · '+this.remNextLabel(r));return r;};
+  addReminder=(label,time,emoji,repeat,date,sound,quiet)=>{const id=Date.now()+Math.floor(Math.random()*1000);const r={id,label:(label||'Reminder').slice(0,60),time:time||'09:00',emoji:emoji||'⏰',repeat:repeat||'daily',date:date||null,on:true,sound:sound!==false};this.setState({reminders:(this.state.reminders||[]).concat(r)},()=>this.scheduleNativeReminders());if(this.state.notif&&typeof Notification!=='undefined'&&Notification.permission==='default')Notification.requestPermission();if(!quiet)this.showToast('Reminder set · '+this.remNextLabel(r)+(r.sound?' · 🔊 sound on':''));return r;};
   toggleReminder=(id)=>{this.setState({reminders:(this.state.reminders||[]).map(r=>r.id===id?{...r,on:!r.on}:r)},()=>this.scheduleNativeReminders());};
   delReminder=(id)=>{this.setState({reminders:(this.state.reminders||[]).filter(r=>r.id!==id)},()=>this.scheduleNativeReminders());this.showToast('Reminder removed');};
   patchReminder=(id,patch)=>{this.setState({reminders:(this.state.reminders||[]).map(r=>r.id===id?{...r,...patch}:r)},()=>this.scheduleNativeReminders());};
@@ -698,7 +700,7 @@ class Component extends DCLogic {
     // web Vibration API (Android Chrome; iOS Safari does not support it — falls back to sound only)
     if(navigator.vibrate)navigator.vibrate(pattern||[200,90,200]);
   }catch(e){}};
-  nudgeReminder=(r)=>{try{this.chime&&this.chime();}catch(e){}this.haptic([260,120,260]);this.showToast((r.emoji||'⏰')+' '+r.label);this.osNotify((r.emoji||'⏰')+' '+r.label);};
+  nudgeReminder=(r)=>{try{if(r.sound!==false)this.alarmChime();}catch(e){}this.haptic([300,140,300,140,300]);this.showToast((r.emoji||'⏰')+' '+r.label);this.osNotify((r.emoji||'⏰')+' '+r.label);};
   _remNativeIds=()=>{const ids=[];for(let i=0;i<40;i++)for(let j=0;j<7;j++)ids.push(9000+i*7+j);return ids;};
   scheduleNativeReminders=async()=>{try{if(!this.isNative())return;const LN=window.Capacitor.Plugins&&window.Capacitor.Plugins.LocalNotifications;if(!LN)return;
     try{await LN.requestPermissions();}catch(e){}
@@ -1142,6 +1144,8 @@ class Component extends DCLogic {
           row('rgba(236,72,153,.13)','flame',t.ink,'Workout','Log or start a live session',this.ic('chev',18,{color:t.faint}),()=>{this.setState({qlOpen:false});this.nav('logWorkout');}),
           // Import recipe
           row(t.soft,'link',t.text,'Import a recipe','From a link, photo or text',this.ic('chev',18,{color:t.faint}),()=>{this.setState({qlOpen:false});this.nav('addMenu');}),
+          // Set a reminder
+          row('rgba(236,72,153,.13)','clock',t.ink,'Set a reminder','Water, meals, weigh-ins — with sound',this.ic('chev',18,{color:t.faint}),()=>{this.setState({qlOpen:false});this.nav('reminders');}),
           this.e('div',{key:'auto',fontSize:11.5,color:t.faint,textAlign:'center',marginTop:6,lineHeight:1.5},(S.autoSteps!==false)?'Steps count automatically 👣 · on the iPhone app, Apple Health fills in steps, heart rate & sleep for you.':'Turn on automatic step counting on the Steps page.')
         ])
       ])
@@ -1921,6 +1925,51 @@ class Component extends DCLogic {
         this.e('div',{key:'sp',height:16})
       ]);
 
+      case 'setup': {
+        const nm=S.userName||'';const cw=(S.curW!==undefined)?S.curW:71;const wg=(S.wGoal!==undefined)?S.wGoal:70;const kg=S.kcalGoal||1900;const sg=S.stepGoal||10000;
+        const rd=(v)=>Math.round(v*10)/10;
+        const stepper=(val,dec,inc,unit)=>this.e('div',{style:{display:'flex',alignItems:'center',gap:8,flexShrink:0}},[
+          this.e('button',{style:{width:34,height:34,borderRadius:999,border:'1px solid '+t.border,background:t.soft,color:t.text,cursor:'pointer',fontWeight:800,fontSize:17,lineHeight:'1',padding:0}},'−',{onClick:dec}),
+          this.e('span',{style:{fontSize:15,fontWeight:800,color:t.text,minWidth:64,textAlign:'center'}},val+(unit?(' '+unit):'')),
+          this.e('button',{style:{width:34,height:34,borderRadius:999,border:'1px solid '+t.border,background:t.soft,color:t.text,cursor:'pointer',fontWeight:800,fontSize:17,lineHeight:'1',padding:0}},'+',{onClick:inc})
+        ]);
+        const fieldCard=(icn,title,sub,control)=>this.e('div',{style:{display:'flex',alignItems:'center',gap:12,background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'13px 14px',marginBottom:10,boxShadow:t.shadow}},[
+          this.e('div',{width:38,height:38,borderRadius:12,background:t.soft,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic(icn,19,{color:t.text})),
+          this.e('div',{style:{flex:1,minWidth:0}},[this.e('div',{fontSize:13.5,fontWeight:800,color:t.text},title),sub?this.e('div',{fontSize:11,color:t.muted,marginTop:1},sub):null]),control]);
+        const remPresets=[['💧','Drink water','11:00'],['🍽','Log your meals','19:30'],['⚖️','Log your weight','07:30']];
+        const hasRem=(lbl)=>(S.reminders||[]).some(r=>r.label===lbl);
+        const toggleRem=(emoji,lbl,time)=>{const ex=(S.reminders||[]).find(r=>r.label===lbl);if(ex){this.delReminder(ex.id);}else{this.addReminder(lbl,time,emoji,'daily',null,true,true);this.showToast(emoji+' '+lbl+' · daily at '+time+' · 🔊');}};
+        return this.wrap([
+          this.e('div',{key:'hd',style:{textAlign:'center',padding:'8px 0 6px'}},[
+            this.e('div',{style:{fontSize:34,marginBottom:6}},'🎉'),
+            this.sectionTitle('Welcome'+(nm?(', '+nm.split(' ')[0]):'')+'!',{m:'0 0 6px'}),
+            this.e('div',{style:{fontSize:13.5,color:t.muted,lineHeight:1.5,maxWidth:300,marginLeft:'auto',marginRight:'auto'}},'Let’s set up your basics — takes 30 seconds. You can change any of this later.')
+          ]),
+          this.h('Your name'),
+          this.e('div',{key:'nm',style:{marginBottom:6}},React.createElement('input',{value:nm,onChange:e=>this.setState({userName:e.target.value.slice(0,40)}),placeholder:'What should we call you?',style:{width:'100%',border:'1px solid '+t.border,borderRadius:14,padding:'13px 14px',fontSize:15,color:t.text,background:t.card,outline:'none',boxSizing:'border-box',fontFamily:'inherit',fontWeight:600}})),
+          this.h('Weight'),
+          fieldCard('trend','Current weight','Where you are today',stepper(this.fmt(cw),()=>this.setState({curW:rd(cw-0.1)}),()=>this.setState({curW:rd(cw+0.1)}),'kg')),
+          fieldCard('spark','Goal weight','What you’re aiming for',stepper(this.fmt(wg),()=>this.setState({wGoal:Math.max(40,rd(wg-0.5))}),()=>this.setState({wGoal:Math.min(200,rd(wg+0.5))}),'kg')),
+          this.h('Daily goals'),
+          fieldCard('pin','Calorie goal','Calories to aim for each day',stepper(kg.toLocaleString(),()=>this.setState({kcalGoal:Math.max(1000,kg-50)}),()=>this.setState({kcalGoal:Math.min(5000,kg+50)}),'')),
+          fieldCard('flame','Step goal','Steps to hit each day',stepper((sg/1000)+'k',()=>this.setState({stepGoal:Math.max(2000,sg-500)}),()=>this.setState({stepGoal:Math.min(40000,sg+500)}),'')),
+          this.h('Reminders'),
+          this.e('div',{key:'remnote',style:{fontSize:11.5,color:t.muted,marginBottom:10,lineHeight:1.5}},'Turn on gentle nudges — each fires with a 🔊 sound alert and a vibration so you never miss it.'),
+          ...remPresets.map(([em,lbl,tm])=>{const on=hasRem(lbl);return this.e('div',{key:lbl,style:{display:'flex',alignItems:'center',gap:12,background:t.card,border:'1.5px solid '+(on?t.accent:t.border),borderRadius:16,padding:'12px 14px',marginBottom:10,boxShadow:t.shadow}},[
+            this.e('div',{width:38,height:38,borderRadius:12,background:on?t.accent:t.soft,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:19},em),
+            this.e('div',{style:{flex:1,minWidth:0}},[this.e('div',{fontSize:13.5,fontWeight:800,color:t.text},lbl),this.e('div',{fontSize:11,color:t.muted,marginTop:1},'Daily at '+tm+' · 🔊 sound')]),
+            this.e('button',{style:{width:46,height:27,borderRadius:999,border:'none',background:on?t.accent:t.border,cursor:'pointer',position:'relative',flexShrink:0,padding:0}},this.e('div',{style:{position:'absolute',top:3,left:on?22:3,width:21,height:21,borderRadius:999,background:'#fff',transition:'.15s',boxShadow:'0 1px 3px rgba(0,0,0,.25)'}}),{onClick:()=>toggleRem(em,lbl,tm)})
+          ]);}),
+          this.e('div',{key:'fin',style:{marginTop:14}},this.btn('Finish setup →',()=>{
+            const w=rd((this.state.curW!==undefined)?this.state.curW:cw);
+            // log the entered weight as the first real weigh-in so the chart has a true start
+            if(!(this.state.wlogD||[]).length){this.setState({wextra:(this.state.wextra||[]).concat(w),wlogD:[{w:w,ts:new Date().toISOString()}],wDemoOff:true});}
+            this.setState({setupDone:true});if(this.boom)this.boom(2);this.showToast('You’re all set — welcome aboard! 🎉');this.jump('paywall');
+          })),
+          this.e('div',{key:'skip',style:{textAlign:'center',marginTop:12,marginBottom:4}},this.e('span',{style:{fontSize:13,fontWeight:700,color:t.muted,cursor:'pointer',textDecoration:'underline'},onClick:()=>{this.setState({setupDone:true});this.jump('paywall');}},'Skip for now'))
+        ]);
+      }
+
       case 'paywall': {const plan=S.plan||'annual';const A=this.activeTheme().a;const leave=()=>{if(this.state.postAuth){this.setState({postAuth:false});this.jump('healthToday');}else this.back();};
         const feat=(txt)=>this.e('div',{key:txt,display:'flex',alignItems:'center',gap:12,padding:'9px 0'},[this.e('div',{width:26,height:26,borderRadius:999,background:'rgba(52,211,153,.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic('check',15,{color:A})),this.e('span',{fontSize:14.5,color:'#EAEBEC',fontWeight:600},txt)]);
         const planCard=(id,title,price,sub,badge)=>{const on=plan===id;return this.e('button',{key:id,style:{width:'100%',textAlign:'left',display:'flex',alignItems:'center',gap:13,padding:'15px 16px',borderRadius:18,cursor:'pointer',background:on?'rgba(52,211,153,.10)':'#1A1C21',border:'1.5px solid '+(on?A:'#2A2D34')}},[this.e('div',{width:22,height:22,borderRadius:999,border:'2px solid '+(on?A:'#4A4D55'),background:on?A:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},on?this.ic('check',13,{color:'#0E0F12'}):null),this.e('div',{flex:1},[this.e('div',{fontSize:15,fontWeight:800,color:'#fff'},title),this.e('div',{fontSize:12.5,color:'#9A9DA4',marginTop:2},sub)]),this.e('div',{style:{textAlign:'right'}},[this.e('div',{fontSize:15,fontWeight:800,color:'#fff'},price),badge?this.e('div',{fontSize:10.5,fontWeight:800,color:'#0E0F12',background:A,borderRadius:999,padding:'2px 7px',marginTop:4,display:'inline-block'},badge):null])],{onClick:()=>this.setState({plan:id})});};
@@ -2417,7 +2466,8 @@ class Component extends DCLogic {
               ]),
               this.e('div',{key:'repL',fontSize:10.5,fontWeight:800,color:t.muted,marginBottom:6,textTransform:'uppercase',letterSpacing:'.04em'},'Repeat'),
               this.e('div',{key:'rep',display:'flex',gap:6,marginBottom:12,flexWrap:'wrap'},repLabels.map(([k,l])=>this.e('button',{key:k,style:{flex:'1 1 22%',padding:'9px 4px',borderRadius:10,border:'none',cursor:'pointer',fontSize:12,fontWeight:800,background:rep===k?t.ink:t.soft,color:rep===k?t.inkText:t.text}},l,{onClick:()=>this.setState({remRepeat:k})}))),
-              this.e('button',{style:{width:'100%',padding:'12px 0',borderRadius:11,border:'none',background:t.accent,color:t.accentText,fontWeight:800,fontSize:14,cursor:'pointer'}},'Set reminder',{onClick:()=>{const v=(this.state.remDraft||'').trim();if(!v){this.showToast('Type what to remind you first');return;}const rp=this.state.remRepeat||'daily';const dt=rp==='once'?(this.state.remDate||this.dkToday()):null;this.addReminder(v,this.state.remTime||'09:00','⏰',rp,dt);this.setState({remDraft:'',remTime:'09:00',remRepeat:'daily',remDate:null});}})
+              (()=>{const snd=S.remSound!==false;return this.e('div',{key:'snd',style:{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderRadius:11,background:t.soft,marginBottom:12}},[this.e('span',{fontSize:16},snd?'🔊':'🔇'),this.e('div',{style:{flex:1}},[this.e('div',{fontSize:12.5,fontWeight:800,color:t.text},'Sound alert'),this.e('div',{fontSize:10.5,color:t.muted},snd?'Plays a chime + vibration when it fires':'Silent — vibration + banner only')]),this.e('button',{style:{width:46,height:27,borderRadius:999,border:'none',background:snd?t.accent:t.border,cursor:'pointer',position:'relative',flexShrink:0,padding:0}},this.e('div',{style:{position:'absolute',top:3,left:snd?22:3,width:21,height:21,borderRadius:999,background:'#fff',transition:'.15s',boxShadow:'0 1px 3px rgba(0,0,0,.25)'}}),{onClick:()=>this.setState({remSound:!snd})})]);})(),
+              this.e('button',{style:{width:'100%',padding:'12px 0',borderRadius:11,border:'none',background:t.accent,color:t.accentText,fontWeight:800,fontSize:14,cursor:'pointer'}},'Set reminder',{onClick:()=>{const v=(this.state.remDraft||'').trim();if(!v){this.showToast('Type what to remind you first');return;}const rp=this.state.remRepeat||'daily';const dt=rp==='once'?(this.state.remDate||this.dkToday()):null;this.addReminder(v,this.state.remTime||'09:00','⏰',rp,dt,this.state.remSound!==false);this.setState({remDraft:'',remTime:'09:00',remRepeat:'daily',remDate:null});}})
             ]),
             this.e('div',{key:'test',display:'flex',alignItems:'center',gap:10,background:t.soft,borderRadius:12,padding:'10px 12px',marginBottom:16},[this.e('span',{fontSize:16},'🔔'),this.e('div',{flex:1,fontSize:12,color:t.text,lineHeight:1.4},'See how a reminder looks — fires right now.'),this.e('button',{style:{padding:'8px 14px',borderRadius:10,border:'none',background:t.ink,color:t.inkText,fontWeight:800,fontSize:11.5,cursor:'pointer',flexShrink:0}},'Test it now',{onClick:()=>this.nudgeReminder({emoji:'🔔',label:'This is a test reminder!'})})]),
             this.e('div',{key:'presetsL',fontSize:11.5,color:t.muted,marginBottom:8},'Quick add (daily):'),
@@ -2427,7 +2477,8 @@ class Component extends DCLogic {
             ...rems.map(r=>{const repTxt={daily:'Every day',weekdays:'Weekdays',weekends:'Weekends',once:'Once'}[r.repeat||'daily'];
               return this.e('div',{key:r.id,display:'flex',alignItems:'center',gap:12,background:t.card,border:'1px solid '+t.border,borderRadius:14,padding:'11px 13px',marginBottom:10,boxShadow:t.shadow},[
               this.e('div',{width:40,height:40,borderRadius:12,background:t.soft,display:'flex',alignItems:'center',justifyContent:'center',fontSize:19,flexShrink:0},r.emoji||'⏰'),
-              this.e('div',{flex:1,minWidth:0},[this.e('div',{fontSize:14,fontWeight:800,color:r.on?t.text:t.faint},r.label),this.e('div',{fontSize:11.5,color:r.on?t.muted:t.faint,marginTop:2},r.on?('Next: '+this.remNextLabel(r)+' · '+repTxt):'Off · '+repTxt)]),
+              this.e('div',{flex:1,minWidth:0},[this.e('div',{fontSize:14,fontWeight:800,color:r.on?t.text:t.faint},r.label),this.e('div',{fontSize:11.5,color:r.on?t.muted:t.faint,marginTop:2},(r.on?('Next: '+this.remNextLabel(r)+' · '+repTxt):'Off · '+repTxt)+' · '+(r.sound!==false?'🔊':'🔇'))]),
+              this.e('button',{title:'Toggle sound',style:{width:32,height:32,borderRadius:9,border:'none',background:t.soft,cursor:'pointer',fontSize:15,lineHeight:'1',padding:0,flexShrink:0}},r.sound!==false?'🔊':'🔇',{onClick:()=>this.patchReminder(r.id,{sound:r.sound===false})}),
               this.e('button',{style:{width:46,height:27,borderRadius:999,border:'none',background:r.on?t.accent:t.soft,cursor:'pointer',position:'relative',flexShrink:0,padding:0}},this.e('div',{style:{position:'absolute',top:3,left:r.on?22:3,width:21,height:21,borderRadius:999,background:'#fff',transition:'.15s',boxShadow:'0 1px 3px rgba(0,0,0,.25)'}}),{onClick:()=>this.toggleReminder(r.id)}),
               this.e('button',{style:{width:28,height:28,borderRadius:9,border:'none',background:t.soft,color:t.muted,cursor:'pointer',fontWeight:800,fontSize:13,lineHeight:'1',padding:0,flexShrink:0}},'×',{onClick:()=>this.delReminder(r.id)})
             ]);}),
@@ -2436,10 +2487,15 @@ class Component extends DCLogic {
         ]);
       }
 
-      case 'alerts': {const al=this.getAlerts();
+      case 'alerts': {const al=this.getAlerts();const remN=(S.reminders||[]).filter(r=>r.on).length;
         return this.e('div',{flex:1,minHeight:0,display:'flex',flexDirection:'column'},[
           this.topbar('Alerts'),
           this.wrap([
+            this.e('div',{key:'setrem',display:'flex',alignItems:'center',gap:12,background:t.card,border:'1.5px solid '+t.accent,borderRadius:16,padding:'13px 14px',marginBottom:14,cursor:'pointer',boxShadow:t.shadow},[
+              this.e('div',{width:40,height:40,borderRadius:13,background:t.accent,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic('clock',20,{color:t.accentText})),
+              this.e('div',{flex:1,minWidth:0},[this.e('div',{fontSize:13.5,fontWeight:800,color:t.text},'Set a reminder'),this.e('div',{fontSize:11.5,color:t.muted,marginTop:2},remN?(remN+' active · water, meals, weigh-ins & more — with sound'):'Water, meals, weigh-ins & more — with a sound alert')]),
+              this.ic('chev',16,{color:t.faint})
+            ],{onClick:()=>this.nav('reminders')}),
             al.length===0?this.e('div',{key:'empty',textAlign:'center',padding:'44px 20px',background:t.card,border:'1px dashed '+t.border,borderRadius:18},[
               this.e('div',{fontSize:34,marginBottom:8},'🔔'),
               this.e('div',{fontSize:15,fontWeight:800,color:t.text,marginBottom:5},'All clear'),
