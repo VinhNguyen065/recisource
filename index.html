@@ -561,7 +561,7 @@ class Component extends DCLogic {
   cancelHR=()=>{try{clearInterval(this._hrIv);}catch(e){}this.setState({hrMeas:null,hrResult:null,hrWave:[]});};
 
   // ---- Accounts & cloud sync (Supabase Auth + user_state table, RLS-isolated) ----
-  VERSION='20260905.1415';
+  VERSION='20260905.1427';
   checkUpdate=async()=>{try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();
     if(j&&j.v&&this.VERSION!=='__BUILD'+'_TS__'&&j.v!==this.VERSION){
       if(!this.state.lsOn){this.showToast('Updating to the latest version…');setTimeout(()=>{try{location.replace(location.pathname+'?v='+encodeURIComponent(j.v));}catch(e){location.reload();}},900);}
@@ -870,6 +870,65 @@ class Component extends DCLogic {
     for(let i=N;i>=0;i-=2){const f=1-i/N;const base=startW+(endW-startW)*f;const noise=Math.sin(i*0.7)*0.32+Math.cos(i*0.21)*0.16;out.push({t:now-i*864e5,w:Math.round((base+noise)*10)/10});}
     real.forEach(r=>out.push(r));
     return out.sort((a,b)=>a.t-b.t);};
+  // Dated series for the other metrics (real data when we have it, else a labelled sample so the filters are explorable).
+  stepsSeries=()=>{const S=this.state;const h={...(S.stepsHist||{})};
+    const week=((S.stepsLog&&S.stepsLog.length===6)?S.stepsLog:[]).concat([(S.stepsToday!==undefined)?S.stepsToday:0]);
+    for(let i=0;i<7;i++){if(week[i]!==undefined&&week[i]>0)h[this.dkOfIdx(i)]=week[i];}
+    const pts=Object.keys(h).filter(k=>h[k]>0).sort().map(k=>({t:+new Date(k),v:h[k]}));
+    if(pts.length>=2)return {pts,sample:false};
+    const goal=S.stepGoal||10000;const now=Date.now();const out=[];
+    for(let i=90;i>=0;i--){const base=goal*(0.72+0.42*Math.abs(Math.sin(i*0.28)));const v=Math.max(1800,Math.round((base+Math.sin(i*1.3)*1400)/100)*100);out.push({t:now-i*864e5,v});}
+    return {pts:out,sample:true};};
+  hrSeries=()=>{const S=this.state;const pts=(S.hrLog||[]).map(x=>({t:x.ts,v:x.bpm})).filter(x=>isFinite(x.t)&&isFinite(x.v)).sort((a,b)=>a.t-b.t);
+    if(pts.length>=2)return {pts,sample:false};
+    const now=Date.now();const out=[];for(let i=60;i>=0;i--){const base=64+Math.sin(i*0.45)*5+(i%9<2?7:0)+Math.cos(i*0.9)*2;out.push({t:now-i*864e5,v:Math.round(base)});}
+    return {pts:out,sample:true};};
+  sleepSeries=()=>{const S=this.state;const sLog=(S.sleepLog&&S.sleepLog.length===6)?S.sleepLog:[];const today=((S.sleepH!==undefined)?S.sleepH:0)*60+((S.sleepM!==undefined)?S.sleepM:0);
+    const week=sLog.concat([today]);const pts=[];for(let i=0;i<7;i++){if(week[i]>0)pts.push({t:+new Date(this.dkOfIdx(i)),v:week[i]});}
+    if(pts.length>=3)return {pts,sample:false};
+    const now=Date.now();const out=[];for(let i=30;i>=0;i--){const base=450+Math.sin(i*0.55)*42+(i%7<2?-28:12);out.push({t:now-i*864e5,v:Math.round(Math.max(300,base))});}
+    return {pts:out,sample:true};};
+  MCUTS={'D':1,'W':7,'2W':14,'M':30,'3M':91,'6M':182,'1Y':365,'All':1e6};
+  // Reusable interactive trend panel → {chips, chart, stats}. Tap a point to inspect; EWMA trend line; optional goal line.
+  metricPanel(o){const t=this.T();const S=this.state;
+    const cur=S[o.rangeState]||o.defRange||'M';const cutDays=this.MCUTS[cur]||30;const now=Date.now();
+    const all=o.series||[];let win=all.filter(p=>(now-p.t)/864e5<=cutDays);
+    if(win.length<2)win=all.slice(-8);
+    if(win.length<2)win=all.slice();
+    if(win.length<2)win=[{t:now-864e5,v:o.blank||0},{t:now,v:o.blank||0}];
+    const vals=win.map(p=>p.v);const vmin=Math.min.apply(null,vals),vmax=Math.max.apply(null,vals);
+    const avg=vals.reduce((a,b)=>a+b,0)/vals.length;const first=vals[0],last=vals[vals.length-1];const chg=Math.round((last-first)*10)/10;
+    const trend=(()=>{const a=0.3;let m=vals[0];return vals.map((v,i)=>{m=i?a*v+(1-a)*m:v;return m;});})();
+    const fmt=o.fmt||((v)=>this.fmt(Math.round(v)));const dfmt=(ms)=>new Date(ms).toLocaleDateString('en',{day:'numeric',month:'short'});
+    const selKey=o.selState;const sel=(S[selKey]!=null&&S[selKey]<vals.length&&S[selKey]>=0)?S[selKey]:null;
+    const W=300,H=118,pad=9,plotB=H-2*pad;const goal=o.goal;
+    const dv=vals.concat(goal!=null?[goal]:[]);let hi=Math.max.apply(null,dv),lo=Math.min.apply(null,dv);const sp=Math.max(o.minSpan||1,hi-lo);hi=hi+sp*0.12;lo=Math.max(o.floor!=null?o.floor:-1e9,lo-sp*0.12);const rng=Math.max(0.5,hi-lo);
+    const n=Math.max(2,vals.length);const X=(i)=>Math.round(pad+i/(n-1)*(W-2*pad));const Y=(v)=>Math.round(pad+(hi-v)/rng*plotB);
+    const line=vals.map((v,i)=>X(i)+','+Y(v)).join(' ');const trLine=trend.map((v,i)=>X(i)+','+Y(v)).join(' ');const area='0,'+H+' '+vals.map((v,i)=>X(i)+','+Y(v)).join(' ')+' '+W+','+H;
+    const gY=goal!=null?Y(goal):null;
+    const chips=this.e('div',{key:'chips',display:'flex',gap:8,marginBottom:12,justifyContent:'center'},o.ranges.map(([k,l])=>this.chip(l,cur===k,()=>this.setState({[o.rangeState]:k,[selKey]:null}),{sm:true})));
+    const chart=this.e('div',{key:'chart',background:t.card,border:'1px solid '+t.border,borderRadius:18,padding:'14px 16px',marginBottom:12,boxShadow:t.shadow},[
+      this.e('div',{fontSize:11.5,color:t.muted,marginBottom:8},(o.sample?'Sample preview · ':'')+o.label(cur,fmt(first),fmt(last))),
+      this.e('div',{style:{position:'relative',paddingBottom:'18px'}},[
+        this.e('div',{key:'yhi',style:{position:'absolute',left:0,top:-2,fontSize:9.5,fontWeight:700,color:t.faint}},fmt(hi)),
+        this.e('div',{key:'ylo',style:{position:'absolute',left:0,bottom:22,fontSize:9.5,fontWeight:700,color:t.faint}},fmt(lo)),
+        React.createElement('svg',{key:'svg',width:'100%',height:H,viewBox:'0 0 '+W+' '+H,preserveAspectRatio:'none',style:{display:'block'}},[
+          React.createElement('polygon',{key:'a',points:area,fill:o.fill||'rgba(52,211,153,.14)',stroke:'none'}),
+          gY!=null?React.createElement('line',{key:'g',x1:0,y1:gY,x2:W,y2:gY,stroke:t.faint,strokeWidth:1,strokeDasharray:'5 4'}):null,
+          React.createElement('polyline',{key:'tr',points:trLine,fill:'none',stroke:t.accent,strokeWidth:1.5,strokeDasharray:'4 4',opacity:0.5,strokeLinejoin:'round'}),
+          React.createElement('polyline',{key:'l',points:line,fill:'none',stroke:o.color,strokeWidth:2.5,strokeLinejoin:'round',strokeLinecap:'round'}),
+          sel!==null?React.createElement('line',{key:'sl',x1:X(sel),y1:0,x2:X(sel),y2:H,stroke:t.border,strokeWidth:1}):null,
+          React.createElement('circle',{key:'d',cx:X(n-1),cy:Y(last),r:3.5,fill:o.color,stroke:'#fff',strokeWidth:2}),
+          sel!==null?React.createElement('circle',{key:'ds',cx:X(sel),cy:Y(vals[sel]),r:4.5,fill:t.accent,stroke:'#fff',strokeWidth:2}):null
+        ]),
+        gY!=null?this.e('div',{key:'gl',style:{position:'absolute',right:2,top:Math.max(0,Math.min(H-28,gY-13))+'px',fontSize:9,fontWeight:800,color:t.muted,background:t.card,padding:'0 3px',borderRadius:4}},o.goalLabel||('goal '+fmt(goal))):null,
+        this.e('div',{key:'zones',style:{position:'absolute',left:0,right:0,top:0,bottom:18,display:'flex'}},vals.map((v,i)=>this.e('div',{key:'z'+i,style:{flex:1,cursor:'pointer'},onClick:()=>this.setState({[selKey]:(sel===i?null:i)})}))),
+        sel!==null?this.e('div',{key:'tip',style:{position:'absolute',top:'-4px',left:'calc('+(X(sel)/W*100).toFixed(1)+'% - 48px)',width:96,background:t.ink,color:t.inkText,borderRadius:10,padding:'5px 6px',textAlign:'center',pointerEvents:'none',boxShadow:t.shadow,zIndex:2}},[this.e('div',{fontSize:12,fontWeight:800},(o.tipFmt||fmt)(vals[sel])),this.e('div',{fontSize:9,opacity:.85},dfmt(win[sel].t))]):null,
+        this.e('div',{key:'xax',style:{position:'absolute',left:0,right:0,bottom:0,display:'flex',justifyContent:'space-between',fontSize:9.5,color:t.faint}},[this.e('span',{},dfmt(win[0].t)),this.e('span',{style:{fontWeight:700}},sel!==null?'tap again to clear':'tap the line to inspect'),this.e('span',{},dfmt(win[win.length-1].t))])
+      ])
+    ]);
+    const stats=this.e('div',{key:'stats',display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:0,background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'13px 8px',marginBottom:14,opacity:o.sample?0.75:1},o.stats({avg,vmin,vmax,chg,first,last,fmt}).map(([v,l,col],i)=>this.e('div',{key:l+i,style:{textAlign:'center',borderRight:i<3?'1px solid '+t.border:'none'}},[this.e('div',{fontSize:15,fontWeight:800,color:col||t.text},v),this.e('div',{fontSize:9.5,color:t.muted,marginTop:2},l)])));
+    return {chips,chart,stats};}
 
   T(){return this._t;}
   // ── Colour themes: user-selectable accent families, each with tuned neutrals + per-section tints ──
@@ -2186,15 +2245,13 @@ class Component extends DCLogic {
             ]:[
               this.e('div',{key:'a',display:'flex',alignItems:'center',gap:12},[this.e('div',{fontSize:26},'📸'),this.e('div',{flex:1},[this.e('div',{color:'#fff',fontWeight:800,fontSize:14},'Measure with your camera'),this.e('div',{color:'#B7BAC0',fontSize:11.5,marginTop:2},'Fingertip over the lens · 15 seconds · fun estimate, not medical advice')]),this.btn('Start',this.measureHR,{sm:true,auto:true})])
             ]),
-          (()=>{const rng=S.hrRange||'W';const cut={D:864e5,W:6048e5,M:26784e5}[rng];const rows=(S.hrLog||[]).filter(x=>Date.now()-x.ts<cut).slice(-40);
+          (()=>{const rng=S.hrRange||'W';const cut={D:864e5,W:6048e5,M:26784e5,'3M':7862400000}[rng]||6048e5;const rows=(S.hrLog||[]).filter(x=>Date.now()-x.ts<cut).slice(-40);
+            const hrS=this.hrSeries();const hrP=this.metricPanel({series:hrS.pts,sample:hrS.sample,rangeState:'hrRange',defRange:'W',selState:'hrSel',ranges:[['D','Day'],['W','Week'],['M','Month'],['3M','3M']],color:'#FF5B62',fill:'rgba(255,91,98,.13)',minSpan:12,floor:35,fmt:(v)=>String(Math.round(v)),label:(c,f,l)=>'Your readings · '+f+' → '+l+' bpm',tipFmt:(v)=>Math.round(v)+' bpm',stats:({avg,vmin,vmax,last})=>[[Math.round(last)+'','latest'],[Math.round(avg)+'','avg bpm'],[Math.round(vmin)+'','lowest'],[Math.round(vmax)+'','highest']]});
             return this.e('div',{key:'hist',background:t.card,border:'1px solid '+t.border,borderRadius:18,padding:'14px 16px',marginBottom:14},[
-              this.e('div',{key:'h',display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10},[this.e('span',{fontSize:12.5,fontWeight:800,color:t.text},'Your readings'),this.e('div',{display:'flex',gap:6},[['D','Day'],['W','Week'],['M','Month']].map(([k,l])=>this.e('button',{key:k,style:{padding:'5px 11px',borderRadius:999,border:'none',cursor:'pointer',fontSize:11,fontWeight:800,background:rng===k?t.ink:t.soft,color:rng===k?t.inkText:t.text}},l,{onClick:()=>this.setState({hrRange:k})})))]),
+              this.e('div',{key:'h',display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10},[this.e('span',{fontSize:12.5,fontWeight:800,color:t.text},'Your readings'),this.e('div',{display:'flex',gap:6},[['D','Day'],['W','Week'],['M','Month'],['3M','3M']].map(([k,l])=>this.e('button',{key:k,style:{padding:'5px 11px',borderRadius:999,border:'none',cursor:'pointer',fontSize:11,fontWeight:800,background:rng===k?t.ink:t.soft,color:rng===k?t.inkText:t.text}},l,{onClick:()=>this.setState({hrRange:k,hrSel:null})})))]),
               this.e('div',{key:'lg',marginBottom:10},this.btn('＋ Log current '+((S.hr!==undefined)?S.hr:68)+' bpm',()=>{this.setState({hrLog:(this.state.hrLog||[]).concat({ts:Date.now(),bpm:(this.state.hr!==undefined)?this.state.hr:68,src:'manual'})});this.beep(880,0.1,0.12);this.showToast('Reading saved to history ✓');},{variant:'secondary',sm:true})),
-              rows.length===0?this.e('div',{key:'no',fontSize:12.5,color:t.muted,textAlign:'center',padding:'10px 0'},'No readings in this range yet — log one above or use the camera.'):null,
-              rows.length>1?React.createElement('svg',{key:'ch',width:'100%',height:56,viewBox:'0 0 300 56',preserveAspectRatio:'none'},[
-                React.createElement('polyline',{key:'l',points:rows.map((x,i)=>(i*(300/Math.max(1,rows.length-1)))+','+(50-((x.bpm-40)/140)*44)).join(' '),fill:'none',stroke:t.accent,strokeWidth:2}),
-                ...rows.map((x,i)=>React.createElement('circle',{key:'c'+i,cx:i*(300/Math.max(1,rows.length-1)),cy:50-((x.bpm-40)/140)*44,r:3,fill:x.bpm>100?'#D0453A':t.accent}))
-              ]):null,
+              hrP.chart,
+              rows.length===0?this.e('div',{key:'no',fontSize:12.5,color:t.muted,textAlign:'center',padding:'2px 0 8px'},'No manual readings in this range yet — log one above or use the camera.'):null,
               ...rows.slice(-6).reverse().map((x,i)=>this.e('div',{key:'r'+i,display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderTop:'1px solid '+t.border},[
                 this.e('span',{fontSize:14,fontWeight:800,color:x.bpm>100?'#D0453A':t.text},x.bpm+' bpm'),
                 x.bpm>100?this.e('span',{fontSize:10,fontWeight:800,color:'#D0453A',background:'rgba(208,69,58,.1)',padding:'2px 7px',borderRadius:999},'ELEVATED'):null,
@@ -2236,13 +2293,14 @@ class Component extends DCLogic {
         this.wrap([
           this.e('div',{key:'hero',display:'flex',alignItems:'center',gap:16,marginBottom:16},[
             this.e('div',{width:92,height:92,borderRadius:999,background:'conic-gradient('+t.accent+' '+slScore+'%, '+t.soft+' '+slScore+'%)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.e('div',{width:70,height:70,borderRadius:999,background:t.bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'},[this.e('div',{fontSize:22,fontWeight:800,color:t.text},String(slScore)),this.e('div',{fontSize:9.5,color:t.muted},'score')])),
-            this.e('div',{},[this.e('div',{fontSize:21,fontWeight:800,color:t.text},slH+'h '+String(slM).padStart(2,'0')+'m'),this.e('div',{fontSize:12.5,color:t.muted,marginTop:2},dayNames[sel]+' · '+(slScore>=80?'good':slScore>=65?'fair':'short')+' · tap a bar to pick a night'),this.e('div',{display:'flex',gap:8,marginTop:8,alignItems:'center'},[this.e('button',{style:{padding:'8px 14px',borderRadius:999,border:'1px solid '+t.border,background:t.card,color:t.text,cursor:'pointer',fontWeight:800,fontSize:12}},'− 15m',{onClick:()=>slAdj(-15)}),this.e('button',{style:{padding:'8px 14px',borderRadius:999,border:'1px solid '+t.border,background:t.card,color:t.text,cursor:'pointer',fontWeight:800,fontSize:12}},'+ 15m',{onClick:()=>slAdj(15)})])])
+            this.e('div',{},[this.e('div',{fontSize:21,fontWeight:800,color:t.text},slH+'h '+String(slM).padStart(2,'0')+'m'),this.e('div',{fontSize:12.5,color:t.muted,marginTop:2},dayNames[sel]+' · '+(slScore>=80?'good':slScore>=65?'fair':'short')+' · use −/+ to log last night'),this.e('div',{display:'flex',gap:8,marginTop:8,alignItems:'center'},[this.e('button',{style:{padding:'8px 14px',borderRadius:999,border:'1px solid '+t.border,background:t.card,color:t.text,cursor:'pointer',fontWeight:800,fontSize:12}},'− 15m',{onClick:()=>slAdj(-15)}),this.e('button',{style:{padding:'8px 14px',borderRadius:999,border:'1px solid '+t.border,background:t.card,color:t.text,cursor:'pointer',fontWeight:800,fontSize:12}},'+ 15m',{onClick:()=>slAdj(15)})])])
           ]),
           this.e('div',{key:'stagehdr',display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8},[this.e('span',{fontSize:12,fontWeight:800,textTransform:'uppercase',letterSpacing:'.05em',color:t.muted},'Sleep stages'),this.e('span',{fontSize:10.5,color:t.faint},'estimated · exact stages via Apple Health in the iOS app')]),
           this.e('div',{key:'stagebar',display:'flex',height:16,borderRadius:999,overflow:'hidden',marginBottom:12},stages.map(([l,d,p,c])=>this.e('div',{key:l,width:p+'%',background:c}))),
           ...stages.map(([l,d,p,c])=>this.e('div',{key:l,display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:'1px solid '+t.border},[this.e('div',{width:10,height:10,borderRadius:3,background:c}),this.e('span',{fontSize:13.5,color:t.text,flex:1},l),this.e('span',{fontSize:13,fontWeight:800,color:t.text},d),this.e('span',{fontSize:11.5,color:t.muted,width:34,textAlign:'right'},p+'%')])),
-          this.h('Last 7 nights'),
-          this.e('div',{key:'wk',display:'flex',alignItems:'flex-end',gap:9,height:70,marginBottom:6},nights.map((mns,i)=>this.e('div',{key:i,flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:5,cursor:'pointer'},[this.e('span',{fontSize:9.5,fontWeight:700,color:i===sel?t.text:t.faint},Math.floor(mns/60)+'h'),this.e('div',{width:'100%',height:Math.max(8,Math.round(mns/510*44)),borderRadius:6,background:i===sel?t.accent:t.soft}),this.e('span',{fontSize:10,color:i===sel?t.text:t.muted,fontWeight:i===sel?800:400},['M','T','W','T','F','S','S'][i])],{onClick:()=>this.setState({sleepSel:i})}))),
+          this.h('Sleep trend'),
+          ...(()=>{const slS=this.sleepSeries();const tgt=450;const hm=(m)=>Math.floor(m/60)+'h '+String(Math.round(m%60)).padStart(2,'0')+'m';
+            const p=this.metricPanel({series:slS.pts,sample:slS.sample,rangeState:'sleepRange',defRange:'W',selState:'sleepChSel',ranges:[['W','Week'],['M','Month'],['3M','3M']],color:'#7C8CF8',fill:'rgba(124,140,248,.16)',goal:tgt,goalLabel:'target 7.5h',floor:0,minSpan:120,fmt:(m)=>(m/60).toFixed(1)+'h',label:(c,f,l)=>'Hours slept · '+f+' → '+l,tipFmt:hm,stats:({avg,vmin,vmax})=>[[hm(avg),'avg/night',avg>=tgt?'#3d6b42':t.text],[hm(vmax),'longest'],[hm(vmin),'shortest'],['7.5h','target']]});return [p.chips,p.chart,p.stats];})(),
           this.e('div',{key:'tip',display:'flex',gap:10,background:t.card,border:'1px solid '+t.border,borderRadius:14,padding:'12px 14px'},[this.ic('spark',17,{color:t.accent}),this.e('div',{fontSize:12.5,color:t.text,lineHeight:1.45},[this.e('b',{},'Sleep well: '),'Adults do best on 7–9 hours. A consistent bedtime helps most — set a wind-down reminder from the Reminders page to build the habit.'])])
         ])
       ]);}
@@ -2564,11 +2622,7 @@ class Component extends DCLogic {
               this.e('button',{style:{padding:'10px 16px',borderRadius:999,border:'none',background:'#22A34A',color:'#fff',fontWeight:800,fontSize:12.5,cursor:'pointer',flexShrink:0}},'Enable',{onClick:this.enableMotion})
             ]):(S.autoSteps!==false?this.e('div',{key:'motok',fontSize:11.5,color:t.accent,fontWeight:700,textAlign:'center',marginBottom:12},'● Counting live — walk and watch it climb'):null),
             this.e('div',{key:'bgnote',fontSize:11,color:t.faint,textAlign:'center',marginBottom:12,lineHeight:1.5},this.isNative()?'While the app is closed, the iPhone keeps counting through Apple Health and 21again fills your day in when you reopen it.':'Steps count while 21again is open. On the iPhone app, Apple Health counts all day — even when 21again is closed.'),
-            this.e('div',{key:'chips',display:'flex',gap:8,marginBottom:12,justifyContent:'center'},[['W','Week'],['M','Month'],['6M','6 months'],['Y','Year']].map(([k,l])=>this.chip(l,key===k,()=>this.setState({stepRange:k}),{sm:true}))),
-            this.e('div',{key:'chart',background:t.card,border:'1px solid '+t.border,borderRadius:18,padding:'14px 16px',marginBottom:14,boxShadow:t.shadow},[
-              this.e('div',{fontSize:11.5,color:t.muted,marginBottom:12},DS.cap),
-              this.e('div',{display:'flex',alignItems:'flex-end',gap:7,height:86},DS.data.map(([d,v],i)=>this.e('div',{key:i,flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:5,cursor:key==='W'?'pointer':'default'},[this.e('div',{fontSize:9,color:(key==='W'&&i===ssel)?t.text:t.muted,fontWeight:700},this.fmt(v)),this.e('div',{width:'100%',height:Math.max(5,Math.round(v/mxv*58)),borderRadius:7,background:(key==='W'?i===ssel:i===DS.data.length-1)?t.accent:t.soft}),this.e('span',{fontSize:10,color:(key==='W'&&i===ssel)?t.text:t.muted,fontWeight:(key==='W'&&i===ssel)?800:400},d)],key==='W'?{onClick:()=>this.setState({stepsSel:i})}:undefined)))
-            ]),
+            ...(()=>{const stS=this.stepsSeries();const gl=S.stepGoal||10000;const p=this.metricPanel({series:stS.pts,sample:stS.sample,rangeState:'stepRange',defRange:'W',selState:'stepSel',ranges:[['W','Week'],['M','Month'],['3M','3M'],['1Y','Year']],color:'#22A34A',fill:'rgba(34,163,74,.14)',goal:gl,goalLabel:'goal '+Math.round(gl/1000)+'k',floor:0,minSpan:2000,fmt:(v)=>v>=1000?(Math.round(v/100)/10)+'k':String(Math.round(v)),label:(c,f,l)=>'Steps per day · '+f+' → '+l,tipFmt:(v)=>Math.round(v).toLocaleString()+' steps',stats:({avg,vmin,vmax})=>[[Math.round(avg).toLocaleString(),'avg/day',Math.round(avg)>=gl?'#3d6b42':t.text],[Math.round(vmax).toLocaleString(),'best day'],[Math.round(vmin).toLocaleString(),'lowest'],[Math.round(gl/1000)+'k','goal']]});return [p.chips,p.chart,p.stats];})(),
             this.h('Your records'),
             this.e('div',{key:'rec',display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14},(()=>{
               const h={...(S.stepsHist||{})};const wk7=[0,1,2,3,4,5,6].map(i=>this.dkOfIdx(i));wk7.forEach((k,i)=>{h[k]=week[i]||0;});
