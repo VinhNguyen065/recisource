@@ -156,6 +156,19 @@ Deno.serve(async (req) => {
           const oe = await fetch('https://www.youtube.com/oembed?format=json&url=' + encodeURIComponent(url));
           if (oe.ok) { const oj = await oe.json(); extra = 'VIDEO TITLE: ' + (oj.title || '') + '\nCHANNEL: ' + (oj.author_name || '') + '\n\n'; if (!imgUrl && oj.thumbnail_url) imgUrl = oj.thumbnail_url; }
         } catch (_e) { /* best-effort */ }
+      } else if (/tiktok\.com/i.test(url)) {
+        try {
+          const oe = await fetch('https://www.tiktok.com/oembed?url=' + encodeURIComponent(url));
+          if (oe.ok) { const oj = await oe.json(); extra = 'VIDEO TITLE: ' + (oj.title || '') + '\nCREATOR: ' + (oj.author_name || '') + '\n\n'; if (oj.thumbnail_url) imgUrl = oj.thumbnail_url; }
+        } catch (_e) { /* best-effort */ }
+      }
+      // last-resort image patterns some sites (Instagram/Facebook) still expose in meta
+      if (!imgUrl) {
+        const m2 = html.match(/<link[^>]+rel=["']image_src["'][^>]+href=["']([^"']+)["']/i)
+          || html.match(/<meta[^>]+name=["']twitter:image:src["'][^>]+content=["']([^"']+)["']/i)
+          || html.match(/"thumbnail_?url"\s*:\s*"(https?:[^"]+)"/i)
+          || html.match(/"display_url"\s*:\s*"(https?:[^"]+)"/i);
+        if (m2) { try { const u2 = new URL(m2[1].replace(/\\u0026/g, '&').replace(/&amp;/g, '&'), url); if (/^https?:$/.test(u2.protocol) && !hostBlocked(u2.hostname)) imgUrl = u2.href; } catch (_e) { /* ignore */ } }
       }
       userContent = [{ type: 'text', text: extra + pageDigest(html.slice(0, 600000), url) + '\n\nExtract the recipe. JSON only.' }];
       imageLen = html.length;
@@ -180,7 +193,7 @@ Deno.serve(async (req) => {
     const blk = (j.content || []).find((c: { type: string }) => c.type === 'text');
     const text = blk?.text ?? '{}';
     let parsed; try { parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch (_e) { await dbg({ mode, err: 'parse fail: ' + text.slice(0,200) }); return new Response(JSON.stringify({ error: 'Could not read a result — please try again.' }), { status: 502, headers: cors }); }
-    if (imgUrl && !parsed.error) { try { const iu = new URL(imgUrl); if (!hostBlocked(iu.hostname) && /^https?:$/.test(iu.protocol.replace(':',''))) parsed.image_url = imgUrl; } catch (_e) {} }
+    if (imgUrl && !parsed.error) { try { const iu = new URL(imgUrl); if (!hostBlocked(iu.hostname) && (iu.protocol === 'http:' || iu.protocol === 'https:')) parsed.image_url = imgUrl; } catch (_e) {} }
     await dbg({ mode, image_len: imageLen, stop_reason: j.stop_reason });
     return new Response(JSON.stringify(parsed), { headers: { ...cors, 'content-type': 'application/json' } });
   } catch (e) {

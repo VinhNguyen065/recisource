@@ -211,7 +211,7 @@ class Component extends DCLogic {
   TABMAP={healthToday:0,calorieDiary:0,manualFood:0,planPick:1,library:1,search:1,collections:1,tags:1,mealPlan:1,addMeal:1,grocery:1,addToGrocery:1,grocerySettings:1,fitness:3,weight:3,steps:3,heartRate:3,sleep:3,medicalProfile:3,aiChat:3,logWorkout:3,workoutTimer:3,liveWorkout:3,profile:4,settings:4};
   TABSCREENS=['healthToday','calorieDiary','library','mealPlan','grocery','fitness','profile'];
 
-  componentDidMount(){ if(this.props.startInGallery)this.setState({mode:'gallery'}); try{const sv=JSON.parse(localStorage.getItem('recisource_v1')||'null');if(!sv){this.setState(this.freshUserState());}if(sv){this.setState(sv);if(sv.scanRec){const i=this.RECIPES.findIndex(r=>r.id===999);if(i>=0)this.RECIPES[i]=sv.scanRec;else this.RECIPES.push(sv.scanRec);if(sv.scanRec.img)this.WIMG['food-r999']=sv.scanRec.img;}(sv.myRecs||[]).forEach(mr=>{if(!this.RECIPES.some(r=>r.id===mr.id))this.RECIPES.push(mr);if(mr.img)this.WIMG['food-r'+mr.id]=mr.img;});}}catch(e){} try{const lv=JSON.parse(localStorage.getItem('recisource_live')||'null');if(lv&&lv.lsOn){this.setState(lv);}}catch(e){} this.rollover(); this.checkUpdate(); setTimeout(()=>this.scheduleNativeReminders(),1500); try{if(this.state.autoSteps!==false){if(window.DeviceMotionEvent&&typeof DeviceMotionEvent.requestPermission==='function'){this._armMotionGesture();}else{window.addEventListener('devicemotion',this.onMotion);this._motionOn=true;}}}catch(e){} const sess=this.loadSess(); if(sess&&sess.user){this.setState({sessEmail:sess.user.email||null});this.cloudSyncOnLogin();} this._tk=setInterval(()=>{const S=this.state;
+  componentDidMount(){ if(this.props.startInGallery)this.setState({mode:'gallery'}); try{const sv=JSON.parse(localStorage.getItem('recisource_v1')||'null');if(!sv){this.setState(this.freshUserState());}if(sv){this.setState(sv);if(sv.scanRec){const i=this.RECIPES.findIndex(r=>r.id===999);if(i>=0)this.RECIPES[i]=sv.scanRec;else this.RECIPES.push(sv.scanRec);if(sv.scanRec.img)this.WIMG['food-r999']=sv.scanRec.img;}(sv.myRecs||[]).forEach(mr=>{if(!this.RECIPES.some(r=>r.id===mr.id))this.RECIPES.push(mr);if(mr.img)this.WIMG['food-r'+mr.id]=mr.img;});}}catch(e){} try{const lv=JSON.parse(localStorage.getItem('recisource_live')||'null');if(lv&&lv.lsOn){this.setState(lv);}}catch(e){} this.rollover(); this.checkUpdate(); setTimeout(()=>this.scheduleNativeReminders(),1500); if(this.isNative()){if(this.state.ahealth===false||this.state.ahealth===undefined)this.setState({ahealth:true}); setTimeout(()=>this.syncHealth(true),2000); this._hkTimer=setInterval(()=>{if(this.isNative())this.syncHealth(true);},300000);} try{if(this.state.autoSteps!==false){if(window.DeviceMotionEvent&&typeof DeviceMotionEvent.requestPermission==='function'){this._armMotionGesture();}else{window.addEventListener('devicemotion',this.onMotion);this._motionOn=true;}}}catch(e){} const sess=this.loadSess(); if(sess&&sess.user){this.setState({sessEmail:sess.user.email||null});this.cloudSyncOnLogin();} this._tk=setInterval(()=>{const S=this.state;
     if(this._asBuf){const b=this._asBuf;this._asBuf=0;this.setState({stepsToday:((this.state.stepsToday!==undefined)?this.state.stepsToday:0)+b});}
     this._tkN=(this._tkN||0)+1;if(this._tkN%5===0)this.fireReminders();if(this._tkN%60===0){if(S.stepsDate&&S.stepsDate!==this.dkToday())this.rollover();this.maybeWaterNudge();}
     if(S.mode==='phone'&&S.screen==='cookTimers'&&S.t1run&&S.t1>0)this.setState({t1:S.t1-1});
@@ -254,7 +254,7 @@ class Component extends DCLogic {
   };
   ic=(name,size=22,o={})=>{const filled=o.fill&&o.fill!=='none';return React.createElement('svg',{width:size,height:size,viewBox:'0 0 24 24',fill:filled?o.fill:'none',stroke:filled?'none':(o.color||'currentColor'),strokeWidth:o.sw||2,strokeLinecap:'round',strokeLinejoin:'round',onClick:o.onClick,style:{flexShrink:0,cursor:o.onClick?'pointer':undefined,...(o.style||{})},dangerouslySetInnerHTML:{__html:this.ICONS[name]||''}});};
 
-  nav=(id)=>{const h=this.state.history.concat(id);this.setState({screen:id,history:h,descOpen:false});};
+  nav=(id)=>{const h=this.state.history.concat(id);this.setState({screen:id,history:h,descOpen:false,qlOpen:false});};
   jump=(id)=>this.setState({mode:'phone',screen:id,history:[id]});
   back=()=>{const h=this.state.history.slice(0,-1);if(h.length===0){this.setState({screen:'healthToday',history:['healthToday']});return;}this.setState({screen:h[h.length-1],history:h});};
   setMode=(m)=>this.setState({mode:m});
@@ -633,7 +633,7 @@ class Component extends DCLogic {
   importRecipe=(rl,srcSub,img)=>{const id=this.nextMyId();const rec={id,title:rl.title,time:30,rating:4.8,tags:(rl.tags||['Imported']).slice(0,2),seed:(id%12)+1,diet:[],meal:'Dinner',diff:'Medium',kcal:rl.kcal_per_serving||400,sub:(srcSub||rl.description||'Imported').slice(0,42),live:{ingredients:rl.ingredients||[],steps:rl.steps||[]}};if(img){rec.img=img;this.WIMG['food-r'+id]=img;}this.RECIPES.push(rec);this.setState({myRecs:(this.state.myRecs||[]).concat(rec),recId:id,impPhase:0,impReview:null,savedBanner:id,screen:'recipeDetail',history:['library','recipeDetail']});if(this.boom)this.boom(2);this.showToast('Saved! '+rl.title+' is in your library');};
   ytThumb=(u)=>{const m=(u||'').match(/(?:youtube\.com\/(?:watch\?[^#]*v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,20})/);return m?('https://img.youtube.com/vi/'+m[1]+'/hqdefault.jpg'):null;};
 
-  openImportReview=(rl,src,img)=>{const h=this.state.history.slice(0,-1).concat('importReview');this.setState({impPhase:0,impReview:{rl:rl,src:src||null,img:img||null},irTitle:rl.title,screen:'importReview',history:h});};
+  openImportReview=(rl,src,img)=>{const h=this.state.history.slice(0,-1).concat('importReview');this.setState({impPhase:0,impUrl:'',impText:'',impReview:{rl:rl,src:src||null,img:img||null},irTitle:rl.title,screen:'importReview',history:h});};
   pickImage=(cb)=>{const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');const sc=Math.min(1,700/im.width);c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);c.getContext('2d').drawImage(im,0,0,c.width,c.height);cb(c.toDataURL('image/jpeg',0.6));};im.src=rd.result;};rd.readAsDataURL(f);};inp.click();};
   parseIng=(s)=>{const m=(s||'').trim().match(/^([\d.\/]+)\s*([a-zA-Z]{1,10})?\s+(.+)$/);if(m&&m[3])return {q:parseFloat(m[1])||1,u:m[2]||'',item:m[3]};return {q:1,u:'',item:(s||'').trim()};};
   runImport=(kind,value)=>{const seq=this._impSeq=(this._impSeq||0)+1;this.setState({impPhase:1});
@@ -780,12 +780,12 @@ class Component extends DCLogic {
   // Apple Health sync — only functional inside the Capacitor iOS build with the
   // CapacitorHealthkit plugin installed (see app-store-package/README-IOS-HEALTHKIT.md).
   // On the web build it explains itself; manual entry always remains available.
-  syncHealth=async()=>{
-    if(!this.isNative()){this.showToast('Apple Health sync needs the iOS app — manual entry works everywhere');return;}
+  syncHealth=async(silent)=>{
+    if(!this.isNative()){if(!silent)this.showToast('Apple Health sync needs the iOS app — manual entry works everywhere');return;}
     const HK=window.Capacitor.Plugins&&(window.Capacitor.Plugins.CapacitorHealthkit||window.Capacitor.Plugins.HealthKit);
-    if(!HK){this.showToast('Health plugin not installed in this build');return;}
+    if(!HK){if(!silent)this.showToast('Health plugin not installed in this build');return;}
     try{
-      this.showToast('Connecting to Apple Health…');
+      if(!silent)this.showToast('Connecting to Apple Health…');
       await HK.requestAuthorization({all:[],write:[],read:['steps','heartRate','sleepAnalysis']});
       const now=new Date();const dayStart=new Date(now.getFullYear(),now.getMonth(),now.getDate());
       const upd={};
@@ -797,8 +797,8 @@ class Component extends DCLogic {
         const mins=(sl&&sl.resultData||[]).reduce((a,s)=>{const d=(new Date(s.endDate)-new Date(s.startDate))/60000;return a+(d>0&&d<720?d:0);},0);
         if(mins>60){upd.sleepH=Math.floor(mins/60);upd.sleepM=Math.round(mins%60);}}catch(e){}
       if(Object.keys(upd).length){this.setState(upd);this.showToast('Synced from Apple Health ✓');}
-      else this.showToast('Connected — no new Health data found today');
-    }catch(e){this.showToast('Apple Health sync failed — you can still enter values manually');}
+      else if(!silent)this.showToast('Connected — no new Health data found today');
+    }catch(e){if(!silent)this.showToast('Apple Health sync failed — you can still enter values manually');}
   };
 
   ALG={1:['eggs','soy','sesame'],2:['eggs','soy','sesame'],3:['gluten'],4:['eggs','soy','sesame'],5:['gluten','dairy','eggs'],6:['gluten','dairy'],7:['gluten','dairy','eggs'],8:['gluten'],9:['gluten'],10:['gluten'],11:['dairy','gluten'],12:['gluten','dairy','treenuts'],13:['dairy'],14:['dairy'],15:['shellfish','dairy'],16:['dairy','treenuts'],17:['dairy','treenuts'],18:[],19:['dairy'],20:[],21:['gluten'],22:['gluten'],23:['gluten','dairy'],24:['gluten','dairy'],25:['gluten','dairy','sesame'],26:['gluten','dairy','sesame','eggs'],27:[]};
@@ -866,7 +866,7 @@ class Component extends DCLogic {
     const items=[['home','Today','healthToday',0],['soup','Food','library',1],['plus','','addMenu',2],['pulse','Health','fitness',3],['user','Profile','profile',4]];
     return this.e('div',{flexShrink:0,display:'flex',alignItems:'flex-end',justifyContent:'space-around',padding:'10px 16px 26px',background:t.card,borderTop:'1px solid '+t.border,zIndex:5},
       items.map(([ic,lab,id,idx])=> idx===2
-        ? this.e('button',{key:id,width:56,height:56,marginTop:-24,borderRadius:20,border:'none',cursor:'pointer',background:t.accent,color:t.accentText,display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 12px 22px -8px '+t.accent},this.ic('plus',26,{color:t.accentText,sw:2.6}),{onClick:()=>this.nav(id)})
+        ? this.e('button',{key:id,width:56,height:56,marginTop:-24,borderRadius:20,border:'none',cursor:'pointer',background:t.accent,color:t.accentText,display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 12px 22px -8px '+t.accent},this.ic('plus',26,{color:t.accentText,sw:2.6}),{onClick:()=>this.setState({qlOpen:true})})
         : this.e('button',{key:id,background:'none',border:'none',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:4,color:active===idx?t.ink:t.faint,width:56},[this.ic(ic,23,{color:active===idx?t.ink:t.faint,fill:active===idx&&ic==='home'?t.ink:'none'}),this.e('span',{fontSize:10,fontWeight:700},lab)],{onClick:()=>this.nav(id)})
       )
     );
@@ -883,6 +883,34 @@ class Component extends DCLogic {
   labeledField(label,val,ta){const t=this.T();return this.e('div',{marginBottom:12},[this.e('div',{fontSize:12,fontWeight:800,color:t.muted,marginBottom:6},label),this.e('div',{background:t.card,border:'1px solid '+t.border,borderRadius:12,padding:'12px 14px',fontSize:14,color:val?t.text:t.faint,minHeight:ta?58:'auto',lineHeight:1.5},val||('Enter '+label.toLowerCase()))]);}
   wrap(children,pad=true,extra){return this.e('div',{key:'scr-'+this.state.screen,className:'scr',style:{flex:1,minHeight:0,overflowY:'auto',overflowX:'hidden',animation:'fadeup .22s ease',padding:pad?'0 18px 24px':0,...(extra||{})}},children);}
 
+  quickLogSheet(){const t=this.T();const S=this.state;const wCur=(S.curW!==undefined)?S.curW:((S.wextra&&S.wextra.length)?S.wextra[S.wextra.length-1]:70);const water=S.water||0;
+    const row=(bg,icn,iconColor,title,sub,right,onClick)=>this.e('div',{key:title,style:{display:'flex',alignItems:'center',gap:12,padding:'12px 13px',borderRadius:15,background:t.card,border:'1px solid '+t.border,marginBottom:9,cursor:onClick?'pointer':'default',boxShadow:t.shadow}},[this.e('div',{width:40,height:40,borderRadius:12,background:bg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic(icn,20,{color:iconColor})),this.e('div',{flex:1,minWidth:0},[this.e('div',{fontSize:14,fontWeight:800,color:t.text},title),sub?this.e('div',{fontSize:11.5,color:t.muted,marginTop:1},sub):null]),right],onClick?{onClick}:undefined);
+    const chipBtn=(txt,fn,primary)=>this.e('button',{style:{padding:'9px 13px',borderRadius:11,border:'none',background:primary?t.ink:t.soft,color:primary?t.inkText:t.text,fontWeight:800,fontSize:12.5,cursor:'pointer',whiteSpace:'nowrap'}},txt,{onClick:fn});
+    const stepBtn=(sym,fn)=>this.e('button',{style:{width:32,height:32,borderRadius:999,border:'1px solid '+t.border,background:t.soft,color:t.text,cursor:'pointer',fontWeight:800,fontSize:16,lineHeight:'1',padding:0}},sym,{onClick:fn});
+    return this.e('div',{key:'ql',position:'absolute',inset:0,zIndex:60,display:'flex',flexDirection:'column',justifyContent:'flex-end',background:'rgba(20,16,12,.45)'},[
+      this.e('div',{key:'x',flex:1},null,{onClick:()=>this.setState({qlOpen:false})}),
+      this.e('div',{key:'s',background:t.bg,borderRadius:'26px 26px 0 0',padding:'12px 18px 26px',maxHeight:'90%',display:'flex',flexDirection:'column',animation:'fadeUp .25s ease'},[
+        this.e('div',{key:'grab',width:42,height:5,borderRadius:999,background:t.border,margin:'0 auto 12px'}),
+        this.e('div',{key:'hd',display:'flex',alignItems:'center',marginBottom:14},[this.e('div',{fontWeight:800,fontSize:18,color:t.text,flex:1},'Quick log'),this.circBtn('close',()=>this.setState({qlOpen:false}),{sz:32,bg:t.soft,border:t.soft,color:t.muted,icsz:15})]),
+        this.e('div',{key:'body',className:'scr',style:{minHeight:0,overflowY:'auto'}},[
+          this.e('div',{key:'scan',style:{display:'flex',gap:9,marginBottom:12}},[
+            this.e('button',{style:{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:6,padding:'15px 6px',borderRadius:16,border:'none',background:t.ink,color:t.inkText,cursor:'pointer'}},[this.ic('scan',24,{color:t.inkText}),this.e('span',{fontSize:12.5,fontWeight:800},'Scan a meal')],{onClick:()=>{this.setState({qlOpen:false,scanMode:'cal'});this.nav('mealScan');}}),
+            this.e('button',{style:{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:6,padding:'15px 6px',borderRadius:16,border:'1px solid '+t.border,background:t.card,color:t.text,cursor:'pointer'}},[this.ic('edit',22,{color:t.text}),this.e('span',{fontSize:12.5,fontWeight:800},'Food by hand')],{onClick:()=>{this.setState({qlOpen:false,mfSlot:'Snack',mfName:'',mfKcal:''});this.nav('manualFood');}})
+          ]),
+          // Water — inline, repeatable
+          row('rgba(59,130,246,.15)','drop','#3B82F6','Water','+1 cup keeps you on pace',this.e('div',{display:'flex',alignItems:'center',gap:8},[this.e('span',{fontSize:14,fontWeight:800,color:t.text,minWidth:34,textAlign:'center'},water+'/8'),stepBtn('−',()=>this.addCup((this.state.water||0)-1)),stepBtn('+',()=>this.addCup((this.state.water||0)+1))])),
+          // Weight — inline log
+          row('rgba(94,148,99,.16)','trend','#5E9463','Weight',(S.wlogD&&S.wlogD.some(e=>e.ts&&this.dkey(new Date(e.ts))===this.dkToday()))?'Logged today ✓':'Log today’s weigh-in',this.e('div',{display:'flex',alignItems:'center',gap:6},[stepBtn('−',()=>this.setState({curW:Math.round((wCur-0.1)*10)/10})),this.e('span',{fontSize:13.5,fontWeight:800,color:t.text,minWidth:52,textAlign:'center'},this.fmt(wCur)+'kg'),stepBtn('+',()=>this.setState({curW:Math.round((wCur+0.1)*10)/10})),chipBtn('Log',()=>{const w=Math.round((this.state.curW!==undefined?this.state.curW:wCur)*10)/10;this.setState({wextra:(this.state.wextra||[]).concat(w),wlogD:(this.state.wlogD||[]).concat({w:w,ts:new Date().toISOString()}),wDemoOff:true});this.haptic&&this.haptic([120]);this.showToast('Logged '+this.fmt(w)+' kg ✓');},true)])),
+          // Pulse
+          row('rgba(239,68,68,.13)','pulse','#EF4444','Heart rate',(S.hr?S.hr+' bpm last':'Measure with the camera'),this.ic('chev',18,{color:t.faint}),()=>{this.setState({qlOpen:false});this.nav('heartRate');this.measureHR&&setTimeout(()=>this.measureHR(),300);}),
+          // Workout
+          row('rgba(232,114,46,.13)','flame',t.ink,'Workout','Log or start a live session',this.ic('chev',18,{color:t.faint}),()=>{this.setState({qlOpen:false});this.nav('logWorkout');}),
+          // Import recipe
+          row(t.soft,'link',t.text,'Import a recipe','From a link, photo or text',this.ic('chev',18,{color:t.faint}),()=>{this.setState({qlOpen:false});this.nav('addMenu');}),
+          this.e('div',{key:'auto',fontSize:11.5,color:t.faint,textAlign:'center',marginTop:6,lineHeight:1.5},(S.autoSteps!==false)?'Steps count automatically 👣 · on the iPhone app, Apple Health fills in steps, heart rate & sleep for you.':'Turn on automatic step counting on the Steps page.')
+        ])
+      ])
+    ]);}
   qaSheet(){const t=this.T();const S=this.state;const r=this.RECIPES.find(x=>x.id===S.qaRec);if(!r)return null;
     const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];const qd=(S.qaDay!==undefined)?S.qaDay:this.todayIdx();const qs=S.qaSlot||'Dinner';
     const act=(icn,lab,sub,fn,primary)=>this.e('button',{key:lab,style:{width:'100%',display:'flex',alignItems:'center',gap:12,padding:'12px 13px',borderRadius:14,border:'1px solid '+(primary?t.accent:t.border),background:primary?'rgba(52,211,153,.13)':t.card,cursor:'pointer',textAlign:'left',marginBottom:9}},[this.e('div',{width:38,height:38,borderRadius:12,background:primary?t.accent:t.soft,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic(icn,19,{color:primary?t.accentText:t.text})),this.e('div',{flex:1,minWidth:0},[this.e('div',{fontSize:13.5,fontWeight:800,color:t.text},lab),sub?this.e('div',{fontSize:11,color:t.muted,marginTop:1},sub):null]),this.ic('chev',16,{color:t.faint})],{onClick:fn});
@@ -1069,14 +1097,16 @@ class Component extends DCLogic {
           ]),
           this.e('div',{key:'f',padding:'12px 18px 22px',borderTop:'1px solid '+t.border},this.btn('Structure it',()=>{const v=(this.state.impText||'').trim();if(v.length<20){this.showToast('Paste a bit more text first');return;}this.runImport('text',v);},{icon:'spark'}))
         ]);
+        const doImport=()=>{let v=(this.state.impUrl||'').trim();if(!v){this.showToast('Paste a link first');return;}if(!/^https?:\/\//i.test(v))v='https://'+v;this.runImport('url',v);};
         return this.e('div',{key:'ui',flex:1,minHeight:0,display:'flex',flexDirection:'column'},[
           this.topbar('Import from a link'),
           this.wrap([
-            this.e('div',{key:'i',fontSize:13,color:t.muted,marginBottom:12},'One box for everything — YouTube, TikTok, Instagram, blogs, any recipe site. Paste the link and we read it.'),
-            React.createElement('input',{key:'in',value:S.impUrl||'',onChange:e=>this.setState({impUrl:e.target.value}),placeholder:'https:// paste any link…',inputMode:'url',autoCapitalize:'none',style:{width:'100%',boxSizing:'border-box',border:'1.5px solid '+t.ink,borderRadius:14,padding:'13px 14px',fontSize:14.5,fontWeight:600,color:t.text,outline:'none',background:t.card,fontFamily:'inherit',marginBottom:10}}),
-            this.e('div',{key:'hint',fontSize:12,color:t.faint,marginBottom:4},'Tip: for videos, the recipe usually lives in the description — we read that too.')
-          ]),
-          this.e('div',{key:'f',padding:'12px 18px 22px',borderTop:'1px solid '+t.border},this.btn('Import recipe',()=>{let v=(this.state.impUrl||'').trim();if(!v){this.showToast('Paste a link first');return;}if(!/^https?:\/\//i.test(v))v='https://'+v;this.runImport('url',v);},{icon:'spark'}))
+            this.e('div',{key:'i',fontSize:13,color:t.muted,marginBottom:12},'One box for everything — YouTube, TikTok, Instagram, Facebook, blogs, any recipe site. Paste the link and we read it.'),
+            React.createElement('input',{key:'in',value:S.impUrl||'',onChange:e=>this.setState({impUrl:e.target.value}),onKeyDown:e=>{if(e.key==='Enter')doImport();},placeholder:'Paste any recipe link…',inputMode:'url',autoCapitalize:'none',autoFocus:true,style:{width:'100%',boxSizing:'border-box',border:'1.5px solid '+t.ink,borderRadius:14,padding:'14px',fontSize:15,fontWeight:600,color:t.text,outline:'none',background:t.card,fontFamily:'inherit',marginBottom:12}}),
+            this.e('button',{key:'go',style:{width:'100%',padding:'15px 0',borderRadius:14,border:'none',background:'#22A34A',color:'#fff',fontWeight:800,fontSize:16,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:9,boxShadow:'0 8px 18px -6px rgba(34,163,74,.55)',marginBottom:12}},[this.ic('spark',20,{color:'#fff'}),'Import recipe'],{onClick:doImport}),
+            (S.impUrl||'').trim()?this.e('button',{key:'clr',style:{width:'100%',padding:'9px 0',borderRadius:10,border:'none',background:'none',color:t.muted,fontWeight:700,fontSize:12.5,cursor:'pointer'}},'Clear',{onClick:()=>this.setState({impUrl:''})}):null,
+            this.e('div',{key:'hint',fontSize:12,color:t.faint,marginTop:6,lineHeight:1.5},'Tip: for videos, the recipe usually lives in the description — we read that too. We also pull the cover photo automatically where the site allows it.')
+          ])
         ]);
       }
 
@@ -2356,6 +2386,7 @@ class Component extends DCLogic {
       inner=[this.sb(),this.screenBody(id)];
       if(this.TABSCREENS.includes(id))inner.push(this.tabbar());
       if(this.state.qaRec&&!gallery)inner.push(this.qaSheet());
+      if(this.state.qlOpen&&!gallery)inner.push(this.quickLogSheet());
       if(this.state.toast&&!gallery)inner.push(this.e('div',{key:'toast',position:'absolute',left:'50%',bottom:this.TABSCREENS.includes(id)?100:34,transform:'translateX(-50%)',background:'#17191D',color:'#fff',padding:'11px 18px',borderRadius:999,fontSize:13,fontWeight:700,boxShadow:'0 12px 26px -8px rgba(0,0,0,.4)',animation:'toastin .3s ease',display:'flex',alignItems:'center',gap:8,zIndex:40,whiteSpace:'nowrap'},[this.ic('check',15,{color:this.props.accentColor||'#34D399'}),this.state.toast]));
     }
     const mob=!gallery&&typeof window!=='undefined'&&window.innerWidth<=520;
