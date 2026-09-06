@@ -62,7 +62,7 @@ class Component extends DCLogic {
     tmRunning:false, list:'This week', descOpen:false, query:'', plan:'annual', activeVer:'original', myIng:null, mySteps:null, aiPrefs:{'Dinner':true,'Under 30 min':true},
     demo:true, reminders:[], remFired:{}, checkins:{}, moodLog:{}, checkinBest:0, freezes:0, frozen:{}, recId:1, scanQty:{}, t1:724, t1run:false, legalKind:'terms', coachPhase:0, water:0, scanMode:'cal', weightRange:'6M', stepRange:'W', curW:71.2, wextra:[], dlog:[], diaryDay:((new Date().getDay()+6)%7), dhide:[], kcalGoal:1900,
     wlog:[{day:0,ty:'Walk',mins:34,kcal:135},{day:1,ty:'Run',mins:52,kcal:555},{day:2,ty:'Yoga',mins:41,kcal:165},{day:3,ty:'Cycle',mins:66,kcal:550},{day:4,ty:'Walk',mins:48,kcal:190},{day:4,ty:'Strength',mins:38,kcal:230}],
-    twMode:'sw', swRun:false, swAcc:0, swStart:0, swLaps:[], tmTotal:60, tmLeft:60, tmRun:false, tmStart:0, hr:68, sleepH:7, sleepM:20, stepsToday:7842, stepGoal:10000, sleepLog:[408,426,372,444,420,486], sleepSel:6, stepsLog:[6200,8100,7400,9200,7800,10400], stepsSel:6, bpSys:118, bpDia:76, bpLog:[{s:124,d:82,t:'Jul 12'},{s:121,d:80,t:'Jul 26'}], wGoal:70, conds:[], meds:[], condEdit:null, condDraft:'', medEdit:null, medDraft:'', notif:true, appearance:'Light', theme:'bloom', ahealth:true, records:'MyChart', gExtra:[], gDraft:'', userName:'Sofia', chatLog:[], chatDraft:'', mealSlot:'Snack', cookRating:0, commFeed:[], commSaved:{}, commMine:[], commTab:null, commSort:'popular', commQ:'', commRec:null, commLoading:false, commErr:null, commPubBusy:false, commPickId:null, commHidden:{}, commNote:'', commNoteFor:null, commHasMore:false, commJustPub:null, confirm:null, reportReason:null, commFeedOn:false, commListed:true, lang:'en', onb:{goals:[],looking:[],source:null}, offline:false, storageFull:false, histRows:[], histLoading:false, histErr:null, tourOpen:'t1', tourFromOnb:false
+    twMode:'sw', swRun:false, swAcc:0, swStart:0, swLaps:[], tmTotal:60, tmLeft:60, tmRun:false, tmStart:0, hr:68, sleepH:7, sleepM:20, stepsToday:7842, stepGoal:10000, sleepLog:[408,426,372,444,420,486], sleepSel:6, stepsLog:[6200,8100,7400,9200,7800,10400], stepsSel:6, bpSys:118, bpDia:76, bpLog:[{s:124,d:82,t:'Jul 12'},{s:121,d:80,t:'Jul 26'}], wGoal:70, conds:[], meds:[], condEdit:null, condDraft:'', medEdit:null, medDraft:'', notif:true, appearance:'Light', theme:'bloom', ahealth:true, records:'MyChart', gExtra:[], gDraft:'', userName:'Sofia', chatLog:[], chatDraft:'', mealSlot:'Snack', cookRating:0, commFeed:[], commSaved:{}, commMine:[], commTab:null, commSort:'popular', commQ:'', commRec:null, commLoading:false, commErr:null, commPubBusy:false, commPickId:null, commHidden:{}, commNote:'', commNoteFor:null, commHasMore:false, commJustPub:null, confirm:null, reportReason:null, commFeedOn:false, commListed:true, lang:'en', onb:{goals:[],looking:[],source:null}, offline:false, storageFull:false, histRows:[], histLoading:false, histErr:null, tourOpen:'t1', tourFromOnb:false, restHr:0, restHrSrc:null, restEnergy:0, activeEnergy:0, sleepLast:null, hkDev:null
   };
 
   GRADS=['linear-gradient(150deg,#7FD9A6,#4CA97D)','linear-gradient(150deg,#B6A6F0,#7C6BD6)','linear-gradient(150deg,#F6A6C7,#EC6199)','linear-gradient(150deg,#8FD0E8,#5A9FD4)','linear-gradient(150deg,#F7C978,#E89B45)','linear-gradient(150deg,#A6E0B4,#6FBF8C)'];
@@ -353,7 +353,7 @@ class Component extends DCLogic {
     ['Home & Library',[['library','Recipe Library'],['search','Search'],['collections','Collections'],['tags','Tags']]],
     ['Import & Recipe Detail',[['addMenu','Add Recipe'],['urlImport','URL / Social Import'],['photoImport','Photo / OCR'],['textImport','Text Paste'],['manualEntry','Manual Entry'],['recipeDetail','Recipe Detail'],['editRecipe','Edit Recipe'],['moreMenu','More Menu']]],
     ['Cook Mode',[['cookStep','Guided Step'],['cookIngredients','Ingredients Panel'],['cookTimers','Active Timers'],['cookComplete','Cook Complete']]],
-    ['Health & Fitness',[['healthToday','Today Dashboard'],['mealScan','Meal Scan Camera'],['mealScanAnalyzing','Scan Analysis'],['mealScanResult','Scan Results'],['calorieDiary','Calorie Diary'],['manualFood','Manual Food Entry'],['scanChoice','Scan Choice'],['goalEdit','Calorie Goal'],['fitness','Fitness Hub'],['logWorkout','Log Workout'],['workoutTimer','Timer & Stopwatch'],['liveWorkout','Live Workout'],['weight','Weight Tracker'],['steps','Step History'],['heartRate','Heart Rate'],['sleep','Sleep']]],
+    ['Health & Fitness',[['healthToday','Today Dashboard'],['mealScan','Meal Scan Camera'],['mealScanAnalyzing','Scan Analysis'],['mealScanResult','Scan Results'],['calorieDiary','Calorie Diary'],['manualFood','Manual Food Entry'],['scanChoice','Scan Choice'],['goalEdit','Calorie Goal'],['fitness','Fitness Hub'],['logWorkout','Log Workout'],['workoutTimer','Timer & Stopwatch'],['liveWorkout','Live Workout'],['weight','Weight Tracker'],['steps','Step History'],['heartRate','Heart Rate'],['sleep','Sleep'],['energy','Energy']]],
     ['Medical',[['medicalProfile','Medical Profile']]],
     ['Meal Planning',[['mealPlan','Meal Plan'],['addMeal','Add Meal'],['planPick','Add to Plan']]],
     ['Grocery',[['grocery','Grocery List'],['addToGrocery','Add to List'],['grocerySettings','List Settings']]],
@@ -368,7 +368,7 @@ class Component extends DCLogic {
   TABMAP={healthToday:0,calorieDiary:0,manualFood:0,planPick:1,library:1,search:1,collections:1,tags:1,mealPlan:1,addMeal:1,grocery:1,addToGrocery:1,grocerySettings:1,fitness:3,weight:3,steps:3,heartRate:3,sleep:3,medicalProfile:3,aiChat:3,logWorkout:3,workoutTimer:3,liveWorkout:3,profile:4,settings:4};
   TABSCREENS=['healthToday','calorieDiary','library','mealPlan','grocery','fitness','profile'];
 
-  componentDidMount(){ if(this.props.startInGallery)this.setState({mode:'gallery'}); try{const sv=JSON.parse(localStorage.getItem('recisource_v1')||'null');if(!sv){this.setState(this.freshUserState());this.restoreFromIdb();}if(sv){this.setState(sv);if(sv.scanRec){const i=this.RECIPES.findIndex(r=>r.id===999);if(i>=0)this.RECIPES[i]=sv.scanRec;else this.RECIPES.push(sv.scanRec);if(sv.scanRec.img)this.WIMG['food-r999']=sv.scanRec.img;}(sv.myRecs||[]).forEach(mr=>{if(!this.RECIPES.some(r=>r.id===mr.id))this.RECIPES.push(mr);if(mr.img)this.WIMG['food-r'+mr.id]=mr.img;});}}catch(e){} try{const lv=JSON.parse(localStorage.getItem('recisource_live')||'null');if(lv&&lv.lsOn){this.setState(lv);}}catch(e){} try{this.setState({offline:!navigator.onLine});window.addEventListener('online',()=>{this.setState({offline:false});this.cloudPush();});window.addEventListener('offline',()=>this.setState({offline:true}));}catch(e){} this.loadFlags(); try{this.openDeepLink(location.hash);window.addEventListener('hashchange',()=>{try{this.openDeepLink(location.hash);}catch(e){}});}catch(e){} this.rollover(); this.maybeApplyFreeze(); this.checkUpdate(); setTimeout(()=>this.scheduleNativeReminders(),1500); if(this.isNative()){if(this.state.ahealth===false||this.state.ahealth===undefined)this.setState({ahealth:true}); setTimeout(()=>this.syncHealth(true),2000); this._hkTimer=setInterval(()=>{if(this.isNative())this.syncHealth(true);},300000);} try{if(this.state.autoSteps!==false){if(window.DeviceMotionEvent&&typeof DeviceMotionEvent.requestPermission==='function'){this._armMotionGesture();}else{window.addEventListener('devicemotion',this.onMotion);this._motionOn=true;}}}catch(e){} const sess=this.loadSess(); if(sess&&sess.user){this.setState({sessEmail:sess.user.email||null});this.cloudSyncOnLogin();} this._tk=setInterval(()=>{const S=this.state;
+  componentDidMount(){ if(this.props.startInGallery)this.setState({mode:'gallery'}); try{const sv=JSON.parse(localStorage.getItem('recisource_v1')||'null');if(!sv){this.setState(this.freshUserState());this.restoreFromIdb();}if(sv){this.setState(sv);if(sv.scanRec){const i=this.RECIPES.findIndex(r=>r.id===999);if(i>=0)this.RECIPES[i]=sv.scanRec;else this.RECIPES.push(sv.scanRec);if(sv.scanRec.img)this.WIMG['food-r999']=sv.scanRec.img;}(sv.myRecs||[]).forEach(mr=>{if(!this.RECIPES.some(r=>r.id===mr.id))this.RECIPES.push(mr);if(mr.img)this.WIMG['food-r'+mr.id]=mr.img;});}}catch(e){} try{const lv=JSON.parse(localStorage.getItem('recisource_live')||'null');if(lv&&lv.lsOn){this.setState(lv);}}catch(e){} try{this.setState({offline:!navigator.onLine});window.addEventListener('online',()=>{this.setState({offline:false});this.cloudPush();});window.addEventListener('offline',()=>this.setState({offline:true}));}catch(e){} try{document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&this.isNative()&&(!this._hkVis||Date.now()-this._hkVis>60000)){this._hkVis=Date.now();this.syncHealth(true);}});}catch(e){} this.loadFlags(); try{this.openDeepLink(location.hash);window.addEventListener('hashchange',()=>{try{this.openDeepLink(location.hash);}catch(e){}});}catch(e){} this.rollover(); this.maybeApplyFreeze(); this.checkUpdate(); setTimeout(()=>this.scheduleNativeReminders(),1500); if(this.isNative()){if(this.state.ahealth===false||this.state.ahealth===undefined)this.setState({ahealth:true}); setTimeout(()=>this.syncHealth(true),2000); this._hkTimer=setInterval(()=>{if(this.isNative())this.syncHealth(true);},300000);} try{if(this.state.autoSteps!==false){if(window.DeviceMotionEvent&&typeof DeviceMotionEvent.requestPermission==='function'){this._armMotionGesture();}else{window.addEventListener('devicemotion',this.onMotion);this._motionOn=true;}}}catch(e){} const sess=this.loadSess(); if(sess&&sess.user){this.setState({sessEmail:sess.user.email||null});this.cloudSyncOnLogin();} this._tk=setInterval(()=>{const S=this.state;
     if(this._asBuf){const b=this._asBuf;this._asBuf=0;this.setState({stepsToday:((this.state.stepsToday!==undefined)?this.state.stepsToday:0)+b});}
     this._tkN=(this._tkN||0)+1;if(this._tkN%5===0)this.fireReminders();if(this._tkN%60===0){if(S.stepsDate&&S.stepsDate!==this.dkToday())this.rollover();this.maybeWaterNudge();}
     if(S.mode==='phone'&&S.screen==='cookTimers'&&S.t1run&&S.t1>0)this.setState({t1:S.t1-1});
@@ -722,7 +722,7 @@ class Component extends DCLogic {
   cancelHR=()=>{try{clearInterval(this._hrIv);}catch(e){}this.setState({hrMeas:null,hrResult:null,hrWave:[]});};
 
   // ---- Accounts & cloud sync (Supabase Auth + user_state table, RLS-isolated) ----
-  VERSION='20260906.1322';
+  VERSION='20260906.1428';
   checkUpdate=async()=>{try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();
     if(j&&j.v&&this.VERSION!=='__BUILD'+'_TS__'&&j.v!==this.VERSION){
       if(!this.state.lsOn){this.showToast('Updating to the latest version…');setTimeout(()=>{try{location.replace(location.pathname+'?v='+encodeURIComponent(j.v));}catch(e){location.reload();}},900);}
@@ -730,7 +730,7 @@ class Component extends DCLogic {
     }}catch(e){}};
   AUTH_URL='https://czbetvehfqqfhggqlqfp.supabase.co/auth/v1';
   REST_URL='https://czbetvehfqqfhggqlqfp.supabase.co/rest/v1';
-  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog','planFilter','planTier','hhMembers','myTpls','wlogD','wDemoOff','autoSteps','demo','following','likes','cookCount','aisleOrd','grocCombine','grocStaples','grocLayout','reminders','remFired','remAck','checkins','moodLog','checkinBest','freezes','frozen','recSort','cookAt','grocGroup','theme','routes','commSaved','commMine','commHidden','lang','onb'];
+  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog','planFilter','planTier','hhMembers','myTpls','wlogD','wDemoOff','autoSteps','demo','following','likes','cookCount','aisleOrd','grocCombine','grocStaples','grocLayout','reminders','remFired','remAck','checkins','moodLog','checkinBest','freezes','frozen','recSort','cookAt','grocGroup','theme','routes','commSaved','commMine','commHidden','lang','onb','restHr','restHrSrc','restEnergy','activeEnergy','sleepLast','hkDev'];
   snapshotState=()=>{const S=this.state;const o={_ts:Date.now()};this.SYNC_KEYS.forEach(k=>{o[k]=S[k];});return o;};
   loadSess=()=>{try{return JSON.parse(localStorage.getItem('recisource_auth')||'null');}catch(e){return null;}};
   saveSess=(s)=>{try{if(s)localStorage.setItem('recisource_auth',JSON.stringify(s));else localStorage.removeItem('recisource_auth');}catch(e){}};
@@ -1262,26 +1262,115 @@ class Component extends DCLogic {
     if(!this.isNative()){this.setState({hkResult:{na:true},hkLast:Date.now()});if(!silent)this.showToast('Apple Health sync needs the iOS app — manual entry works everywhere');return;}
     const HK=window.Capacitor.Plugins&&(window.Capacitor.Plugins.CapacitorHealthkit||window.Capacitor.Plugins.HealthKit);
     if(!HK){this.setState({hkResult:{na:true,noPlugin:true},hkLast:Date.now()});if(!silent)this.showToast('Health plugin not installed in this build');return;}
+    if(this._hkBusy)return;this._hkBusy=true;
     // Per-metric outcome so the user sees exactly what synced — iOS hides read-permission state, so silence looks like denial.
-    const res={steps:null,hr:null,sleep:null};
+    const res={steps:null,hr:null,restHr:null,restEnergy:null,activeEnergy:null,sleep:null};
     this.setState({hkSyncing:true});
+    const q=async(name,from,to)=>{const r=await HK.queryHKitSampleType({sampleName:name,startDate:from.toISOString(),endDate:to.toISOString(),limit:0});return (r&&r.resultData)||[];};
+    const sum=(rows)=>rows.reduce((a,s)=>a+(parseFloat(s.value)||0),0);
+    const srcOf=(rows)=>{for(const s of rows){const d=s.device||s.deviceName||s.source||s.sourceName;if(d&&/watch/i.test(String(d)))return String(d).slice(0,40);}for(const s of rows){const d=s.device||s.source||s.sourceName;if(d)return String(d).slice(0,40);}return null;};
     try{
       if(!silent)this.showToast('Connecting to Apple Health…');
-      await HK.requestAuthorization({all:[],write:[],read:['steps','heartRate','sleepAnalysis']});
+      try{await HK.requestAuthorization({all:[],write:[],read:['steps','heartRate','sleepAnalysis','calories','activity']});}
+      catch(e){await HK.requestAuthorization({all:[],write:[],read:['steps','heartRate','sleepAnalysis']});}
       const now=new Date();const dayStart=new Date(now.getFullYear(),now.getMonth(),now.getDate());
-      const upd={};
-      try{const st=await HK.queryHKitSampleType({sampleName:'stepCount',startDate:dayStart.toISOString(),endDate:now.toISOString(),limit:0});
-        const total=(st&&st.resultData||[]).reduce((a,s)=>a+(parseFloat(s.value)||0),0);if(total>0){upd.stepsToday=Math.round(total);res.steps={ok:true,val:Math.round(total)};}else res.steps={ok:false};}catch(e){res.steps={err:true};}
-      try{const hr=await HK.queryHKitSampleType({sampleName:'heartRate',startDate:dayStart.toISOString(),endDate:now.toISOString(),limit:0});
-        const rows=hr&&hr.resultData||[];if(rows.length){upd.hr=Math.round(parseFloat(rows[rows.length-1].value)||this.state.hr);res.hr={ok:true,val:upd.hr};}else res.hr={ok:false};}catch(e){res.hr={err:true};}
-      try{const yest=new Date(dayStart.getTime()-43200000);const sl=await HK.queryHKitSampleType({sampleName:'sleepAnalysis',startDate:yest.toISOString(),endDate:now.toISOString(),limit:0});
-        const mins=(sl&&sl.resultData||[]).reduce((a,s)=>{const d=(new Date(s.endDate)-new Date(s.startDate))/60000;return a+(d>0&&d<720?d:0);},0);
-        if(mins>60){upd.sleepH=Math.floor(mins/60);upd.sleepM=Math.round(mins%60);res.sleep={ok:true,val:Math.round(mins)};}else res.sleep={ok:false};}catch(e){res.sleep={err:true};}
+      const upd={};let dev=null;
+      // steps today
+      try{const st=await q('stepCount',dayStart,now);const total=sum(st);dev=dev||srcOf(st);if(total>0){upd.stepsToday=Math.round(total);res.steps={ok:true,val:Math.round(total)};}else res.steps={ok:false};}catch(e){res.steps={err:true};}
+      // heart rate: latest reading today, plus a resting estimate from the lowest readings
+      let hrRows=[];
+      try{hrRows=await q('heartRate',dayStart,now);dev=dev||srcOf(hrRows);
+        if(hrRows.length){upd.hr=Math.round(parseFloat(hrRows[hrRows.length-1].value)||this.state.hr);res.hr={ok:true,val:upd.hr};}else res.hr={ok:false};}catch(e){res.hr={err:true};}
+      // resting heart rate: Apple's own value when the watch has computed it, else the 10th percentile of today's readings
+      try{const rh=await q('restingHeartRate',new Date(now.getTime()-7*864e5),now);
+        if(rh.length){upd.restHr=Math.round(parseFloat(rh[rh.length-1].value));upd.restHrSrc='watch';res.restHr={ok:true,val:upd.restHr};}
+        else throw 0;}
+      catch(e){const vals=hrRows.map(s=>parseFloat(s.value)).filter(v=>v>30&&v<220).sort((a,b)=>a-b);
+        if(vals.length>=8){upd.restHr=Math.round(vals[Math.floor(vals.length*0.1)]);upd.restHrSrc='est';res.restHr={ok:true,val:upd.restHr,est:true};}else res.restHr={ok:false};}
+      // energy: resting (basal) and active, today
+      try{const be=await q('basalEnergyBurned',dayStart,now);const v=Math.round(sum(be));if(v>0){upd.restEnergy=v;res.restEnergy={ok:true,val:v};}else res.restEnergy={ok:false};}catch(e){res.restEnergy={err:true};}
+      try{const ae=await q('activeEnergyBurned',dayStart,now);const v=Math.round(sum(ae));dev=dev||srcOf(ae);if(v>0){upd.activeEnergy=v;res.activeEnergy={ok:true,val:v};}else res.activeEnergy={ok:false};}catch(e){res.activeEnergy={err:true};}
+      // sleep: every stage sample since yesterday evening → primary sleep session with stages
+      try{const from=new Date(dayStart.getTime()-6*3600000);const sl=await q('sleepAnalysis',from,now);
+        const parsed=this.parseSleep(sl,srcOf(sl)||dev);
+        if(parsed&&parsed.dur>60){upd.sleepLast=parsed;upd.sleepH=Math.floor(parsed.dur/60);upd.sleepM=Math.round(parsed.dur%60);res.sleep={ok:true,val:Math.round(parsed.dur)};}
+        else res.sleep={ok:false};}catch(e){res.sleep={err:true};}
+      if(dev)upd.hkDev=dev;
       this.setState({...upd,hkResult:res,hkLast:Date.now(),hkSyncing:false});
       const okN=Object.values(res).filter(x=>x&&x.ok).length;
       if(!silent){if(okN)this.showToast('Synced '+okN+' metric'+(okN>1?'s':'')+' from Apple Health ✓');else this.showToast('Connected — no new Health data found today');}
     }catch(e){this.setState({hkSyncing:false,hkResult:{...res,authErr:true},hkLast:Date.now()});if(!silent)this.showToast('Apple Health sync failed — you can still enter values manually');}
+    this._hkBusy=false;
   };
+  // Turn raw HealthKit sleepAnalysis samples into one "primary sleep" session with stages.
+  // Values arrive as strings such as inBed / asleep / awake / asleepCore / asleepDeep / asleepREM
+  // (older iOS only reports inBed / asleep). Returns null when there is no real sleep.
+  parseSleep=(rows,src)=>{
+    const kind=(v)=>{const s=String(v==null?'':v).toLowerCase();if(/rem/.test(s))return 'rem';if(/deep/.test(s))return 'deep';if(/core/.test(s))return 'core';if(/awake/.test(s))return 'awake';if(/inbed|in_bed/.test(s))return 'inbed';if(/asleep|unspecified/.test(s)||/^[1-5]$/.test(s))return 'core';return null;};
+    const segs=(rows||[]).map(s=>{const st=new Date(s.startDate).getTime(),en=new Date(s.endDate).getTime();return {s:st,e:en,k:kind(s.value)};}).filter(x=>x.k&&isFinite(x.s)&&isFinite(x.e)&&x.e>x.s&&(x.e-x.s)<14*3600000).sort((a,b)=>a.s-b.s);
+    const asleep=segs.filter(x=>x.k!=='inbed');
+    if(!asleep.length)return null;
+    // split into sessions separated by > 2 h of nothing, keep the longest
+    const sessions=[];let cur=[asleep[0]];
+    for(let i=1;i<asleep.length;i++){if(asleep[i].s-cur[cur.length-1].e>2*3600000){sessions.push(cur);cur=[];}cur.push(asleep[i]);}
+    sessions.push(cur);
+    const total=(ss)=>ss.reduce((a,x)=>a+(x.k==='awake'?0:(x.e-x.s)),0);
+    const best=sessions.sort((a,b)=>total(b)-total(a))[0];
+    const start=best[0].s,end=best[best.length-1].e;
+    const mins=(k)=>best.filter(x=>x.k===k).reduce((a,x)=>a+(x.e-x.s),0)/60000;
+    const rem=mins('rem'),core=mins('core'),deep=mins('deep'),awake=mins('awake');
+    const dur=rem+core+deep;
+    if(dur<=0)return null;
+    return {start,end,dur:Math.round(dur),span:Math.round((end-start)/60000),rem:Math.round(rem),core:Math.round(core),deep:Math.round(deep),awake:Math.round(awake),staged:!!best.some(x=>x.k==='rem'||x.k==='deep'),segs:best.map(x=>({s:x.s,e:x.e,k:x.k})),src:src||null,at:Date.now()};
+  };
+  fmtClock=(ms)=>new Date(ms).toLocaleTimeString('en',{hour:'numeric',minute:'2-digit'});
+  fmtHM=(m)=>Math.floor(m/60)+'h '+String(Math.round(m%60)).padStart(2,'0')+'m';
+  fmtHMS=(m)=>{const h=Math.floor(m/60),mm=Math.floor(m%60);return h+':'+String(mm).padStart(2,'0');};
+  SLEEP_COL={awake:'#F59E5B',rem:'#8EC5FF',core:'#5B7CF6',deep:'#3B4BB8'};
+  // Hypnogram: one lane per stage across the night, like the Health app.
+  hypnogram=(SL)=>{const t=this.T();const lanes=['awake','rem','core','deep'];const span=Math.max(1,SL.end-SL.start);const H=112,lh=H/4;
+    return this.e('div',{key:'hyp',style:{position:'relative',height:H+22,marginBottom:6}},[
+      ...lanes.map((k,i)=>this.e('div',{key:'ln'+k,position:'absolute',left:0,right:0,top:i*lh,height:lh,borderTop:'1px dashed '+t.border})),
+      ...SL.segs.map((g,i)=>{const li=lanes.indexOf(g.k);if(li<0)return null;const left=(g.s-SL.start)/span*100,w=Math.max(0.6,(g.e-g.s)/span*100);
+        return this.e('div',{key:'sg'+i,position:'absolute',left:left+'%',width:w+'%',top:li*lh+3,height:lh-6,borderRadius:3,background:this.SLEEP_COL[g.k]});}),
+      this.e('div',{key:'ax',position:'absolute',left:0,right:0,top:H+4,display:'flex',justifyContent:'space-between',fontSize:11,fontWeight:700,color:t.muted},[this.e('span',{},'🌙 '+this.fmtClock(SL.start)),this.e('span',{},'☀️ '+this.fmtClock(SL.end))])
+    ]);};
+  // The "Primary sleep" block for the Sleep page — only when the watch has real data.
+  sleepWatchBlock=(SL)=>{const t=this.T();const base=Math.max(1,SL.dur+SL.awake);const pct=(m)=>Math.round(m/base*100);
+    const ring=(m,c)=>this.e('div',{width:44,height:44,borderRadius:999,background:'conic-gradient('+c+' '+pct(m)+'%, '+t.soft+' '+pct(m)+'%)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.e('div',{width:32,height:32,borderRadius:999,background:t.card}));
+    const tile=(k,l)=>this.e('div',{key:k,style:{background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'12px 13px',display:'flex',alignItems:'center',gap:10}},[
+      this.e('div',{flex:1,minWidth:0},[this.e('div',{fontSize:12,color:t.muted,fontWeight:700},l),this.e('div',{fontSize:18,fontWeight:800,color:t.text,marginTop:2},this.fmtHMS(SL[k])),this.e('div',{fontSize:11.5,fontWeight:800,color:this.SLEEP_COL[k],marginTop:1},pct(SL[k])+'%')]),ring(SL[k],this.SLEEP_COL[k])]);
+    const d=new Date(SL.start);
+    return this.e('div',{key:'watch',style:{background:t.card,border:'1px solid '+t.border,borderRadius:20,padding:'14px 16px',marginBottom:16,boxShadow:t.shadow}},[
+      this.e('div',{display:'flex',alignItems:'center',gap:10,marginBottom:4},[this.e('div',{width:34,height:34,borderRadius:11,background:'rgba(91,124,246,.14)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic('moon',18,{color:'#5B7CF6'})),this.e('div',{flex:1,minWidth:0},[this.e('div',{fontSize:14,fontWeight:800,color:t.text},'Primary sleep'),this.e('div',{fontSize:11.5,color:t.muted},d.toLocaleDateString('en',{month:'numeric',day:'numeric',year:'2-digit'})+' at '+this.fmtClock(SL.start)+' → '+this.fmtClock(SL.end))]),this.e('div',{textAlign:'right'},[this.e('div',{fontSize:10.5,color:t.muted,fontWeight:700},'Duration'),this.e('div',{fontSize:15,fontWeight:800,color:t.text},this.fmtHMS(SL.span))])]),
+      this.e('div',{fontSize:11.5,color:t.muted,display:'flex',alignItems:'center',gap:6,margin:'6px 0 12px'},[this.ic('pulse',13,{color:t.muted}),'Tracked with '+(SL.src||'Apple Watch')+(SL.staged?'':' · stages not reported by this watch')]),
+      this.e('div',{fontSize:12,fontWeight:800,textTransform:'uppercase',letterSpacing:'.05em',color:t.muted,marginBottom:8},'Sleep stages'),
+      this.hypnogram(SL),
+      this.e('div',{display:'flex',alignItems:'center',justifyContent:'space-between',fontSize:11.5,color:t.muted,margin:'8px 0 12px'},[this.e('span',{},'Asleep '+this.fmtHM(SL.dur)),this.e('span',{},'Awake '+this.fmtHM(SL.awake))]),
+      this.e('div',{display:'grid',gridTemplateColumns:'1fr 1fr',gap:9},[tile('awake','Awake'),tile('rem','REM'),tile('core','Core'),tile('deep','Deep')])
+    ]);};
+  // Six-up card at the top of the Health hub: what the watch synced today.
+  watchCard=()=>{const t=this.T();const S=this.state;const native=this.isNative();const when=S.hkLast?new Date(S.hkLast).toLocaleTimeString('en',{hour:'numeric',minute:'2-digit'}):null;
+    const SL=S.sleepLast;const slMin=SL?SL.dur:(((S.sleepH||0)*60)+(S.sleepM||0));
+    const cell=(icn,col,label,val,sub,go)=>this.e('div',{key:label,style:{background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'11px 12px',cursor:'pointer',minWidth:0}},[
+      this.e('div',{display:'flex',alignItems:'center',gap:6,marginBottom:6},[this.ic(icn,14,{color:col}),this.e('span',{fontSize:10.5,fontWeight:800,color:t.muted,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',letterSpacing:'-.01em'},label)]),
+      this.e('div',{fontSize:17,fontWeight:800,color:t.text,letterSpacing:'-.01em',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'},val),
+      sub?this.e('div',{fontSize:10.5,color:t.muted,marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'},sub):null
+    ],{onClick:()=>this.nav(go)});
+    return this.e('div',{key:'watch',style:{marginBottom:14}},[
+      this.e('div',{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8},[
+        this.e('div',{display:'flex',alignItems:'center',gap:7},[this.e('span',{fontSize:12,fontWeight:800,textTransform:'uppercase',letterSpacing:'.05em',color:t.muted},native?'From your Apple Watch':'Your health today'),S.hkSyncing?this.e('span',{width:8,height:8,borderRadius:999,background:'#F5A623',animation:'pulse 1s infinite'}):null]),
+        native?this.e('button',{style:{background:'none',border:'none',cursor:'pointer',fontSize:11.5,fontWeight:800,color:t.text,padding:0}},when?('Synced '+when+' · refresh'):'Sync now',{onClick:()=>{if(!S.hkSyncing)this.syncHealth(false);}}):this.e('span',{fontSize:11,color:t.faint},'Apple Watch syncs in the iPhone app')
+      ]),
+      this.e('div',{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8},[
+        cell('pulse','#EF4444','Heart rate',(S.hr?S.hr+' bpm':'—'),'latest','heartRate'),
+        cell('heart','#FF5B62','Resting HR',(S.restHr?S.restHr+' bpm':'—'),S.restHr?(S.restHrSrc==='est'?'estimated':'Apple Watch'):'wear overnight','heartRate'),
+        cell('moon','#5B7CF6','Sleep',slMin?this.fmtHM(slMin):'—',SL?(this.fmtClock(SL.start)+'–'+this.fmtClock(SL.end)):'last night','sleep'),
+        cell('flame','#E8722E','Resting kcal',(S.restEnergy?S.restEnergy.toLocaleString():'—'),'so far today','energy'),
+        cell('dumbbell','#22A34A','Active kcal',(S.activeEnergy?S.activeEnergy.toLocaleString():'—'),'so far today','energy'),
+        cell('trend','#0EA5E9','Steps',((S.stepsToday!==undefined)?S.stepsToday:0).toLocaleString(),'goal '+((S.stepGoal||10000)/1000)+'k','steps')
+      ])
+    ]);};
   // Compact, honest Apple Health status card for the Today screen.
   healthSyncCard(){const t=this.T();const S=this.state;const r=S.hkResult;const native=this.isNative();
     const when=S.hkLast?new Date(S.hkLast).toLocaleTimeString('en',{hour:'numeric',minute:'2-digit'}):null;
@@ -1306,6 +1395,9 @@ class Component extends DCLogic {
         : this.e('div',{},[
             rowFor('flame','Steps',r&&r.steps,(v)=>v.toLocaleString()+' today','No steps yet today'),
             rowFor('pulse','Heart rate',r&&r.hr,(v)=>v+' bpm','No reading today'),
+            rowFor('heart','Resting heart rate',r&&r.restHr,(v)=>v+' bpm','Needs a night of wear'),
+            rowFor('flame','Resting energy',r&&r.restEnergy,(v)=>v.toLocaleString()+' kcal','Not reported yet today'),
+            rowFor('dumbbell','Active energy',r&&r.activeEnergy,(v)=>v.toLocaleString()+' kcal','No activity yet today'),
             rowFor('moon','Sleep',r&&r.sleep,(v)=>Math.floor(v/60)+'h '+String(v%60).padStart(2,'0')+'m','No sleep data — wear your watch overnight')
           ])
     ]);}
@@ -2643,6 +2735,24 @@ class Component extends DCLogic {
         this.e('div',{key:'sp',height:16})
       ]);
 
+      case 'energy': {const re=S.restEnergy||0,ae=S.activeEnergy||0,tot=re+ae;const native=this.isNative();const when=S.hkLast?new Date(S.hkLast).toLocaleTimeString('en',{hour:'numeric',minute:'2-digit'}):null;
+        const eaten=(()=>{try{const hide=S.dhide||[];const demoSum=this.todayIdx()===4?((hide.includes('latte')?0:210)+(hide.includes('rice')?0:380)+(hide.includes('avoc')?0:550)):0;const extra=(S.dlog||[]).filter(m=>m.dt?m.dt===this.dkToday():((m.day!==undefined)?m.day:4)===this.todayIdx()).reduce((a,m)=>a+(m.kcal||0),0);return demoSum+extra;}catch(e){return 0;}})();
+        const ring=(v,c,max)=>{const p=Math.max(0,Math.min(100,Math.round(v/Math.max(1,max)*100)));return this.e('div',{width:84,height:84,borderRadius:999,background:'conic-gradient('+c+' '+p+'%, '+t.soft+' '+p+'%)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.e('div',{width:64,height:64,borderRadius:999,background:t.bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'},[this.e('div',{fontSize:15,fontWeight:800,color:t.text},v.toLocaleString()),this.e('div',{fontSize:9,color:t.muted},'kcal')]));};
+        return this.e('div',{flex:1,minHeight:0,display:'flex',flexDirection:'column'},[
+          this.topbar('Energy'),
+          this.wrap([
+            this.e('div',{key:'hero',style:{background:t.card,border:'1px solid '+t.border,borderRadius:20,padding:'16px',marginBottom:14,boxShadow:t.shadow}},[
+              this.e('div',{display:'flex',alignItems:'center',gap:14,marginBottom:12},[
+                this.e('div',{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:6},[ring(re,'#E8722E',2200),this.e('div',{fontSize:12,fontWeight:800,color:t.text},'Resting'),this.e('div',{fontSize:10.5,color:t.muted,textAlign:'center'},'what your body burns just being alive')]),
+                this.e('div',{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:6},[ring(ae,'#22A34A',800),this.e('div',{fontSize:12,fontWeight:800,color:t.text},'Active'),this.e('div',{fontSize:10.5,color:t.muted,textAlign:'center'},'movement, workouts, walks')])
+              ]),
+              this.e('div',{display:'flex',justifyContent:'space-between',alignItems:'center',borderTop:'1px solid '+t.border,paddingTop:12},[this.e('div',{},[this.e('div',{fontSize:11,color:t.muted,fontWeight:700},'Total burned so far today'),this.e('div',{fontSize:22,fontWeight:800,color:t.text},tot.toLocaleString()+' kcal')]),this.e('div',{textAlign:'right'},[this.e('div',{fontSize:11,color:t.muted,fontWeight:700},'Eaten'),this.e('div',{fontSize:18,fontWeight:800,color:t.text},eaten.toLocaleString()+' kcal')])])
+            ]),
+            tot?this.e('div',{key:'bal',style:{display:'flex',gap:10,background:(eaten>tot?'rgba(232,114,46,.12)':'rgba(34,163,74,.12)'),borderRadius:14,padding:'12px 14px',marginBottom:14}},[this.ic(eaten>tot?'flame':'check',17,{color:eaten>tot?'#E8722E':'#22A34A'}),this.e('div',{fontSize:12.5,color:t.text,lineHeight:1.45},eaten>tot?('You have eaten '+(eaten-tot).toLocaleString()+' kcal more than you have burned so far — normal early in the day; the resting number keeps climbing until midnight.'):('You are '+(tot-eaten).toLocaleString()+' kcal in deficit so far today.'))]):null,
+            this.e('div',{key:'src',style:{display:'flex',gap:10,background:t.soft,borderRadius:14,padding:'12px 14px',marginBottom:14}},[this.ic('pulse',17,{color:t.muted}),this.e('div',{fontSize:12,color:t.muted,lineHeight:1.5},native?('Resting energy is Apple Health’s basal energy for today; active energy is what your watch measured. Refreshes automatically on launch, every 5 minutes, and whenever you return to the app.'+(when?(' Last synced '+when+'.'):'')):'These come from Apple Health in the iPhone app. On the web they stay at zero unless you log workouts, which count towards active energy.')]),
+            native?this.btn(S.hkSyncing?'Syncing…':'Sync from Apple Health now',()=>{if(!S.hkSyncing)this.syncHealth(false);},{icon:'heart',variant:'secondary'}):null
+          ])
+        ]);}
       case 'onbGoals': return this.onbShell(1,'onb.goals.t','onb.goals.s',[this.chipGrid(['g1','g2','g3','g4','g5','g6','g7','g8'],'goals',true)],()=>this.nav('onbLooking'));
       case 'onbLooking': return this.onbShell(2,'onb.look.t','onb.look.s',[this.chipGrid(['l1','l2','l3','l4','l5','l6'],'looking',true)],()=>this.nav('onbSource'));
       case 'onbSource': return this.onbShell(3,'onb.src.t','onb.src.s',[this.chipGrid(['s1','s2','s3','s4','s5','s6','s7'],'source',false)],()=>this.nav('onbLang'));
@@ -2778,7 +2888,7 @@ class Component extends DCLogic {
             ]);})(),
           this.e('div',{key:'mg',display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14},(()=>{const hrv=(S.hr!==undefined)?S.hr:68;const slH=(S.sleepH!==undefined)?S.sleepH:7,slM=(S.sleepM!==undefined)?S.sleepM:20;const slScore=Math.max(40,Math.min(100,Math.round(100-Math.abs(480-(slH*60+slM))/6)));const stp=(S.stepsToday!==undefined)?S.stepsToday:0;const gl=S.stepGoal||10000;
             const wl=(S.wDemoOff?[]:this.WLOG).concat(S.wextra||[]);const wStart=wl.length?wl[0]:curw;const wDelta=Math.round((curw-wStart)*10)/10;const wg=(S.wGoal!==undefined)?S.wGoal:70;
-            return [['pulse','Heart rate',hrv+' bpm',(hrv<=100?'Normal range':'Elevated — recheck'),'heartRate'],['moon','Sleep',slH+'h '+String(slM).padStart(2,'0')+'m','Score '+slScore+' · '+(slScore>=80?'good':slScore>=65?'fair':'low'),'sleep'],['flame','Steps',stp.toLocaleString(),Math.min(100,Math.round(stp/gl*100))+'% of '+(gl%1000===0?(gl/1000)+'k':gl.toLocaleString())+(S.autoSteps!==false?' · auto':''),'steps'],['spark','Active days',this.activeDays()+' this week','Days you logged food or moved','fitness'],['trend','Weight',this.fmt(curw)+' kg',wl.length?((wDelta<0?'▼ ':(wDelta>0?'▲ ':''))+this.fmt(Math.abs(wDelta))+' kg · '+this.fmt(Math.abs(Math.round((curw-wg)*10)/10))+' to goal'):'Log your first weigh-in','weight'],['pin','Calories',eaten+' / '+goal,(left>=0?left+' kcal left today':Math.abs(left)+' over — a walk evens it'),'calorieDiary']];})().map(([icn,l,v,sub,go])=>this.e('div',{key:l,onClick:()=>this.nav(go),style:{background:t.card,border:'1px solid '+t.border,borderRadius:18,padding:'13px 14px',cursor:'pointer',boxShadow:t.shadow}},[this.e('div',{display:'flex',alignItems:'center',gap:7,marginBottom:8},[this.ic(icn,16,{color:t.text}),this.e('span',{fontSize:11.5,fontWeight:700,color:t.muted},l)]),this.e('div',{fontSize:19,fontWeight:800,color:t.text},v),this.e('div',{fontSize:11,color:t.muted,marginTop:2},sub)]))),
+            return [['pulse','Heart rate',hrv+' bpm',(S.restHr?('Resting '+S.restHr+' bpm'):(hrv<=100?'Normal range':'Elevated — recheck')),'heartRate'],['moon','Sleep',slH+'h '+String(slM).padStart(2,'0')+'m','Score '+slScore+' · '+(slScore>=80?'good':slScore>=65?'fair':'low'),'sleep'],['flame','Steps',stp.toLocaleString(),Math.min(100,Math.round(stp/gl*100))+'% of '+(gl%1000===0?(gl/1000)+'k':gl.toLocaleString())+(S.autoSteps!==false?' · auto':''),'steps'],['spark','Active days',this.activeDays()+' this week','Days you logged food or moved','fitness'],['trend','Weight',this.fmt(curw)+' kg',wl.length?((wDelta<0?'▼ ':(wDelta>0?'▲ ':''))+this.fmt(Math.abs(wDelta))+' kg · '+this.fmt(Math.abs(Math.round((curw-wg)*10)/10))+' to goal'):'Log your first weigh-in','weight'],['pin','Calories',eaten+' / '+goal,(left>=0?left+' kcal left today':Math.abs(left)+' over — a walk evens it'),'calorieDiary']];})().map(([icn,l,v,sub,go])=>this.e('div',{key:l,onClick:()=>this.nav(go),style:{background:t.card,border:'1px solid '+t.border,borderRadius:18,padding:'13px 14px',cursor:'pointer',boxShadow:t.shadow}},[this.e('div',{display:'flex',alignItems:'center',gap:7,marginBottom:8},[this.ic(icn,16,{color:t.text}),this.e('span',{fontSize:11.5,fontWeight:700,color:t.muted},l)]),this.e('div',{fontSize:19,fontWeight:800,color:t.text},v),this.e('div',{fontSize:11,color:t.muted,marginTop:2},sub)]))),
           this.healthSyncCard(),
           this.e('div',{key:'coach',onClick:()=>this.openChat(null),style:{background:'rgba(52,211,153,.14)',border:'1px solid '+t.accent,borderRadius:18,padding:'14px 15px',display:'flex',gap:12,alignItems:'center',cursor:'pointer',marginBottom:6}},[this.e('div',{width:40,height:40,borderRadius:12,background:t.accent,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic('spark',20,{color:'#17191D'})),this.e('div',{flex:1},[this.e('div',{fontWeight:800,fontSize:13.5,color:t.text},'Ask the AI assistant'),this.e('div',{fontSize:12,color:t.muted,marginTop:2},'Meal ideas, swaps, portions & macros — live answers')]),this.ic('chev',17,{color:t.muted})]),
           this.h('Today’s meals',this.e('span',{fontSize:12,fontWeight:700,color:t.text,cursor:'pointer'},'Open diary',{onClick:()=>this.nav('calorieDiary')})),
@@ -2923,6 +3033,7 @@ class Component extends DCLogic {
       case 'fitness': {const wl=S.wlog||[];const dayMins=[0,1,2,3,4,5,6].map(d=>this.wkFor(d).reduce((a,w)=>a+(w.mins||0),0));const totMins=dayMins.reduce((a,b)=>a+b,0);const totKcal=wl.reduce((a,w)=>a+(w.kcal||0),0);const mx=Math.max(30,...dayMins);const dl=['M','T','W','T','F','S','S'];
         return this.wrap([
           this.e('div',{key:'top',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 0 12px'},[this.sectionTitle('Health & Fitness',{m:0,sm:true}),this.e('div',{display:'flex',alignItems:'center',gap:5,background:t.accent,color:'#17191D',fontSize:11,fontWeight:800,padding:'5px 11px',borderRadius:999},[this.ic('flame',13,{color:'#17191D'}),this.activeDays()+' active days this week'])]),
+          this.watchCard(),
           this.e('div',{key:'chart',background:t.card,border:'1px solid '+t.border,borderRadius:18,padding:'14px 16px',marginBottom:14,boxShadow:t.shadow},[
             this.e('div',{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:12},[this.e('span',{fontSize:12.5,fontWeight:800,color:t.text},'Active minutes'),this.e('span',{fontSize:11.5,color:t.muted},'This week · '+totMins+' min · '+totKcal+' kcal')]),
             this.e('div',{display:'flex',alignItems:'flex-end',gap:9,height:74},dayMins.map((v,i)=>this.e('div',{key:i,flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:5,cursor:'pointer'},[this.e('div',{width:'100%',height:Math.max(4,Math.round(v/mx*60)),borderRadius:7,background:i===4?t.accent:(v?t.soft:t.bg),border:v?'none':'1px dashed '+t.border}),this.e('span',{fontSize:10,color:i===4?t.text:t.muted,fontWeight:i===4?800:600},dl[i])],{onClick:()=>this.openLogWorkout(null,i)})))
@@ -2945,7 +3056,7 @@ class Component extends DCLogic {
             this.e('button',{style:{width:26,height:26,borderRadius:8,border:'none',background:t.soft,color:t.muted,cursor:'pointer',fontWeight:800,fontSize:13,lineHeight:'1',padding:0}},'×',{onClick:()=>{const nl=(this.state.wlog||[]).slice();nl.splice(wi,1);this.setState({wlog:nl,totMins:Math.max(0,(this.state.totMins||0)-(w.mins||0)),totKcalBurn:Math.max(0,(this.state.totKcalBurn||0)-(w.kcal||0))});this.showToast('Workout removed');}})
           ]);}),
           this.h('Your health'),
-          ...(()=>{const wv=(S.wextra&&S.wextra.length)?S.wextra[S.wextra.length-1]:(S.curW||0);const stp=(S.stepsToday!==undefined)?S.stepsToday:0;const hrv=(S.hr!==undefined)?S.hr:0;const slH=(S.sleepH!==undefined)?S.sleepH:0,slM=(S.sleepM!==undefined)?S.sleepM:0;const slMin=slH*60+slM;const slSc=Math.max(40,Math.min(100,Math.round(100-Math.abs(480-slMin)/6)));const bestStp=Math.max.apply(null,((S.stepsLog&&S.stepsLog.length===6)?S.stepsLog:[0,0,0,0,0,0]).concat([stp]));const rts=S.routes||[];const rkm=(rts.reduce((a,r)=>a+(r.dist||0),0)/1000).toFixed(1);return [['pin','Places & routes',rts.length?(rts.length+' route'+(rts.length===1?'':'s')+' · '+rkm+' km mapped'):'Map your walks & rides with GPS','routes'],['trend','Weight',wv?this.fmt(wv)+' kg · goal '+this.fmt((S.wGoal!==undefined)?S.wGoal:70)+' kg':'Log your first weigh-in','weight'],['flame','Step history',stp.toLocaleString()+' today'+(bestStp>0?' · best '+bestStp.toLocaleString():''),'steps'],['pulse','Heart rate',hrv>0?hrv+' bpm · last reading':'Tap to measure your pulse','heartRate'],['moon','Sleep',slMin>0?slH+'h '+String(slM).padStart(2,'0')+'m · score '+slSc:'Log last night’s sleep','sleep'],['shield','Medical profile',((S.conds||[]).length)+' condition'+((S.conds||[]).length===1?'':'s'),'medicalProfile'],['spark','AI assistant','Meal ideas, swaps & healthy habits — live','aiChat']];})().map(([icn,l,sub,go])=>this.e('div',{key:l,display:'flex',alignItems:'center',gap:13,padding:'13px 0',borderBottom:'1px solid '+t.border,cursor:'pointer'},[this.e('div',{width:40,height:40,borderRadius:13,background:t.soft,display:'flex',alignItems:'center',justifyContent:'center'},this.ic(icn,19,{color:t.text})),this.e('div',{flex:1},[this.e('div',{fontSize:14,fontWeight:700,color:t.text},l),this.e('div',{fontSize:12,color:t.muted},sub)]),this.ic('chev',17,{color:t.faint})],{onClick:()=>{if(go==='aiChat'){this.openChat(null);return;}this.nav(go);}}))
+          ...(()=>{const wv=(S.wextra&&S.wextra.length)?S.wextra[S.wextra.length-1]:(S.curW||0);const stp=(S.stepsToday!==undefined)?S.stepsToday:0;const hrv=(S.hr!==undefined)?S.hr:0;const slH=(S.sleepH!==undefined)?S.sleepH:0,slM=(S.sleepM!==undefined)?S.sleepM:0;const slMin=slH*60+slM;const slSc=Math.max(40,Math.min(100,Math.round(100-Math.abs(480-slMin)/6)));const bestStp=Math.max.apply(null,((S.stepsLog&&S.stepsLog.length===6)?S.stepsLog:[0,0,0,0,0,0]).concat([stp]));const rts=S.routes||[];const rkm=(rts.reduce((a,r)=>a+(r.dist||0),0)/1000).toFixed(1);return [['pin','Places & routes',rts.length?(rts.length+' route'+(rts.length===1?'':'s')+' · '+rkm+' km mapped'):'Map your walks & rides with GPS','routes'],['trend','Weight',wv?this.fmt(wv)+' kg · goal '+this.fmt((S.wGoal!==undefined)?S.wGoal:70)+' kg':'Log your first weigh-in','weight'],['flame','Step history',stp.toLocaleString()+' today'+(bestStp>0?' · best '+bestStp.toLocaleString():''),'steps'],['pulse','Heart rate',hrv>0?hrv+' bpm · last reading'+(S.restHr?(' · resting '+S.restHr):''):'Tap to measure your pulse','heartRate'],['flame','Energy',(S.restEnergy||S.activeEnergy)?((S.restEnergy||0).toLocaleString()+' kcal resting · '+(S.activeEnergy||0).toLocaleString()+' active'):'Resting & active energy from Apple Watch','energy'],['moon','Sleep',S.sleepLast?(this.fmtHM(S.sleepLast.dur)+' · '+this.fmtClock(S.sleepLast.start)+' to '+this.fmtClock(S.sleepLast.end)):(slMin>0?slH+'h '+String(slM).padStart(2,'0')+'m · score '+slSc:'Log last night’s sleep'),'sleep'],['shield','Medical profile',((S.conds||[]).length)+' condition'+((S.conds||[]).length===1?'':'s'),'medicalProfile'],['spark','AI assistant','Meal ideas, swaps & healthy habits — live','aiChat']];})().map(([icn,l,sub,go])=>this.e('div',{key:l,display:'flex',alignItems:'center',gap:13,padding:'13px 0',borderBottom:'1px solid '+t.border,cursor:'pointer'},[this.e('div',{width:40,height:40,borderRadius:13,background:t.soft,display:'flex',alignItems:'center',justifyContent:'center'},this.ic(icn,19,{color:t.text})),this.e('div',{flex:1},[this.e('div',{fontSize:14,fontWeight:700,color:t.text},l),this.e('div',{fontSize:12,color:t.muted},sub)]),this.ic('chev',17,{color:t.faint})],{onClick:()=>{if(go==='aiChat'){this.openChat(null);return;}this.nav(go);}}))
         ]);
       }
 
@@ -3074,7 +3185,8 @@ class Component extends DCLogic {
         this.wrap([
           this.e('div',{key:'hero',textAlign:'center',padding:'8px 0 18px'},[
             this.e('div',{display:'inline-flex',alignItems:'center',gap:10},[this.e('button',{style:{width:32,height:32,borderRadius:999,border:'1px solid '+t.border,background:t.card,color:t.text,cursor:'pointer',fontWeight:800,fontSize:16,lineHeight:'1',padding:0}},'−',{onClick:()=>this.setState({hr:Math.max(40,((this.state.hr!==undefined)?this.state.hr:68)-1)})}),this.ic('heart',30,{fill:'#FF5B62',color:'#FF5B62',style:{animation:'pulse 1s infinite'}}),this.e('span',{fontSize:52,fontWeight:800,color:t.text,letterSpacing:'-.03em'},String((S.hr!==undefined)?S.hr:68)),this.e('span',{fontSize:15,color:t.muted,fontWeight:700,alignSelf:'flex-end',paddingBottom:10},'bpm'),this.e('button',{style:{width:32,height:32,borderRadius:999,border:'1px solid '+t.border,background:t.card,color:t.text,cursor:'pointer',fontWeight:800,fontSize:16,lineHeight:'1',padding:0}},'+',{onClick:()=>this.setState({hr:Math.min(220,((this.state.hr!==undefined)?this.state.hr:68)+1)})})]),
-            this.e('div',{fontSize:12.5,color:t.muted,marginTop:2},'Right now · tap − / + to log a manual reading')
+            this.e('div',{fontSize:12.5,color:t.muted,marginTop:2},'Right now · tap − / + to log a manual reading'),
+            S.restHr?this.e('div',{key:'rest',display:'inline-flex',alignItems:'center',gap:7,marginTop:10,background:t.soft,borderRadius:999,padding:'7px 13px',fontSize:12.5,fontWeight:800,color:t.text},[this.ic('heart',14,{color:'#FF5B62',fill:'#FF5B62'}),'Resting '+S.restHr+' bpm',this.e('span',{fontSize:11,color:t.muted,fontWeight:600},S.restHrSrc==='est'?'estimated from your lowest readings':('from '+(S.hkDev||'Apple Watch')))]):null
           ]),
           this.e('div',{key:'cam',background:'#17191D',borderRadius:18,padding:'14px 16px',marginBottom:14},
             S.hrMeas==='go'?[
@@ -3132,7 +3244,8 @@ class Component extends DCLogic {
         const slScore=Math.max(40,Math.min(100,Math.round(100-Math.abs(480-selMin)/6)));
         const dayNames=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Last night'];
         const fmtM=(m)=>Math.floor(m/60)+'h '+String(Math.round(m%60)).padStart(2,'0')+'m';
-        const stages=[['Deep',16,'#7C8CF8'],['Core',56,'#5FA8F0'],['REM',22,'#9AE6C0'],['Awake',6,'#5E616A']].map(([l,p,c])=>[l,fmtM(selMin*p/100),p,c]);
+        const SL=(sel===6&&S.sleepLast&&S.sleepLast.dur>0)?S.sleepLast:null;
+        const stages=SL?(()=>{const base=Math.max(1,SL.dur+SL.awake);return [['Deep',SL.deep,this.SLEEP_COL.deep],['Core',SL.core,this.SLEEP_COL.core],['REM',SL.rem,this.SLEEP_COL.rem],['Awake',SL.awake,this.SLEEP_COL.awake]].map(([l,m,c])=>[l,fmtM(m),Math.round(m/base*100),c]);})():[['Deep',16,'#7C8CF8'],['Core',56,'#5FA8F0'],['REM',22,'#9AE6C0'],['Awake',6,'#5E616A']].map(([l,p,c])=>[l,fmtM(selMin*p/100),p,c]);
         const slAdj=(d)=>{const st=this.state;const s2=(st.sleepSel!==undefined)?st.sleepSel:6;
           if(s2===6){const cur=((st.sleepH!==undefined)?st.sleepH:7)*60+((st.sleepM!==undefined)?st.sleepM:20);const m2=Math.max(0,Math.min(840,cur+d));this.setState({sleepH:Math.floor(m2/60),sleepM:m2%60});}
           else{const sl2=((st.sleepLog&&st.sleepLog.length===6)?st.sleepLog:[408,426,372,444,420,486]).slice();sl2[s2]=Math.max(0,Math.min(840,sl2[s2]+d));this.setState({sleepLog:sl2});}};
@@ -3144,7 +3257,8 @@ class Component extends DCLogic {
             this.e('div',{},[this.e('div',{fontSize:21,fontWeight:800,color:t.text},slH+'h '+String(slM).padStart(2,'0')+'m'),this.e('div',{fontSize:12.5,color:t.muted,marginTop:2},dayNames[sel]+' · '+(slScore>=80?'good':slScore>=65?'fair':'short')+' · −/+ adjusts this night'),this.e('div',{display:'flex',gap:8,marginTop:8,alignItems:'center'},[this.e('button',{style:{padding:'8px 14px',borderRadius:999,border:'1px solid '+t.border,background:t.card,color:t.text,cursor:'pointer',fontWeight:800,fontSize:12}},'− 15m',{onClick:()=>slAdj(-15)}),this.e('button',{style:{padding:'8px 14px',borderRadius:999,border:'1px solid '+t.border,background:t.card,color:t.text,cursor:'pointer',fontWeight:800,fontSize:12}},'+ 15m',{onClick:()=>slAdj(15)})])])
           ]),
           this.e('div',{key:'nightpick',marginBottom:14},[this.e('div',{fontSize:10.5,fontWeight:800,color:t.muted,textTransform:'uppercase',letterSpacing:'.04em',marginBottom:6,textAlign:'center'},'Tap a night to edit it'),this.e('div',{display:'flex',gap:5},nights.map((mns,i)=>{const on=i===sel;const lab=['M','T','W','T','F','S'][i];return this.e('button',{key:i,style:{flex:1,padding:'7px 0',borderRadius:11,border:'1.5px solid '+(on?t.accent:t.border),background:on?t.accent:t.card,cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:2}},[this.e('span',{fontSize:9.5,fontWeight:800,color:on?t.accentText:t.muted},i===6?'Last':lab),this.e('span',{fontSize:11,fontWeight:800,color:on?t.accentText:t.text},mns>0?(Math.floor(mns/60)+'h'):'–')],{onClick:()=>this.setState({sleepSel:i})});}))]),
-          this.e('div',{key:'stagehdr',display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8},[this.e('span',{fontSize:12,fontWeight:800,textTransform:'uppercase',letterSpacing:'.05em',color:t.muted},'Sleep stages'),this.e('span',{fontSize:10.5,color:t.faint},'estimated · exact stages via Apple Health in the iOS app')]),
+          SL?this.sleepWatchBlock(SL):null,
+          this.e('div',{key:'stagehdr',display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8},[this.e('span',{fontSize:12,fontWeight:800,textTransform:'uppercase',letterSpacing:'.05em',color:t.muted},SL?'Stage breakdown':'Sleep stages'),this.e('span',{fontSize:10.5,color:t.faint},SL?('from '+(SL.src||'Apple Watch')):'estimated · exact stages via Apple Health in the iOS app')]),
           this.e('div',{key:'stagebar',display:'flex',height:16,borderRadius:999,overflow:'hidden',marginBottom:12},stages.map(([l,d,p,c])=>this.e('div',{key:l,width:p+'%',background:c}))),
           ...stages.map(([l,d,p,c])=>this.e('div',{key:l,display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:'1px solid '+t.border},[this.e('div',{width:10,height:10,borderRadius:3,background:c}),this.e('span',{fontSize:13.5,color:t.text,flex:1},l),this.e('span',{fontSize:13,fontWeight:800,color:t.text},d),this.e('span',{fontSize:11.5,color:t.muted,width:34,textAlign:'right'},p+'%')])),
           this.h('Sleep trend'),
