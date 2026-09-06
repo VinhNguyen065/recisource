@@ -43,7 +43,7 @@ workflows:
     scripts:
       - name: Install JS dependencies
         script: |
-          npm install
+          npm install --legacy-peer-deps
       - name: Add & sync the iOS project (Capacitor)
         script: |
           if [ ! -d "ios" ]; then npx cap add ios; fi
