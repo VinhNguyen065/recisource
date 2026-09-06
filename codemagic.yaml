@@ -69,7 +69,7 @@ workflows:
           set_key NSHealthShareUsageDescription "21again reads heart rate, sleep and steps from Apple Health to power your Today dashboard."
           set_key NSHealthUpdateUsageDescription "21again saves workouts and nutrition you log back to Apple Health."
           # Export compliance: the app uses only standard HTTPS/TLS, so TestFlight must not wait for a manual answer.
-          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST" 2>/dev/null \n            || /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" "$PLIST"
           /usr/libexec/PlistBuddy -c "Print :ITSAppUsesNonExemptEncryption" "$PLIST"
           /usr/libexec/PlistBuddy -c "Print :NSHealthShareUsageDescription" "$PLIST"
       - name: Inject the HealthKit entitlement
