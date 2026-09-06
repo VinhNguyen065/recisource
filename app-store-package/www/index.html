@@ -55,14 +55,14 @@ class Component extends DCLogic {
   state = {
     mode:'phone', screen:'healthToday', history:['healthToday'],
     carousel:0, authMode:'signup', diet:{}, servings:4, unit:'metric',
-    ichecked:{}, favs:{1:true,3:true,5:true,10:true}, seg:'All', grid:true,
+    ichecked:{}, favs:{}, seg:'All', grid:true,
     filters:{diet:[],meal:null,maxTime:60,diff:null,minRating:0,allergens:[],maxKcal:800},
     cs:0, gchecked:{},
-    toast:null, notes:'Added extra turmeric for colour and a pinch of chilli. Great with a fried egg on top.',
+    toast:null, noteBy:{},
     tmRunning:false, list:'This week', descOpen:false, query:'', plan:'annual', activeVer:'original', myIng:null, mySteps:null, aiPrefs:{'Dinner':true,'Under 30 min':true},
-    demo:true, reminders:[], remFired:{}, checkins:{}, moodLog:{}, checkinBest:0, freezes:0, frozen:{}, recId:1, scanQty:{}, t1:724, t1run:false, legalKind:'terms', coachPhase:0, water:0, scanMode:'cal', weightRange:'6M', stepRange:'W', curW:71.2, wextra:[], dlog:[], diaryDay:((new Date().getDay()+6)%7), dhide:[], kcalGoal:1900,
+    demo:true, reminders:[], remFired:{}, checkins:{}, moodLog:{}, checkinBest:0, freezes:0, frozen:{}, recId:1, scanQty:{}, t1:724, t1run:false, legalKind:'terms', coachPhase:0, water:0, scanMode:'cal', weightRange:'6M', stepRange:'W', curW:0, wextra:[], dlog:[], diaryDay:((new Date().getDay()+6)%7), dhide:[], kcalGoal:1900,
     wlog:[{day:0,ty:'Walk',mins:34,kcal:135},{day:1,ty:'Run',mins:52,kcal:555},{day:2,ty:'Yoga',mins:41,kcal:165},{day:3,ty:'Cycle',mins:66,kcal:550},{day:4,ty:'Walk',mins:48,kcal:190},{day:4,ty:'Strength',mins:38,kcal:230}],
-    twMode:'sw', swRun:false, swAcc:0, swStart:0, swLaps:[], tmTotal:60, tmLeft:60, tmRun:false, tmStart:0, hr:68, sleepH:7, sleepM:20, stepsToday:7842, stepGoal:10000, sleepLog:[408,426,372,444,420,486], sleepSel:6, stepsLog:[6200,8100,7400,9200,7800,10400], stepsSel:6, bpSys:118, bpDia:76, bpLog:[{s:124,d:82,t:'Jul 12'},{s:121,d:80,t:'Jul 26'}], wGoal:70, conds:[], meds:[], condEdit:null, condDraft:'', medEdit:null, medDraft:'', notif:true, appearance:'Light', theme:'bloom', ahealth:true, records:'MyChart', gExtra:[], gDraft:'', userName:'Sofia', chatLog:[], chatDraft:'', mealSlot:'Snack', cookRating:0, commFeed:[], commSaved:{}, commMine:[], commTab:null, commSort:'popular', commQ:'', commRec:null, commLoading:false, commErr:null, commPubBusy:false, commPickId:null, commHidden:{}, commNote:'', commNoteFor:null, commHasMore:false, commJustPub:null, confirm:null, reportReason:null, commFeedOn:false, commListed:true, lang:'en', onb:{goals:[],looking:[],source:null}, offline:false, storageFull:false, histRows:[], histLoading:false, histErr:null, tourOpen:'t1', tourFromOnb:false, restHr:0, restHrSrc:null, restEnergy:0, activeEnergy:0, sleepLast:null, hkDev:null
+    twMode:'sw', swRun:false, swAcc:0, swStart:0, swLaps:[], tmTotal:60, tmLeft:60, tmRun:false, tmStart:0, hr:68, sleepH:7, sleepM:20, stepsToday:7842, stepGoal:10000, sleepLog:[408,426,372,444,420,486], sleepSel:6, stepsLog:[6200,8100,7400,9200,7800,10400], stepsSel:6, bpSys:118, bpDia:76, bpLog:[{s:124,d:82,t:'Jul 12'},{s:121,d:80,t:'Jul 26'}], wGoal:70, conds:[], meds:[], condEdit:null, condDraft:'', medEdit:null, medDraft:'', notif:true, appearance:'Light', theme:'bloom', ahealth:true, records:'None', gExtra:[], gDraft:'', userName:'Sofia', chatLog:[], chatDraft:'', mealSlot:'Snack', cookRating:0, commFeed:[], commSaved:{}, commMine:[], commTab:null, commSort:'popular', commQ:'', commRec:null, commLoading:false, commErr:null, commPubBusy:false, commPickId:null, commHidden:{}, commNote:'', commNoteFor:null, commHasMore:false, commJustPub:null, confirm:null, reportReason:null, commFeedOn:false, commListed:true, lang:'en', onb:{goals:[],looking:[],source:null}, offline:false, storageFull:false, histRows:[], histLoading:false, histErr:null, tourOpen:'t1', tourFromOnb:false, restHr:0, restHrSrc:null, restEnergy:0, activeEnergy:0, sleepLast:null, hkDev:null
   };
 
   GRADS=['linear-gradient(150deg,#7FD9A6,#4CA97D)','linear-gradient(150deg,#B6A6F0,#7C6BD6)','linear-gradient(150deg,#F6A6C7,#EC6199)','linear-gradient(150deg,#8FD0E8,#5A9FD4)','linear-gradient(150deg,#F7C978,#E89B45)','linear-gradient(150deg,#A6E0B4,#6FBF8C)'];
@@ -722,7 +722,7 @@ class Component extends DCLogic {
   cancelHR=()=>{try{clearInterval(this._hrIv);}catch(e){}this.setState({hrMeas:null,hrResult:null,hrWave:[]});};
 
   // ---- Accounts & cloud sync (Supabase Auth + user_state table, RLS-isolated) ----
-  VERSION='20260906.1428';
+  VERSION='20260906.1455';
   checkUpdate=async()=>{try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();
     if(j&&j.v&&this.VERSION!=='__BUILD'+'_TS__'&&j.v!==this.VERSION){
       if(!this.state.lsOn){this.showToast('Updating to the latest version…');setTimeout(()=>{try{location.replace(location.pathname+'?v='+encodeURIComponent(j.v));}catch(e){location.reload();}},900);}
@@ -730,7 +730,7 @@ class Component extends DCLogic {
     }}catch(e){}};
   AUTH_URL='https://czbetvehfqqfhggqlqfp.supabase.co/auth/v1';
   REST_URL='https://czbetvehfqqfhggqlqfp.supabase.co/rest/v1';
-  SYNC_KEYS=['favs','water','servings','curW','notes','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog','planFilter','planTier','hhMembers','myTpls','wlogD','wDemoOff','autoSteps','demo','following','likes','cookCount','aisleOrd','grocCombine','grocStaples','grocLayout','reminders','remFired','remAck','checkins','moodLog','checkinBest','freezes','frozen','recSort','cookAt','grocGroup','theme','routes','commSaved','commMine','commHidden','lang','onb','restHr','restHrSrc','restEnergy','activeEnergy','sleepLast','hkDev'];
+  SYNC_KEYS=['favs','water','servings','curW','noteBy','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog','planFilter','planTier','hhMembers','myTpls','wlogD','wDemoOff','autoSteps','demo','following','likes','cookCount','aisleOrd','grocCombine','grocStaples','grocLayout','reminders','remFired','remAck','checkins','moodLog','checkinBest','freezes','frozen','recSort','cookAt','grocGroup','theme','routes','commSaved','commMine','commHidden','lang','onb','restHr','restHrSrc','restEnergy','activeEnergy','sleepLast','hkDev','hkExtra','restHrLog'];
   snapshotState=()=>{const S=this.state;const o={_ts:Date.now()};this.SYNC_KEYS.forEach(k=>{o[k]=S[k];});return o;};
   loadSess=()=>{try{return JSON.parse(localStorage.getItem('recisource_auth')||'null');}catch(e){return null;}};
   saveSess=(s)=>{try{if(s)localStorage.setItem('recisource_auth',JSON.stringify(s));else localStorage.removeItem('recisource_auth');}catch(e){}};
@@ -1052,6 +1052,39 @@ class Component extends DCLogic {
   chipGrid=(keys,field,multi)=>{const t=this.T();const o=this.state.onb||{};return this.e('div',{key:'grid',display:'flex',flexWrap:'wrap',gap:9},keys.map(k=>{const on=multi?((o[field]||[]).indexOf(k)>=0):(o[field]===k);return this.e('button',{key:k,style:{padding:'12px 15px',borderRadius:999,border:'1.5px solid '+(on?t.ink:t.border),background:on?t.ink:t.card,color:on?t.inkText:t.text,fontWeight:800,fontSize:13.5,cursor:'pointer',boxShadow:t.shadow,textAlign:'left'}},this.t(k),{onClick:()=>multi?this.onbToggle(field,k):this.onbSet(field,k)});}));};
   tourGo=(k)=>{this.setState({tourFromOnb:false});if(k==='t1'){this.jump('library');this.nav('urlImport');}else if(k==='t2'){this.jump('healthToday');this.nav('mealScan');}else if(k==='t3'){this.setState({recId:16,cs:0});this.jump('library');this.nav('recipeDetail');this.nav('cookStep');}else{this.jump('library');this.nav('mealPlan');}};
   tourDone=(k)=>{const o={...(this.state.onb||{})};const d={...(o.tour||{})};d[k]=true;o.tour=d;this.setState({onb:o});};
+  // --- Health coach: insights derived from the user's real data (nothing canned) ---
+  coachInsights=()=>{const S=this.state;const out=[];
+    const SL=S.sleepLast;const slMin=SL?SL.dur:(((S.sleepH||0)*60)+(S.sleepM||0));
+    if(slMin>0){const d=slMin-450;out.push({icn:'moon',t:slMin>=420?('Slept '+this.fmtHM(slMin)+' '+(SL?'(watch)':'')):('Short night: '+this.fmtHM(slMin)),s:d>=0?'On target for 7–9 h. Keep the bedtime consistent.':('About '+this.fmtHM(-d)+' under the 7.5 h target — try a wind-down reminder tonight.')});}
+    if(SL&&SL.staged&&SL.dur>0){const deepP=Math.round(SL.deep/SL.dur*100);out.push({icn:'moon',t:'Deep sleep '+deepP+'%',s:deepP>=13?'Healthy amount of deep sleep for recovery.':'A little low — alcohol, late meals and screens cut deep sleep most.'});}
+    const stp=(S.stepsToday!==undefined)?S.stepsToday:0;const gl=S.stepGoal||10000;
+    if(stp>0)out.push({icn:'trend',t:stp.toLocaleString()+' steps so far',s:stp>=gl?'Goal hit — nice.':(Math.max(0,gl-stp).toLocaleString()+' to go · a 20-minute walk is roughly 2,000.')});
+    if(S.restHr)out.push({icn:'heart',t:'Resting heart rate '+S.restHr+' bpm',s:S.restHr<=60?'Excellent — typical of good cardio fitness.':S.restHr<=72?'In the healthy range for most adults.':'On the higher side — sleep, hydration and regular walks bring it down over weeks.'});
+    const hx=S.hkExtra||{};
+    if(hx.hrv)out.push({icn:'pulse',t:'HRV '+Math.round(hx.hrv)+' ms',s:'Higher usually means better recovery; compare against your own average rather than other people.'});
+    if(hx.spo2)out.push({icn:'drop',t:'Blood oxygen '+Math.round(hx.spo2)+'%',s:hx.spo2>=95?'Normal.':'Below 95% — if this repeats, mention it to your GP.'});
+    if(hx.vo2)out.push({icn:'flame',t:'VO₂ max '+Math.round(hx.vo2*10)/10,s:'Cardio fitness estimate from your watch. Brisk walks and intervals raise it.'});
+    const w=(S.water||0);if(w<8&&this._hour()>=14)out.push({icn:'drop',t:'Water '+w+' of 8 cups',s:'Keep a bottle by the Thermomix — tap + on Today each time you refill.'});
+    const wl=(S.wlogD||[]);if(wl.length>=2){const a=wl[wl.length-2].w,b=wl[wl.length-1].w;const d=Math.round((b-a)*10)/10;out.push({icn:'trend',t:'Weight '+(d>0?'+':'')+d+' kg since last weigh-in',s:d<=0?'Trending the right way.':'Weekly averages matter more than single days.'});}
+    if((S.restEnergy||0)+(S.activeEnergy||0)>0){const burn=(S.restEnergy||0)+(S.activeEnergy||0);out.push({icn:'flame',t:burn.toLocaleString()+' kcal burned so far',s:'Resting + active from your watch. Your food goal is '+(S.kcalGoal||1900).toLocaleString()+' kcal.'});}
+    const bl=S.bpLog||[];if(bl.length>=2){const tr=bl[bl.length-1].s-bl[0].s;out.push({icn:'shield',t:'Blood pressure '+bl[bl.length-1].s+'/'+bl[bl.length-1].d,s:tr<0?'Trending down since your first reading.':tr>0?'Trending up — watch salty snacks and sleep.':'Steady.'});}
+    return out;};
+  // Build a real 7-day plan from the library, honouring dietary filters and the calorie goal.
+  buildCoachPlan=()=>{const RR=this.RECIPES.filter(r=>r.id!==999);const pool0=RR.filter(this.planFilterFn);const P=pool0.length?pool0:RR;
+    const by=(m)=>{const l=P.filter(r=>r.meal===m);return l.length?l:P;};
+    const B=by('Breakfast'),L=by('Lunch'),D=by('Dinner'),N=by('Snack');const seed=(new Date().getDate())%7;
+    const plan=[0,1,2,3,4,5,6].map(i=>({d:i,b:B[(i+seed)%B.length].id,l:L[(i*2+seed)%L.length].id,dn:D[(i*3+seed)%D.length].id,s:N[(i+seed)%N.length].id}));
+    return plan;};
+  runCoach=()=>{this.setState({coachPhase:1});clearTimeout(this._cp);this._cp=setTimeout(()=>this.setState({coachPhase:2,coachPlan:this.buildCoachPlan()}),600);};
+  applyCoachPlan=()=>{const plan=this.state.coachPlan||this.buildCoachPlan();const px={...(this.state.planX||{})};plan.forEach(p=>{px[this.planKey(0,p.d,'Breakfast')]=p.b;px[this.planKey(0,p.d,'Lunch')]=p.l;px[this.planKey(0,p.d,'Dinner')]=p.dn;px[this.planKey(0,p.d,'Snack')]=p.s;});this.setState({planX:px,planWeek:0,planView:'Week'});if(this.boom)this.boom(2);this.showToast('Plan added to this week — every day is filled');this.jump('mealPlan');};
+  // --- AI recipe generator: rank the library by what you have, or ask the AI chef ---
+  aiHaveTokens=()=>(this.state.aiHave||[]).map(x=>String(x).toLowerCase().trim()).filter(Boolean);
+  aiSuggest=()=>{const have=this.aiHaveTokens();if(!have.length)return [];
+    return this.RECIPES.filter(r=>r.id!==999).map(r=>{const ings=this.recIng(r).map(g=>String(g.item||'').toLowerCase());const n=have.filter(h=>ings.some(i=>i.indexOf(h)>=0||h.indexOf(i.split(',')[0])>=0)).length;return {r,n};}).filter(x=>x.n>0).sort((a,b)=>b.n-a.n||a.r.time-b.r.time).slice(0,4);};
+  aiGenerate=()=>{const have=(this.state.aiHave||[]);if(!have.length){this.showToast('Add a few ingredients first');return;}
+    const prefs=Object.keys(this.state.aiPrefs||{}).filter(k=>this.state.aiPrefs[k]&&k.indexOf('no-')!==0);const avoid=Object.keys(this.state.aiPrefs||{}).filter(k=>this.state.aiPrefs[k]&&k.indexOf('no-')===0).map(k=>k.slice(3));
+    const prompt='Create one healthy, family-friendly Thermomix recipe that uses mainly these ingredients I already have: '+have.join(', ')+'. Common pantry staples (oil, salt, pepper, stock, basic spices) are fine. Preferences: '+(prefs.length?prefs.join(', '):'none')+'. Must avoid: '+(avoid.length?avoid.join(', '):'nothing')+'. Give it an appealing title, realistic per-serving calories, exact quantities for 4 servings, and full Thermomix settings for every step.';
+    this.runImport('text',prompt);};
   captureScan=(mode,fromLib)=>{const inp=document.createElement('input');inp.type='file';inp.accept='image/*';if(!fromLib)inp.setAttribute('capture','environment');inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');const sc=Math.min(1,900/im.width);c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);c.getContext('2d').drawImage(im,0,0,c.width,c.height);const durl=c.toDataURL('image/jpeg',0.72);this.WIMG['scan-photo']=durl;this.WIMG['scan-live']=durl;this.setState({scanImg:durl,scanB64:durl.split(',')[1]});this.nav('scanChoice');};im.src=rd.result;};rd.readAsDataURL(f);};inp.click();};
   goScan=(mode,b64)=>{this.setState({scanMode:mode});this.nav('mealScanAnalyzing');this.runScan(mode,b64);};
   nextMyId=()=>{const mr=this.state.myRecs||[];let n=1000+mr.reduce((a,r)=>Math.max(a,(r.id||999)-999),0);this.RECIPES.forEach(r=>{if(r.id>=1000&&r.id+1>n)n=r.id+1;});return n;};
@@ -1170,7 +1203,7 @@ class Component extends DCLogic {
   dueReminders=()=>{const now=new Date();const nowMin=now.getHours()*60+now.getMinutes();const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
     return (this.state.reminders||[]).filter(r=>r.on&&this.remAppliesOn(r,today)).map(r=>{const p=(r.time||'09:00').split(':');return {...r,_min:(+p[0])*60+(+p[1])};}).filter(r=>r._min<=nowMin&&(this.state.remAck||{})[this.remOccKey(r,today)]!==1&&(nowMin-r._min)<180);};
   ackReminder=(r)=>{const today=new Date();const ack={...(this.state.remAck||{})};ack[this.remOccKey(r,new Date(today.getFullYear(),today.getMonth(),today.getDate()))]=1;this.setState({remAck:ack});};
-  freshUserState=()=>({demo:false,conds:[],meds:[],wlog:[],bpLog:[],bpSys:120,bpDia:80,sleepLog:[0,0,0,0,0,0],sleepH:0,sleepM:0,stepsLog:[0,0,0,0,0,0],stepsToday:0,stepsHist:{},wextra:[],wlogD:[],wDemoOff:true,dlog:[],dhide:['latte','rice','avoc'],water:0,hr:0,totSteps:0,totMins:0,totKcalBurn:0,records:'None',ahealth:false,following:false,likes:{},cookCount:{},cookAt:{},routes:[],theme:'bloom',appearance:'Light',userName:''});
+  freshUserState=()=>({demo:false,conds:[],meds:[],wlog:[],bpLog:[],bpSys:120,bpDia:80,sleepLog:[0,0,0,0,0,0],sleepH:0,sleepM:0,stepsLog:[0,0,0,0,0,0],stepsToday:0,stepsHist:{},wextra:[],wlogD:[],wDemoOff:true,dlog:[],dhide:['latte','rice','avoc'],water:0,hr:0,totSteps:0,totMins:0,totKcalBurn:0,records:'None',ahealth:false,following:false,likes:{},cookCount:{},cookAt:{},routes:[],theme:'bloom',appearance:'Light',userName:'',curW:0,noteBy:{},favs:{},hkExtra:{},restHrLog:[]});
   isDemo=()=>this.state.demo!==false;
   _armMotionGesture=()=>{if(this._motionArmed)return;this._motionArmed=true;
     const go=async()=>{try{const p=await DeviceMotionEvent.requestPermission();if(p==='granted'){window.addEventListener('devicemotion',this.onMotion);this._motionOn=true;}}catch(e){}
@@ -1233,7 +1266,6 @@ class Component extends DCLogic {
   setScanQty=(i,d)=>{const q={...this.state.scanQty};q[i]=Math.max(0.5,Math.round((((q[i]!==undefined)?q[i]:1)+d)*2)/2);this.setState({scanQty:q});};
   scanItems=()=>this.state.scanLive||this.SCAN_ITEMS;
   scanTotals=()=>{const q=this.state.scanQty;return this.scanItems().reduce((a,it,i)=>{const m=(q[i]!==undefined)?q[i]:1;return {kcal:a.kcal+Math.round((it.kcal||0)*m),p:a.p+Math.round((it.p||0)*m),f:a.f+Math.round((it.f||0)*m),c:a.c+Math.round((it.c||0)*m)};},{kcal:0,p:0,f:0,c:0});};
-  runCoach=()=>{this.setState({coachPhase:1});clearTimeout(this._cp);this._cp=setTimeout(()=>this.setState({coachPhase:2}),1800);};
   openChat=(ctxId,seed)=>{this.setState({chatCtx:ctxId||null});this.nav('aiChat');if(seed)this.sendChat(seed);};
   chatCtxRec=()=>{const id=this.state.chatCtx;return id?(this.RECIPES.find(r=>r.id===id)||null):null;};
   micChat=()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -1295,6 +1327,27 @@ class Component extends DCLogic {
         const parsed=this.parseSleep(sl,srcOf(sl)||dev);
         if(parsed&&parsed.dur>60){upd.sleepLast=parsed;upd.sleepH=Math.floor(parsed.dur/60);upd.sleepM=Math.round(parsed.dur%60);res.sleep={ok:true,val:Math.round(parsed.dur)};}
         else res.sleep={ok:false};}catch(e){res.sleep={err:true};}
+      // --- more from the watch: 7-day histories, weight, and the extra vitals it records ---
+      try{const wk0=new Date(dayStart.getTime()-6*864e5);const st7=await q('stepCount',wk0,dayStart);const byDay={};st7.forEach(s=>{const k=this.dkey(new Date(s.startDate));byDay[k]=(byDay[k]||0)+(parseFloat(s.value)||0);});
+        const log6=[];for(let i=6;i>=1;i--){const d=new Date(dayStart.getTime()-i*864e5);log6.push(Math.round(byDay[this.dkey(d)]||0));}
+        if(log6.some(v=>v>0)){upd.stepsLog=log6;const hist={...(this.state.stepsHist||{})};Object.keys(byDay).forEach(k=>{if(byDay[k]>0)hist[k]=Math.round(byDay[k]);});upd.stepsHist=hist;}}catch(e){}
+      try{const from7=new Date(dayStart.getTime()-7*864e5-6*3600000);const sl7=await q('sleepAnalysis',from7,now);
+        const nights=[];for(let i=6;i>=1;i--){const ns=new Date(dayStart.getTime()-i*864e5-6*3600000),ne=new Date(dayStart.getTime()-(i-1)*864e5-6*3600000);const rows=sl7.filter(s=>{const st=new Date(s.startDate).getTime();return st>=ns.getTime()&&st<ne.getTime();});const p=this.parseSleep(rows,null);nights.push(p?p.dur:0);}
+        if(nights.some(v=>v>0))upd.sleepLog=nights;}catch(e){}
+      try{const bm=await q('bodyMass',new Date(now.getTime()-90*864e5),now);
+        if(bm.length){const cur=(this.state.wlogD||[]).slice();const have=new Set(cur.map(e=>e.ts?this.dkey(new Date(e.ts)):''));let added=0;
+          bm.forEach(s=>{const kg=parseFloat(s.value);const unit=String(s.unitName||s.unit||'kg').toLowerCase();const w=Math.round((unit.indexOf('lb')>=0?kg*0.4536:kg)*10)/10;const k=this.dkey(new Date(s.startDate));if(w>20&&w<400&&!have.has(k)){cur.push({w,ts:new Date(s.startDate).toISOString(),src:'health'});have.add(k);added++;}});
+          if(added){cur.sort((a,b)=>new Date(a.ts)-new Date(b.ts));upd.wlogD=cur;upd.wextra=cur.map(e=>e.w);upd.curW=cur[cur.length-1].w;upd.wDemoOff=true;}}}catch(e){}
+      const hx={...(this.state.hkExtra||{})};const last=(rows)=>rows.length?parseFloat(rows[rows.length-1].value):null;
+      try{const r=await q('oxygenSaturation',new Date(now.getTime()-2*864e5),now);const v=last(r);if(v)hx.spo2=v<=1?v*100:v;}catch(e){}
+      try{const r=await q('heartRateVariabilitySDNN',new Date(now.getTime()-2*864e5),now);const v=last(r);if(v)hx.hrv=v;}catch(e){}
+      try{const r=await q('respiratoryRate',new Date(now.getTime()-2*864e5),now);const v=last(r);if(v)hx.resp=v;}catch(e){}
+      try{const r=await q('vo2Max',new Date(now.getTime()-60*864e5),now);const v=last(r);if(v)hx.vo2=v;}catch(e){}
+      try{const r=await q('flightsClimbed',dayStart,now);const v=sum(r);if(v>0)hx.flights=Math.round(v);}catch(e){}
+      try{const r=await q('distanceWalkingRunning',dayStart,now);const v=sum(r);if(v>0)hx.distKm=Math.round(v/100)/10;}catch(e){}
+      try{const r=await q('appleExerciseTime',dayStart,now);const v=sum(r);if(v>0)hx.exerciseMin=Math.round(v);}catch(e){}
+      if(Object.keys(hx).length){hx.at=Date.now();upd.hkExtra=hx;}
+      if(upd.restHr){const rl=(this.state.restHrLog||[]).filter(e=>e.d!==this.dkToday()).concat([{d:this.dkToday(),v:upd.restHr}]).slice(-60);upd.restHrLog=rl;}
       if(dev)upd.hkDev=dev;
       this.setState({...upd,hkResult:res,hkLast:Date.now(),hkSyncing:false});
       const okN=Object.values(res).filter(x=>x&&x.ok).length;
@@ -1350,6 +1403,7 @@ class Component extends DCLogic {
       this.e('div',{display:'grid',gridTemplateColumns:'1fr 1fr',gap:9},[tile('awake','Awake'),tile('rem','REM'),tile('core','Core'),tile('deep','Deep')])
     ]);};
   // Six-up card at the top of the Health hub: what the watch synced today.
+  watchExtraStrip=()=>{const t=this.T();const x=this.state.hkExtra||{};const items=[];if(x.spo2)items.push(['drop','SpO'+String.fromCharCode(0x2082)+' '+Math.round(x.spo2)+'%']);if(x.hrv)items.push(['pulse','HRV '+Math.round(x.hrv)+' ms']);if(x.resp)items.push(['moon',Math.round(x.resp)+' breaths/min']);if(x.vo2)items.push(['flame','VO'+String.fromCharCode(0x2082)+' max '+Math.round(x.vo2)]);if(x.exerciseMin)items.push(['dumbbell',x.exerciseMin+' exercise min']);if(x.distKm)items.push(['trend',x.distKm+' km']);if(x.flights)items.push(['trend',x.flights+' floors']);if(!items.length)return null;return this.e('div',{key:'hxs',className:'scr',style:{display:'flex',gap:8,overflowX:'auto',marginTop:8,paddingBottom:2}},items.map(([ic,l])=>this.e('div',{key:l,style:{display:'flex',alignItems:'center',gap:6,background:t.card,border:'1px solid '+t.border,borderRadius:999,padding:'7px 12px',fontSize:12,fontWeight:800,color:t.text,whiteSpace:'nowrap',flexShrink:0}},[this.ic(ic,13,{color:t.muted}),l])));};
   watchCard=()=>{const t=this.T();const S=this.state;const native=this.isNative();const when=S.hkLast?new Date(S.hkLast).toLocaleTimeString('en',{hour:'numeric',minute:'2-digit'}):null;
     const SL=S.sleepLast;const slMin=SL?SL.dur:(((S.sleepH||0)*60)+(S.sleepM||0));
     const cell=(icn,col,label,val,sub,go)=>this.e('div',{key:label,style:{background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'11px 12px',cursor:'pointer',minWidth:0}},[
@@ -1369,7 +1423,8 @@ class Component extends DCLogic {
         cell('flame','#E8722E','Resting kcal',(S.restEnergy?S.restEnergy.toLocaleString():'—'),'so far today','energy'),
         cell('dumbbell','#22A34A','Active kcal',(S.activeEnergy?S.activeEnergy.toLocaleString():'—'),'so far today','energy'),
         cell('trend','#0EA5E9','Steps',((S.stepsToday!==undefined)?S.stepsToday:0).toLocaleString(),'goal '+((S.stepGoal||10000)/1000)+'k','steps')
-      ])
+      ]),
+      this.watchExtraStrip()
     ]);};
   // Compact, honest Apple Health status card for the Today screen.
   healthSyncCard(){const t=this.T();const S=this.state;const r=S.hkResult;const native=this.isNative();
@@ -1442,33 +1497,24 @@ class Component extends DCLogic {
   wRealPts=()=>(this.state.wlogD||[]).map(e=>({t:+new Date(e.ts),w:e.w})).filter(x=>isFinite(x.t)&&isFinite(x.w)).sort((a,b)=>a.t-b.t);
   wSeries=()=>{const S=this.state;
     const real=this.wRealPts();
-    if(real.length>=2)return real;
-    const endW=real.length?real[real.length-1].w:((S.curW!==undefined)?S.curW:(this.WLOG.length?this.WLOG[this.WLOG.length-1]:71.2));
-    const startW=Math.round((endW+3.4)*10)/10;const now=Date.now();const out=[];const N=182;
-    for(let i=N;i>=0;i-=2){const f=1-i/N;const base=startW+(endW-startW)*f;const noise=Math.sin(i*0.7)*0.32+Math.cos(i*0.21)*0.16;out.push({t:now-i*864e5,w:Math.round((base+noise)*10)/10});}
-    real.forEach(r=>out.push(r));
-    return out.sort((a,b)=>a.t-b.t);};
-  // Dated series for the other metrics (real data when we have it, else a labelled sample so the filters are explorable).
+    return real;};
+  // Dated series for the other metrics (real data only; the panels show an empty state until there are readings).
   stepsSeries=()=>{const S=this.state;const h={...(S.stepsHist||{})};
     const week=((S.stepsLog&&S.stepsLog.length===6)?S.stepsLog:[]).concat([(S.stepsToday!==undefined)?S.stepsToday:0]);
     for(let i=0;i<7;i++){if(week[i]!==undefined&&week[i]>0)h[this.dkOfIdx(i)]=week[i];}
     const pts=Object.keys(h).filter(k=>h[k]>0).sort().map(k=>({t:+new Date(k),v:h[k]}));
     if(pts.length>=2)return {pts,sample:false};
-    const goal=S.stepGoal||10000;const now=Date.now();const out=[];
-    for(let i=90;i>=0;i--){const base=goal*(0.72+0.42*Math.abs(Math.sin(i*0.28)));const v=Math.max(1800,Math.round((base+Math.sin(i*1.3)*1400)/100)*100);out.push({t:now-i*864e5,v});}
-    return {pts:out,sample:true};};
+    return {pts:[],sample:true};};
   hrSeries=()=>{const S=this.state;const pts=(S.hrLog||[]).map(x=>({t:x.ts,v:x.bpm})).filter(x=>isFinite(x.t)&&isFinite(x.v)).sort((a,b)=>a.t-b.t);
     if(pts.length>=2)return {pts,sample:false};
-    const now=Date.now();const out=[];for(let i=60;i>=0;i--){const base=64+Math.sin(i*0.45)*5+(i%9<2?7:0)+Math.cos(i*0.9)*2;out.push({t:now-i*864e5,v:Math.round(base)});}
-    return {pts:out,sample:true};};
+    return {pts:[],sample:true};};
   sleepSeries=()=>{const S=this.state;const sLog=(S.sleepLog&&S.sleepLog.length===6)?S.sleepLog:[];const today=((S.sleepH!==undefined)?S.sleepH:0)*60+((S.sleepM!==undefined)?S.sleepM:0);
     const week=sLog.concat([today]);const pts=[];for(let i=0;i<7;i++){if(week[i]>0)pts.push({t:+new Date(this.dkOfIdx(i)),v:week[i]});}
     if(pts.length>=3)return {pts,sample:false};
-    const now=Date.now();const out=[];for(let i=30;i>=0;i--){const base=450+Math.sin(i*0.55)*42+(i%7<2?-28:12);out.push({t:now-i*864e5,v:Math.round(Math.max(300,base))});}
-    return {pts:out,sample:true};};
+    return {pts:[],sample:true};};
   MCUTS={'D':1,'W':7,'2W':14,'M':30,'3M':91,'6M':182,'1Y':365,'All':1e6};
   // Reusable interactive trend panel → {chips, chart, stats}. Tap a point to inspect; EWMA trend line; optional goal line.
-  metricPanel(o){const t=this.T();const S=this.state;
+  metricPanel(o){const t=this.T();const S=this.state;if(o.sample){return {chips:null,chart:this.e('div',{key:'chart',style:{padding:'22px 16px',borderRadius:18,border:'2px dashed '+t.border,textAlign:'center',color:t.muted,fontSize:13,lineHeight:1.5,marginBottom:14}},o.emptyText||('No readings yet. '+(this.isNative()?'Your Apple Watch fills this in automatically.':'In the iPhone app your Apple Watch fills this in automatically.'))),stats:null};}
     const cur=S[o.rangeState]||o.defRange||'M';const cutDays=this.MCUTS[cur]||30;const now=Date.now();
     const all=o.series||[];let win=all.filter(p=>(now-p.t)/864e5<=cutDays);
     if(win.length<2)win=all.slice(-8);
@@ -1486,7 +1532,7 @@ class Component extends DCLogic {
     const gY=goal!=null?Y(goal):null;
     const chips=this.e('div',{key:'chips',display:'flex',gap:8,marginBottom:12,justifyContent:'center'},o.ranges.map(([k,l])=>this.chip(l,cur===k,()=>this.setState({[o.rangeState]:k,[selKey]:null}),{sm:true})));
     const chart=this.e('div',{key:'chart',background:t.card,border:'1px solid '+t.border,borderRadius:18,padding:'14px 16px',marginBottom:12,boxShadow:t.shadow},[
-      this.e('div',{fontSize:11.5,color:t.muted,marginBottom:8},(o.sample?'Sample preview · ':'')+o.label(cur,fmt(first),fmt(last))),
+      this.e('div',{fontSize:11.5,color:t.muted,marginBottom:8},o.label(cur,fmt(first),fmt(last))),
       this.e('div',{style:{position:'relative',paddingBottom:'18px'}},[
         this.e('div',{key:'yhi',style:{position:'absolute',left:0,top:-2,fontSize:9.5,fontWeight:700,color:t.faint}},fmt(hi)),
         this.e('div',{key:'ylo',style:{position:'absolute',left:0,bottom:22,fontSize:9.5,fontWeight:700,color:t.faint}},fmt(lo)),
@@ -1664,7 +1710,7 @@ class Component extends DCLogic {
         ])
       ])
     ]);}
-  quickLogSheet(){const t=this.T();const S=this.state;const wCur=(S.curW!==undefined)?S.curW:((S.wextra&&S.wextra.length)?S.wextra[S.wextra.length-1]:70);const water=S.water||0;
+  quickLogSheet(){const t=this.T();const S=this.state;const wCur=(S.curW||0)||((S.wextra&&S.wextra.length)?S.wextra[S.wextra.length-1]:70);const water=S.water||0;
     const row=(bg,icn,iconColor,title,sub,right,onClick)=>this.e('div',{key:title,style:{display:'flex',alignItems:'center',gap:12,padding:'12px 13px',borderRadius:15,background:t.card,border:'1px solid '+t.border,marginBottom:9,cursor:onClick?'pointer':'default',boxShadow:t.shadow}},[this.e('div',{width:40,height:40,borderRadius:12,background:bg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic(icn,20,{color:iconColor})),this.e('div',{flex:1,minWidth:0},[this.e('div',{fontSize:14,fontWeight:800,color:t.text},title),sub?this.e('div',{fontSize:11.5,color:t.muted,marginTop:1},sub):null]),right],onClick?{onClick}:undefined);
     const chipBtn=(txt,fn,primary)=>this.e('button',{style:{padding:'9px 13px',borderRadius:11,border:'none',background:primary?t.ink:t.soft,color:primary?t.inkText:t.text,fontWeight:800,fontSize:12.5,cursor:'pointer',whiteSpace:'nowrap'}},txt,{onClick:fn});
     const stepBtn=(sym,fn)=>this.e('button',{style:{width:32,height:32,borderRadius:999,border:'1px solid '+t.border,background:t.soft,color:t.text,cursor:'pointer',fontWeight:800,fontSize:16,lineHeight:'1',padding:0}},sym,{onClick:fn});
@@ -1959,6 +2005,7 @@ class Component extends DCLogic {
             this.e('div',{key:'i',fontSize:13,color:t.muted,marginBottom:12},'One box for everything — YouTube, TikTok, Instagram, Facebook, blogs, any recipe site. Paste the link and we read it.'),
             React.createElement('input',{key:'in',value:S.impUrl||'',onChange:e=>this.setState({impUrl:e.target.value}),onKeyDown:e=>{if(e.key==='Enter')doImport();},placeholder:'Paste any recipe link…',inputMode:'url',autoCapitalize:'none',autoFocus:true,style:{width:'100%',boxSizing:'border-box',border:'1.5px solid '+t.ink,borderRadius:14,padding:'14px',fontSize:15,fontWeight:600,color:t.text,outline:'none',background:t.card,fontFamily:'inherit',marginBottom:12}}),
             this.e('button',{key:'go',style:{width:'100%',padding:'15px 0',borderRadius:14,border:'none',background:'#22A34A',color:'#fff',fontWeight:800,fontSize:16,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:9,boxShadow:'0 8px 18px -6px rgba(34,163,74,.55)',marginBottom:12}},[this.ic('spark',20,{color:'#fff'}),'Import recipe'],{onClick:doImport}),
+            this.e('button',{key:'paste',style:{width:'100%',padding:'12px 0',borderRadius:14,border:'1px solid '+t.border,background:t.card,color:t.text,fontWeight:800,fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginBottom:12}},[this.ic('link',17,{color:t.text}),'Paste link from clipboard & import'],{onClick:()=>{if(!navigator.clipboard||!navigator.clipboard.readText){this.showToast('Paste the link into the box above');return;}navigator.clipboard.readText().then(v=>{v=(v||'').trim();const m=v.match(/https?:\/\/\S+/);if(!m){this.showToast('No link on the clipboard — copy one from Safari, YouTube or TikTok first');return;}this.setState({impUrl:m[0]});setTimeout(doImport,50);},()=>this.showToast('Allow clipboard access, or paste the link into the box'));}}),
             (S.impUrl||'').trim()?this.e('button',{key:'clr',style:{width:'100%',padding:'9px 0',borderRadius:10,border:'none',background:'none',color:t.muted,fontWeight:700,fontSize:12.5,cursor:'pointer'}},'Clear',{onClick:()=>this.setState({impUrl:''})}):null,
             this.e('div',{key:'hint',fontSize:12,color:t.faint,marginTop:6,lineHeight:1.5},'Tip: for videos, the recipe usually lives in the description — we read that too. We also pull the cover photo automatically where the site allows it.')
           ])
@@ -2064,7 +2111,7 @@ class Component extends DCLogic {
                 : this.e('div',{key:'ostep'},this.recSteps(r).map((st,i)=>this.e('div',{key:i,display:'flex',gap:12,marginBottom:14},[this.e('div',{width:28,height:28,borderRadius:999,background:t.ink,color:t.inkText,fontWeight:800,fontSize:14,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},i+1),this.e('div',{flex:1},[this.e('div',{fontSize:14,lineHeight:1.45,color:t.text},st.t),this.tmRow(st.s)])]))),
               this.e('div',{onClick:()=>this.nav('nutrition'),style:{marginTop:6,background:t.soft,borderRadius:18,padding:'14px 16px',cursor:'pointer'}},[this.e('div',{display:'flex',justifyContent:'space-between',alignItems:'center'},[this.e('div',{display:'flex',alignItems:'center',gap:10},[this.e('div',{width:38,height:38,borderRadius:12,background:t.card,display:'flex',alignItems:'center',justifyContent:'center'},this.ic('leaf',20,{color:t.text})),this.e('div',{},[this.e('div',{fontWeight:800,fontSize:14,color:t.text},'Full nutrition'),this.e('div',{fontSize:12,color:t.muted},'Per serving'+(r.diet.length?' · '+this.dietLabels(r).join(' · '):''))])]),this.ic('chev',18,{color:t.muted})])]),
               this.h('Personal notes'),
-              React.createElement('textarea',{key:'notes',value:S.notes,onChange:e=>this.setState({notes:e.target.value}),placeholder:'Add your own notes, tweaks or timings\u2026',style:{width:'100%',minHeight:80,resize:'vertical',border:'1px solid '+t.border,borderRadius:14,padding:'12px 14px',fontSize:13.5,lineHeight:1.5,color:t.text,fontFamily:'inherit',outline:'none',background:t.card,boxSizing:'border-box'}}),
+              React.createElement('textarea',{key:'notes',value:(S.noteBy||{})[r.id]||'',onChange:e=>{const nb={...(this.state.noteBy||{})};nb[r.id]=e.target.value.slice(0,600);this.setState({noteBy:nb});},placeholder:'Add your own notes, tweaks or timings\u2026',style:{width:'100%',minHeight:80,resize:'vertical',border:'1px solid '+t.border,borderRadius:14,padding:'12px 14px',fontSize:13.5,lineHeight:1.5,color:t.text,fontFamily:'inherit',outline:'none',background:t.card,boxSizing:'border-box'}}),
               this.h('Tags'),
               this.e('div',{display:'flex',flexWrap:'wrap',gap:8},(r.tags||[]).concat(this.dietLabels(r)).filter((x,i,a)=>a.indexOf(x)===i).slice(0,5).map(x=>this.chip(x,false,()=>{this.setState({query:x});this.nav('search');},{sm:true})).concat([this.chip('✨ Ask AI',false,()=>this.openChat(r.id),{sm:true}),this.chip('Swaps',false,()=>{this.openChat(r.id,'What can I substitute in '+r.title+'? List the 3 most useful swaps.');},{sm:true})])),
               this.h('More like this'),
@@ -2080,7 +2127,7 @@ class Component extends DCLogic {
 
       case 'moreMenu': return this.sheet(this.curRec().title,[
         ...[['edit','Edit recipe','editRecipe'],['grid','Duplicate','library'],['folder','Move to collection','collections'],...(this.commOn()?[['users',this.feedOn()?'Share to the Community':'Share by link','shareToCommunity']]:[]),['share','Share','shareSheet'],['text','Add a note','recipeDetail']].map(([ic,l,go])=>this.e('button',{key:l,style:{width:'100%',display:'flex',alignItems:'center',gap:14,padding:'14px 4px',border:'none',borderBottom:'1px solid '+t.border,background:'none',cursor:'pointer',textAlign:'left'}},[this.ic(ic,20,{color:t.text}),this.e('span',{fontSize:15,color:t.text,fontWeight:700},l)],{onClick:()=>{if(go==='shareToCommunity'){this.setState({commPickId:this.state.recId});this.back();this.nav('shareToCommunity');return;}if(l==='Duplicate'){const r=this.curRec();const id=this.nextMyId();const cp={...r,id:id,title:r.title+' (copy)',live:{ingredients:this.recIng(r),steps:this.recSteps(r)}};this.RECIPES.push(cp);this.setState({myRecs:(this.state.myRecs||[]).concat(cp),recId:id});this.showToast('Duplicated — editing your copy');this.back();this.nav('recipeDetail');return;}if(l==='Share'){this.shareRecipe(this.curRec());this.back();return;}if(l==='Edit recipe'){const r=this.curRec();this.setState({meTitle:r.title,meDesc:r.sub||'',meKcal:String(r.kcal||''),meIng:this.recIng(r).map(g=>((g.q?this.fmt(g.q):'')+(g.u?' '+g.u:'')+' '+g.item).trim()),meSteps:this.recSteps(r).map(s2=>s2.t),meImg:r.img||null,meEditId:r.id});}this.nav(go);}})),
-        this.e('button',{key:'del',style:{width:'100%',display:'flex',alignItems:'center',gap:14,padding:'14px 4px',background:'none',border:'none',cursor:'pointer',textAlign:'left',color:'#D0453A'}},[this.ic('close',20,{color:'#D0453A'}),this.e('span',{fontSize:15,fontWeight:700},'Delete recipe')],{onClick:()=>{const rid=this.state.recId;if(rid===1){this.showToast('Demo recipe can’t be deleted');return;}this.RECIPES=this.RECIPES.filter(r=>r.id!==rid);
+        this.e('button',{key:'del',style:{width:'100%',display:'flex',alignItems:'center',gap:14,padding:'14px 4px',background:'none',border:'none',cursor:'pointer',textAlign:'left',color:'#D0453A'}},[this.ic('close',20,{color:'#D0453A'}),this.e('span',{fontSize:15,fontWeight:700},'Delete recipe')],{onClick:()=>{const rid=this.state.recId;if(rid===1){this.showToast('Starter recipes can’t be deleted');return;}this.RECIPES=this.RECIPES.filter(r=>r.id!==rid);
         const px={...(this.state.planX||{})};Object.keys(px).forEach(k=>{if(px[k]===rid)delete px[k];});
         const fv={...(this.state.favs||{})};delete fv[rid];const lk={...(this.state.likes||{})};delete lk[rid];const cc={...(this.state.cookCount||{})};delete cc[rid];
         const upd={planX:px,favs:fv,likes:lk,cookCount:cc,myRecs:(this.state.myRecs||[]).filter(m=>m.id!==rid)};
@@ -2348,21 +2395,22 @@ class Component extends DCLogic {
         this.e('div',{key:'c',display:'flex',flexWrap:'wrap',gap:8},['Mediterranean','Asian','Mexican','Indian','Middle Eastern'].map(c=>this.chip(c,false,()=>{},{sm:true})))
       ],{footer:this.e('div',{style:{display:'flex',gap:10,paddingTop:14,marginTop:4,borderTop:'1px solid '+t.border}},[this.btn('Reset',this.resetF,{variant:'secondary'}),this.btn('Show '+count+' recipe'+(count===1?'':'s'),this.back)])});}
 
-      case 'aiGenerator': {const have=S.aiHave||['Rice','Eggs','Peas','Garlic'];return this.e('div',{flex:1,minHeight:0,display:'flex',flexDirection:'column'},[
+      case 'aiGenerator': {const have=S.aiHave||[];const sugg=this.aiSuggest();return this.e('div',{flex:1,minHeight:0,display:'flex',flexDirection:'column'},[
         this.topbar('AI Recipe Generator'),
         this.wrap([
-          this.e('div',{key:'h',style:{background:'#17191D',borderRadius:20,padding:'18px',marginBottom:18,color:'#fff'}},[this.e('div',{display:'inline-flex',alignItems:'center',gap:6,background:t.accent,color:'#17191D',fontSize:10.5,fontWeight:800,padding:'4px 9px',borderRadius:999,marginBottom:10},[this.ic('spark',12),'AI CHEF']),this.e('div',{fontSize:20,fontWeight:800,lineHeight:1.2},'What can I make with\u2026'),this.e('div',{fontSize:13,color:'#B7BAC0',marginTop:4},'Add what\u2019s in your fridge and get a healthy Thermomix recipe.')]),
+          this.e('div',{key:'h',style:{background:'#17191D',borderRadius:20,padding:'18px',marginBottom:18,color:'#fff'}},[this.e('div',{display:'inline-flex',alignItems:'center',gap:6,background:t.accent,color:'#17191D',fontSize:10.5,fontWeight:800,padding:'4px 9px',borderRadius:999,marginBottom:10},[this.ic('spark',12),'AI CHEF']),this.e('div',{fontSize:20,fontWeight:800,lineHeight:1.2},'What can I make with…'),this.e('div',{fontSize:13,color:'#B7BAC0',marginTop:4},'Type what’s in the fridge. Get a new Thermomix recipe written for it, or see which of your saved recipes already fit.')]),
           this.h('Ingredients you have'),
-          this.e('div',{key:'chips',display:'flex',flexWrap:'wrap',gap:8},[...have.map(x=>this.e('span',{key:x,display:'inline-flex',alignItems:'center',gap:6,background:t.ink,color:t.inkText,borderRadius:999,padding:'8px 10px 8px 13px',fontSize:13,fontWeight:700,cursor:'pointer'},[x,this.ic('close',13,{color:t.inkText})],{onClick:()=>this.setState({aiHave:have.filter(z=>z!==x)})})),this.e('span',{style:{display:'inline-flex',alignItems:'center',gap:5,border:'1px dashed '+t.border,color:t.muted,borderRadius:999,padding:'8px 13px',fontSize:13,fontWeight:700,cursor:'pointer'}},[this.ic('plus',13),'Add'],{onClick:()=>{const pool=['Onion','Chicken','Tomatoes','Spinach','Butter','Cheese','Lemon'];const nx=pool.find(p=>!have.includes(p));if(nx)this.setState({aiHave:have.concat(nx)});else this.showToast('Pantry full — remove something first');}})]),
+          this.e('div',{key:'add',display:'flex',gap:8,marginBottom:10},[React.createElement('input',{key:'in',value:S.aiDraft||'',onChange:e=>this.setState({aiDraft:e.target.value.slice(0,40)}),onKeyDown:e=>{if(e.key==='Enter'){const v=(this.state.aiDraft||'').trim();if(v){this.setState({aiHave:(this.state.aiHave||[]).concat(v),aiDraft:''});}}},placeholder:'e.g. chicken thighs, spinach, rice',style:{flex:1,minWidth:0,border:'1px solid '+t.border,borderRadius:12,padding:'11px 13px',fontSize:14,color:t.text,outline:'none',background:t.card,fontFamily:'inherit'}}),this.e('button',{style:{padding:'0 16px',borderRadius:12,border:'none',background:t.ink,color:t.inkText,fontWeight:800,fontSize:13,cursor:'pointer'}},'Add',{onClick:()=>{const v=(this.state.aiDraft||'').trim();if(!v){this.showToast('Type an ingredient first');return;}this.setState({aiHave:(this.state.aiHave||[]).concat(v),aiDraft:''});}})]),
+          this.e('div',{key:'chips',display:'flex',flexWrap:'wrap',gap:8,marginBottom:4},have.length?have.map((x,i)=>this.e('span',{key:x+i,display:'inline-flex',alignItems:'center',gap:6,background:t.ink,color:t.inkText,borderRadius:999,padding:'8px 10px 8px 13px',fontSize:13,fontWeight:700,cursor:'pointer'},[x,this.ic('close',13,{color:t.inkText})],{onClick:()=>this.setState({aiHave:have.filter((z,j)=>j!==i)})})):[this.e('span',{key:'none',fontSize:12.5,color:t.faint},'Nothing added yet — try: '),...['eggs','rice','tomatoes','chicken'].map(x=>this.chip(x,false,()=>this.setState({aiHave:(this.state.aiHave||[]).concat(x)}),{sm:true}))]),
           ...[['Meal type',['Breakfast','Lunch','Dinner','Snack']],['Time',['Under 15 min','Under 30 min','Any time']],['Dietary',['Vegan','Vegetarian','Gluten-free','Dairy-free','High-protein','Low-carb']],['Difficulty',['Easy','Medium','Adventurous']]].map(([grp,opts])=>this.e('div',{key:grp},[this.h(grp),this.e('div',{display:'flex',flexWrap:'wrap',gap:8},opts.map(x=>this.chip(x,!!S.aiPrefs[x],()=>this.toggleAiPref(x),{sm:true})))])),
           this.h('Avoid allergens'),
           this.e('div',{key:'aialg',display:'flex',flexWrap:'wrap',gap:8},this.ALGS.map(([k,l])=>{const on=!!S.aiPrefs['no-'+k];return this.e('button',{key:k,onClick:()=>this.toggleAiPref('no-'+k),style:{display:'inline-flex',alignItems:'center',gap:6,padding:'8px 13px',borderRadius:999,fontSize:12.5,fontWeight:700,cursor:'pointer',background:on?'#FCEBEA':t.card,color:on?'#C0392B':t.text,border:'1px solid '+(on?'#E4A9A2':t.border)}},[on?this.ic('close',13,{color:'#C0392B'}):null,l]);})),
-          this.h('Suggestions'),
-          ...this.RECIPES.slice(0,2).map(r=>this.e('div',{key:r.id,style:{position:'relative',display:'flex',alignItems:'center',gap:12,background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:8,marginBottom:10,cursor:'pointer',boxShadow:t.shadow}},[this.e('div',{position:'relative'},[this.photo(r.seed,'',{width:60,height:60,borderRadius:12},'food-r'+r.id),this.e('div',{position:'absolute',top:-6,left:-6,width:22,height:22,borderRadius:999,background:t.accent,display:'flex',alignItems:'center',justifyContent:'center'},this.ic('spark',12,{color:'#17191D'}))]),this.e('div',{flex:1},[this.e('div',{fontWeight:800,fontSize:13.5,color:t.text},r.title),this.e('div',{fontSize:12,color:t.muted,marginTop:2},r.time+' min · uses 4 of your items')]),this.ic('chev',18,{color:t.faint})],{onClick:()=>this.openRecipe(r)}))
-        ]),
-        this.e('div',{key:'f',padding:'12px 18px 22px',borderTop:'1px solid '+t.border},this.btn('Generate recipes',()=>{const have=(this.state.aiHave||['Rice','Eggs','Peas','Garlic']);const r=this.RECIPES[(have.length*3+1)%this.RECIPES.length];this.showToast('Generated from your '+have.length+' ingredients');this.openRecipe(r);},{icon:'spark'}))
+          this.e('div',{key:'gen',style:{marginTop:18}},this.btn(S.impPhase===1?'Writing your recipe…':'Write me a new recipe',()=>{if(this.state.impPhase!==1)this.aiGenerate();},{icon:'spark'})),
+          this.e('div',{key:'gennote',fontSize:11.5,color:t.faint,textAlign:'center',marginTop:8,lineHeight:1.45},'The AI chef writes a brand-new recipe with real Thermomix settings. You review it before anything is saved.'),
+          sugg.length?this.h('Already in your library',this.e('span',{fontSize:11,color:t.faint,fontWeight:600},'ranked by your ingredients')):null,
+          ...sugg.map(({r,n})=>this.e('div',{key:r.id,style:{position:'relative',display:'flex',alignItems:'center',gap:12,background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:8,marginBottom:10,cursor:'pointer',boxShadow:t.shadow}},[this.photo(r.seed,'',{width:60,height:60,borderRadius:12},'food-r'+r.id),this.e('div',{flex:1},[this.e('div',{fontWeight:800,fontSize:13.5,color:t.text},r.title),this.e('div',{fontSize:12,color:t.muted,marginTop:2},r.time+' min · uses '+n+' of your '+have.length+' item'+(have.length===1?'':'s'))]),this.ic('chev',18,{color:t.faint})],{onClick:()=>this.openRecipe(r)}))
+        ])
       ]);}
-
       case 'aiSubstitutions': return this.e('div',{flex:1,minHeight:0,display:'flex',flexDirection:'column'},[
         this.topbar('Substitutions'),
         this.wrap([
@@ -2393,7 +2441,7 @@ class Component extends DCLogic {
           this.e('div',{key:'n',display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:0,background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'14px 8px'},[[String(this.RECIPES[0].kcal),'kcal'],[this.macros(this.RECIPES[0]).p+'g','protein'],[this.macros(this.RECIPES[0]).f+'g','fats'],[this.macros(this.RECIPES[0]).c+'g','carbs']].map(([v,l],i)=>this.e('div',{key:l,style:{textAlign:'center',borderRight:i<3?'1px solid '+t.border:'none'}},[this.e('div',{fontSize:16,fontWeight:800,color:t.text},v),this.e('div',{fontSize:10.5,color:t.muted,marginTop:2},l)]))),
           this.e('div',{key:'d',fontSize:11.5,color:t.faint,fontStyle:'italic',marginTop:10},'Estimated automatically from the ingredients.')
         ]),
-        this.e('div',{key:'f',padding:'12px 18px 22px',borderTop:'1px solid '+t.border},this.btn('Accept all & save',()=>{this.setState({recId:1});this.showToast('Tags & nutrition saved');this.jump('recipeDetail');}))
+        this.e('div',{key:'f',padding:'12px 18px 22px',borderTop:'1px solid '+t.border},this.btn('Accept all & save',()=>{this.showToast('Tags & nutrition saved');this.jump('recipeDetail');}))
       ]);
 
       case 'discover': {const on=this.feedOn();const loaded=!!this._commAt;const anyShared=((S.commFeed||[]).filter(c=>c.listed&&!c.mine).length>0);
@@ -2702,17 +2750,17 @@ class Component extends DCLogic {
       case 'settings': return this.wrap([
         this.topbar('Settings'),
         ...(()=>{const dsel=Object.keys(S.diet||{}).filter(k=>S.diet[k]);const dietV=dsel.length?(dsel[0]+(dsel.length>1?' +'+(dsel.length-1):'')):'None set';
-        return [['Account',[['Email',S.sessEmail||'Not signed in'],['Plan',S.planTier==='annual'?'Annual Pro (beta)':(S.planTier==='monthly'?'Monthly Pro (beta)':'Free')],['Password','Change'],['Sign out',''],['Delete account',S.confirmDelete?'Tap again to confirm':'']]],['Health & Data',[['Apple Health sync',S.ahealth?'On':'Off'],['Connected records',S.records||'None'],['Medical profile',((S.conds||[]).length)+' conditions'],['Export my data','Backup'],['Restore from backup',''],[this.t('recover'),''],[this.t('learn'),''],['Start fresh',S.confirmFresh?'Tap again to confirm':'Clear demo data']]],['Preferences',[['Dietary & allergens',dietV],['Units',S.unit==='imperial'?'Imperial':'Metric'],['Notifications',(()=>{if(!this.notifSupported())return S.notif?'On (in-app)':'Off';const pm=Notification.permission;if(S.notif&&pm==='granted')return 'On';if(S.notif&&pm==='denied')return 'Blocked';if(S.notif)return 'On (allow pop-ups)';return 'Off';})()],['Reminders',((S.reminders||[]).length)+' set'],['Appearance',this.activeTheme().n+' · '+(S.appearance||'Light')],[this.t('settings.lang'),this.langName(S.lang)]]],['More',[['About','v '+(this.VERSION.indexOf('BUILD')>=0?'dev':this.VERSION)],['Privacy & Terms',''],['Help & Support','']]]].map(([grp,rows])=>this.e('div',{key:grp},[this.h(grp),this.e('div',{style:{background:t.card,border:'1px solid '+t.border,borderRadius:16,overflow:'hidden'}},rows.map(([l,v],i)=>this.e('div',{key:l,style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 15px',borderBottom:i<rows.length-1?'1px solid '+t.border:'none',cursor:'pointer',color:l.match(/Delete|Sign out/)?'#D0453A':t.text}},[this.e('span',{fontSize:14.5,fontWeight:l.match(/Delete|Sign out/)?700:500},l),this.e('span',{fontSize:13.5,color:t.muted,display:'flex',alignItems:'center',gap:6},[v,v?this.ic('chev',15,{color:t.faint}):null])],{onClick:()=>{
+        return [['Account',[['Email',S.sessEmail||'Not signed in'],['Plan',S.planTier==='annual'?'Annual Pro (beta)':(S.planTier==='monthly'?'Monthly Pro (beta)':'Free')],['Password','Change'],['Sign out',''],['Delete account',S.confirmDelete?'Tap again to confirm':'']]],['Health & Data',[['Apple Health sync',S.ahealth?'On':'Off'],['Medical profile',((S.conds||[]).length)+' conditions'],['Export my data','Backup'],['Restore from backup',''],[this.t('recover'),''],[this.t('learn'),''],['Start fresh',S.confirmFresh?'Tap again to confirm':'Erase everything on this device']]],['Preferences',[['Dietary & allergens',dietV],['Units',S.unit==='imperial'?'Imperial':'Metric'],['Notifications',(()=>{if(!this.notifSupported())return S.notif?'On (in-app)':'Off';const pm=Notification.permission;if(S.notif&&pm==='granted')return 'On';if(S.notif&&pm==='denied')return 'Blocked';if(S.notif)return 'On (allow pop-ups)';return 'Off';})()],['Reminders',((S.reminders||[]).length)+' set'],['Appearance',this.activeTheme().n+' · '+(S.appearance||'Light')],[this.t('settings.lang'),this.langName(S.lang)]]],['More',[['About','v '+(this.VERSION.indexOf('BUILD')>=0?'dev':this.VERSION)],['Privacy & Terms',''],['Help & Support','']]]].map(([grp,rows])=>this.e('div',{key:grp},[this.h(grp),this.e('div',{style:{background:t.card,border:'1px solid '+t.border,borderRadius:16,overflow:'hidden'}},rows.map(([l,v],i)=>this.e('div',{key:l,style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 15px',borderBottom:i<rows.length-1?'1px solid '+t.border:'none',cursor:'pointer',color:l.match(/Delete|Sign out/)?'#D0453A':t.text}},[this.e('span',{fontSize:14.5,fontWeight:l.match(/Delete|Sign out/)?700:500},l),this.e('span',{fontSize:13.5,color:t.muted,display:'flex',alignItems:'center',gap:6},[v,v?this.ic('chev',15,{color:t.faint}):null])],{onClick:()=>{
           if(l===this.t('recover')){this.nav('cloudRestore');this.loadHistory();return;}
           if(l===this.t('learn')){this.setState({tourFromOnb:false});this.nav('onbTour');return;}
           if(l===this.t('settings.lang')){this.nav('onbLang');return;}
           if(l==='Privacy & Terms'){this.openLegal('privacy');return;}
           if(l==='Medical profile'){this.nav('medicalProfile');return;}
           if(l==='Apple Health sync'){const on=!this.state.ahealth;this.setState({ahealth:on});this.showToast(on?'Apple Health connected \u2014 HR, sleep & steps syncing':'Apple Health sync paused');return;}
-          if(l==='Connected records'){const nx=this.state.records==='MyChart'?'None':'MyChart';this.setState({records:nx});this.showToast(nx==='MyChart'?'MyChart connected \u2014 labs & conditions will sync':'MyChart disconnected');return;}
+          
           if(l==='Export my data'){try{const pad=n=>String(n).padStart(2,'0');const now=new Date();const stamp=now.getFullYear()+pad(now.getMonth()+1)+pad(now.getDate());const data=JSON.stringify({app:'21',type:'backup',version:this.VERSION,exportedAt:now.toISOString(),data:this.snapshotState()},null,2);const b=new Blob([data],{type:'application/json'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='21-backup-'+stamp+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);this.showToast('Full backup downloading — keep it safe to restore later');}catch(e){this.showToast('Export not supported in this browser');}return;}
           if(l==='Restore from backup'){const inp=document.createElement('input');inp.type='file';inp.accept='application/json,.json';inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const j=JSON.parse(rd.result);const d=(j&&j.data)?j.data:j;if(!d||typeof d!=='object')throw 0;const upd={};this.SYNC_KEYS.forEach(k=>{if(d[k]!==undefined)upd[k]=d[k];});this.setState(upd);if(d.scanRec){const i=this.RECIPES.findIndex(r=>r.id===999);if(i>=0)this.RECIPES[i]=d.scanRec;else this.RECIPES.push(d.scanRec);}(d.myRecs||[]).forEach(mr=>{if(!this.RECIPES.some(r=>r.id===mr.id))this.RECIPES.push(mr);if(mr.img)this.WIMG['food-r'+mr.id]=mr.img;});if(this.boom)this.boom(2);this.showToast('Backup restored ✓ — your data is back');}catch(e){this.showToast('That file isn’t a valid 21 backup');}};rd.readAsText(f);};inp.click();return;}
-          if(l==='Start fresh'){if(!this.state.confirmFresh){this.setState({confirmFresh:true});this.showToast('This zeroes the sample steps, sleep, weight & workouts — tap again to confirm');setTimeout(()=>{if(this._mounted!==false)this.setState({confirmFresh:false});},5000);return;}
+          if(l==='Start fresh'){if(!this.state.confirmFresh){this.setState({confirmFresh:true});this.showToast('This erases all your data on this device — tap again to confirm');setTimeout(()=>{if(this._mounted!==false)this.setState({confirmFresh:false});},5000);return;}
             this.setState({...this.freshUserState(),confirmFresh:false});this.showToast('Demo data cleared — 21 now shows only what you really log');return;}
           if(l==='Dietary & allergens'){this.nav('dietary');return;}
           if(l==='Units'){const u2=this.state.unit==='metric'?'imperial':'metric';this.setState({unit:u2});this.showToast('Units switched to '+(u2==='metric'?'Metric':'Imperial')+' everywhere');return;}
@@ -2762,7 +2810,7 @@ class Component extends DCLogic {
         return this.onbShell(4,'onb.lang.t','onb.lang.s',body,()=>this.onbFinish(),{noSkip:true,nextLabel:this.t('done')});}
       case 'onbTour': {const o=S.onb||{};const done=o.tour||{};const lessons=[['t1','link',['t1a','t1b','t1c']],['t2','scan',['t2a','t2b','t2c']],['t3','tm',['t3a','t3b','t3c']],['t4','calendar',['t4a','t4b','t4c']]];const n=lessons.filter(l=>done[l[0]]).length;const open=S.tourOpen;const fromOnb=!!S.tourFromOnb;
         return this.e('div',{flex:1,minHeight:0,display:'flex',flexDirection:'column'},[
-          this.topbar(this.t('learn'),{back:!fromOnb,right:fromOnb?this.e('span',{fontSize:12.5,fontWeight:800,color:t.muted,cursor:'pointer',whiteSpace:'nowrap'},this.t('skip'),{onClick:()=>{this.setState({tourFromOnb:false});this.jump('paywall');}}):null}),
+          this.topbar(this.t('learn'),{back:!fromOnb,right:fromOnb?this.e('span',{fontSize:12.5,fontWeight:800,color:t.muted,cursor:'pointer',whiteSpace:'nowrap'},this.t('skip'),{onClick:()=>{this.setState({tourFromOnb:false,postAuth:false});this.jump('healthToday');this.showToast('You’re in — everything is free during the beta');}}):null}),
           this.wrap([
             this.e('div',{key:'hd',style:{background:'#17191D',borderRadius:20,padding:'16px 18px',marginBottom:14,color:'#fff'}},[this.e('div',{fontSize:18,fontWeight:800,lineHeight:1.2},this.t('tour.t')),this.e('div',{fontSize:12.5,color:'#B7BAC0',marginTop:5,lineHeight:1.45},this.t('tour.s')),this.e('div',{marginTop:12,height:6,borderRadius:999,background:'rgba(255,255,255,.18)',overflow:'hidden'},this.e('div',{height:'100%',width:(n/4*100)+'%',background:t.accent,borderRadius:999,transition:'.3s'})),this.e('div',{fontSize:11,color:'#B7BAC0',marginTop:6},n+' / 4')]),
             ...lessons.map(([k,icn,steps],i)=>{const isOpen=open===k;const isDone=!!done[k];return this.e('div',{key:k,style:{background:t.card,border:'1.5px solid '+(isDone?t.accent:t.border),borderRadius:18,marginBottom:10,overflow:'hidden',boxShadow:t.shadow}},[
@@ -2773,7 +2821,7 @@ class Component extends DCLogic {
               ]):null
             ]);}),
             n===4?this.e('div',{key:'all',style:{textAlign:'center',padding:'12px 0 4px',fontSize:13.5,fontWeight:800,color:t.text}},this.t('tourDone')):null,
-            fromOnb?this.e('div',{key:'go',style:{marginTop:8}},this.btn(this.t('tour.later'),()=>{this.setState({tourFromOnb:false});this.jump('paywall');},{variant:'secondary'})):null
+            fromOnb?this.e('div',{key:'go',style:{marginTop:8}},this.btn(this.t('tour.later'),()=>{this.setState({tourFromOnb:false,postAuth:false});this.jump('healthToday');this.showToast('You’re in — everything is free during the beta');},{variant:'secondary'})):null
           ])
         ]);}
       case 'cloudRestore': {const rows=S.histRows||[];
@@ -2789,7 +2837,7 @@ class Component extends DCLogic {
           ])
         ]);}
       case 'setup': {
-        const nm=S.userName||'';const cw=(S.curW!==undefined)?S.curW:71;const wg=(S.wGoal!==undefined)?S.wGoal:70;const kg=S.kcalGoal||1900;const sg=S.stepGoal||10000;
+        const nm=S.userName||'';const cw=S.curW||71;const wg=(S.wGoal!==undefined)?S.wGoal:70;const kg=S.kcalGoal||1900;const sg=S.stepGoal||10000;
         const rd=(v)=>Math.round(v*10)/10;
         const stepper=(val,dec,inc,unit)=>this.e('div',{style:{display:'flex',alignItems:'center',gap:8,flexShrink:0}},[
           this.e('button',{style:{width:34,height:34,borderRadius:999,border:'1px solid '+t.border,background:t.soft,color:t.text,cursor:'pointer',fontWeight:800,fontSize:17,lineHeight:'1',padding:0}},'−',{onClick:dec}),
@@ -2824,12 +2872,12 @@ class Component extends DCLogic {
             this.e('button',{style:{width:46,height:27,borderRadius:999,border:'none',background:on?t.accent:t.border,cursor:'pointer',position:'relative',flexShrink:0,padding:0}},this.e('div',{style:{position:'absolute',top:3,left:on?22:3,width:21,height:21,borderRadius:999,background:'#fff',transition:'.15s',boxShadow:'0 1px 3px rgba(0,0,0,.25)'}}),{onClick:()=>toggleRem(em,lbl,tm)})
           ]);}),
           this.e('div',{key:'fin',style:{marginTop:14}},this.btn('Finish setup →',()=>{
-            const w=rd((this.state.curW!==undefined)?this.state.curW:cw);
+            const w=rd((this.state.curW||0)||cw);
             // log the entered weight as the first real weigh-in so the chart has a true start
             if(!(this.state.wlogD||[]).length){this.setState({wextra:(this.state.wextra||[]).concat(w),wlogD:[{w:w,ts:new Date().toISOString()}],wDemoOff:true});}
             this.setState({setupDone:true,tourFromOnb:true,tourOpen:'t1'});if(this.boom)this.boom(2);this.showToast('You’re all set — welcome aboard! 🎉');this.jump('onbTour');
           })),
-          this.e('div',{key:'skip',style:{textAlign:'center',marginTop:12,marginBottom:4}},this.e('span',{style:{fontSize:13,fontWeight:700,color:t.muted,cursor:'pointer',textDecoration:'underline'},onClick:()=>{this.setState({setupDone:true});this.jump('paywall');}},'Skip for now'))
+          this.e('div',{key:'skip',style:{textAlign:'center',marginTop:12,marginBottom:4}},this.e('span',{style:{fontSize:13,fontWeight:700,color:t.muted,cursor:'pointer',textDecoration:'underline'},onClick:()=>{this.setState({setupDone:true,postAuth:false});this.jump('healthToday');}},'Skip for now'))
         ]);
       }
 
@@ -2854,7 +2902,7 @@ class Component extends DCLogic {
         ]);
       }
 
-      case 'healthToday': {const hide=S.dhide||[];const demoSum=this.todayIdx()===4?((hide.includes('latte')?0:210)+(hide.includes('rice')?0:380)+(hide.includes('avoc')?0:550)):0;const extra=(S.dlog||[]).filter(m=>m.dt?m.dt===this.dkToday():((m.day!==undefined)?m.day:4)===this.todayIdx()).reduce((a,x)=>a+x.kcal,0);const eaten=demoSum+extra,goal=S.kcalGoal||1900,burned=this.wkBurn(this.todayIdx()),left=goal-eaten+burned;const curw=(S.wextra&&S.wextra.length)?S.wextra[S.wextra.length-1]:71.2;const R=52,C=2*Math.PI*R;const p=Math.min(1,eaten/goal);
+      case 'healthToday': {const hide=S.dhide||[];const demoSum=this.todayIdx()===4?((hide.includes('latte')?0:210)+(hide.includes('rice')?0:380)+(hide.includes('avoc')?0:550)):0;const extra=(S.dlog||[]).filter(m=>m.dt?m.dt===this.dkToday():((m.day!==undefined)?m.day:4)===this.todayIdx()).reduce((a,x)=>a+x.kcal,0);const eaten=demoSum+extra,goal=S.kcalGoal||1900,burned=this.wkBurn(this.todayIdx()),left=goal-eaten+burned;const curw=(S.wextra&&S.wextra.length)?S.wextra[S.wextra.length-1]:(S.curW||0);const R=52,C=2*Math.PI*R;const p=Math.min(1,eaten/goal);
         return this.wrap([
           this.storageBanner(),this.offlineBanner(),
           this.e('div',{key:'top',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 0 14px'},[
@@ -2888,7 +2936,7 @@ class Component extends DCLogic {
             ]);})(),
           this.e('div',{key:'mg',display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14},(()=>{const hrv=(S.hr!==undefined)?S.hr:68;const slH=(S.sleepH!==undefined)?S.sleepH:7,slM=(S.sleepM!==undefined)?S.sleepM:20;const slScore=Math.max(40,Math.min(100,Math.round(100-Math.abs(480-(slH*60+slM))/6)));const stp=(S.stepsToday!==undefined)?S.stepsToday:0;const gl=S.stepGoal||10000;
             const wl=(S.wDemoOff?[]:this.WLOG).concat(S.wextra||[]);const wStart=wl.length?wl[0]:curw;const wDelta=Math.round((curw-wStart)*10)/10;const wg=(S.wGoal!==undefined)?S.wGoal:70;
-            return [['pulse','Heart rate',hrv+' bpm',(S.restHr?('Resting '+S.restHr+' bpm'):(hrv<=100?'Normal range':'Elevated — recheck')),'heartRate'],['moon','Sleep',slH+'h '+String(slM).padStart(2,'0')+'m','Score '+slScore+' · '+(slScore>=80?'good':slScore>=65?'fair':'low'),'sleep'],['flame','Steps',stp.toLocaleString(),Math.min(100,Math.round(stp/gl*100))+'% of '+(gl%1000===0?(gl/1000)+'k':gl.toLocaleString())+(S.autoSteps!==false?' · auto':''),'steps'],['spark','Active days',this.activeDays()+' this week','Days you logged food or moved','fitness'],['trend','Weight',this.fmt(curw)+' kg',wl.length?((wDelta<0?'▼ ':(wDelta>0?'▲ ':''))+this.fmt(Math.abs(wDelta))+' kg · '+this.fmt(Math.abs(Math.round((curw-wg)*10)/10))+' to goal'):'Log your first weigh-in','weight'],['pin','Calories',eaten+' / '+goal,(left>=0?left+' kcal left today':Math.abs(left)+' over — a walk evens it'),'calorieDiary']];})().map(([icn,l,v,sub,go])=>this.e('div',{key:l,onClick:()=>this.nav(go),style:{background:t.card,border:'1px solid '+t.border,borderRadius:18,padding:'13px 14px',cursor:'pointer',boxShadow:t.shadow}},[this.e('div',{display:'flex',alignItems:'center',gap:7,marginBottom:8},[this.ic(icn,16,{color:t.text}),this.e('span',{fontSize:11.5,fontWeight:700,color:t.muted},l)]),this.e('div',{fontSize:19,fontWeight:800,color:t.text},v),this.e('div',{fontSize:11,color:t.muted,marginTop:2},sub)]))),
+            return [['pulse','Heart rate',hrv+' bpm',(S.restHr?('Resting '+S.restHr+' bpm'):(hrv<=100?'Normal range':'Elevated — recheck')),'heartRate'],['moon','Sleep',slH+'h '+String(slM).padStart(2,'0')+'m','Score '+slScore+' · '+(slScore>=80?'good':slScore>=65?'fair':'low'),'sleep'],['flame','Steps',stp.toLocaleString(),Math.min(100,Math.round(stp/gl*100))+'% of '+(gl%1000===0?(gl/1000)+'k':gl.toLocaleString())+(S.autoSteps!==false?' · auto':''),'steps'],['spark','Active days',this.activeDays()+' this week','Days you logged food or moved','fitness'],['trend','Weight',curw?(this.fmt(curw)+' kg'):'—',wl.length?((wDelta<0?'▼ ':(wDelta>0?'▲ ':''))+this.fmt(Math.abs(wDelta))+' kg · '+this.fmt(Math.abs(Math.round((curw-wg)*10)/10))+' to goal'):'Log your first weigh-in','weight'],['pin','Calories',eaten+' / '+goal,(left>=0?left+' kcal left today':Math.abs(left)+' over — a walk evens it'),'calorieDiary']];})().map(([icn,l,v,sub,go])=>this.e('div',{key:l,onClick:()=>this.nav(go),style:{background:t.card,border:'1px solid '+t.border,borderRadius:18,padding:'13px 14px',cursor:'pointer',boxShadow:t.shadow}},[this.e('div',{display:'flex',alignItems:'center',gap:7,marginBottom:8},[this.ic(icn,16,{color:t.text}),this.e('span',{fontSize:11.5,fontWeight:700,color:t.muted},l)]),this.e('div',{fontSize:19,fontWeight:800,color:t.text},v),this.e('div',{fontSize:11,color:t.muted,marginTop:2},sub)]))),
           this.healthSyncCard(),
           this.e('div',{key:'coach',onClick:()=>this.openChat(null),style:{background:'rgba(52,211,153,.14)',border:'1px solid '+t.accent,borderRadius:18,padding:'14px 15px',display:'flex',gap:12,alignItems:'center',cursor:'pointer',marginBottom:6}},[this.e('div',{width:40,height:40,borderRadius:12,background:t.accent,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic('spark',20,{color:'#17191D'})),this.e('div',{flex:1},[this.e('div',{fontWeight:800,fontSize:13.5,color:t.text},'Ask the AI assistant'),this.e('div',{fontSize:12,color:t.muted,marginTop:2},'Meal ideas, swaps, portions & macros — live answers')]),this.ic('chev',17,{color:t.muted})]),
           this.h('Today’s meals',this.e('span',{fontSize:12,fontWeight:700,color:t.text,cursor:'pointer'},'Open diary',{onClick:()=>this.nav('calorieDiary')})),
@@ -3209,7 +3257,7 @@ class Component extends DCLogic {
             const hrS=this.hrSeries();const hrP=this.metricPanel({series:hrS.pts,sample:hrS.sample,rangeState:'hrRange',defRange:'W',selState:'hrSel',ranges:[['D','Day'],['W','Week'],['M','Month'],['3M','3M']],color:'#FF5B62',fill:'rgba(255,91,98,.13)',minSpan:12,floor:35,fmt:(v)=>String(Math.round(v)),label:(c,f,l)=>'Your readings · '+f+' → '+l+' bpm',tipFmt:(v)=>Math.round(v)+' bpm',stats:({avg,vmin,vmax,last})=>[[Math.round(last)+'','latest'],[Math.round(avg)+'','avg bpm'],[Math.round(vmin)+'','lowest'],[Math.round(vmax)+'','highest']]});
             return this.e('div',{key:'hist',background:t.card,border:'1px solid '+t.border,borderRadius:18,padding:'14px 16px',marginBottom:14},[
               this.e('div',{key:'h',display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10},[this.e('span',{fontSize:12.5,fontWeight:800,color:t.text},'Your readings'),this.e('div',{display:'flex',gap:6},[['D','Day'],['W','Week'],['M','Month'],['3M','3M']].map(([k,l])=>this.e('button',{key:k,style:{padding:'5px 11px',borderRadius:999,border:'none',cursor:'pointer',fontSize:11,fontWeight:800,background:rng===k?t.ink:t.soft,color:rng===k?t.inkText:t.text}},l,{onClick:()=>this.setState({hrRange:k,hrSel:null})})))]),
-              this.e('div',{key:'lg',marginBottom:10},this.btn('＋ Log current '+((S.hr!==undefined)?S.hr:68)+' bpm',()=>{this.setState({hrLog:(this.state.hrLog||[]).concat({ts:Date.now(),bpm:(this.state.hr!==undefined)?this.state.hr:68,src:'manual'})});this.beep(880,0.1,0.12);this.showToast('Reading saved to history ✓');},{variant:'secondary',sm:true})),
+              this.e('div',{key:'lg',marginBottom:10},this.btn('＋ Log current '+(S.hr||'—')+' bpm',()=>{if(!this.state.hr){this.showToast('Measure your pulse first — camera below, or wear your Apple Watch');return;}this.setState({hrLog:(this.state.hrLog||[]).concat({ts:Date.now(),bpm:this.state.hr,src:'manual'})});this.beep(880,0.1,0.12);this.showToast('Reading saved to history ✓');},{variant:'secondary',sm:true})),
               hrP.chart,
               rows.length===0?this.e('div',{key:'no',fontSize:12.5,color:t.muted,textAlign:'center',padding:'2px 0 8px'},'No manual readings in this range yet — log one above or use the camera.'):null,
               ...rows.slice(-6).reverse().map((x,i)=>this.e('div',{key:'r'+i,display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderTop:'1px solid '+t.border},[
@@ -3272,7 +3320,7 @@ class Component extends DCLogic {
         this.topbar('Medical Profile',{right:this.circBtn('share',()=>{try{const S2=this.state;const lines=['21again — Medical summary','Generated '+new Date().toLocaleString(),'','Name: '+(S2.userName||'(not set)'),'','CONDITIONS:',...((S2.conds||[]).length?(S2.conds||[]).map(c=>' • '+c):[' (none listed)']),'','MEDICATIONS:',...((S2.meds||[]).length?(S2.meds||[]).map(m=>' • '+(m.n||m)+(m.s?' — '+m.s:'')):[' (none listed)']),'','RECENT VITALS:',' • Heart rate: '+(S2.hr?S2.hr+' bpm':'—'),' • Blood pressure: '+((S2.bpLog||[]).length?(S2.bpLog[S2.bpLog.length-1].s+'/'+S2.bpLog[S2.bpLog.length-1].d):'—'),' • Weight: '+((S2.wextra&&S2.wextra.length)?this.fmt(S2.wextra[S2.wextra.length-1])+' kg':'—'),'','This is a self-tracked summary from the 21again app, not a medical record.'].join('\n');const b=new Blob([lines],{type:'text/plain'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='21-medical-summary.txt';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);this.showToast('Medical summary downloaded — share it with your GP');}catch(e){this.showToast('Export not supported in this browser');}})}),
         this.wrap([
           this.e('div',{key:'sync',background:t.card,border:'1px solid '+t.border,borderRadius:18,padding:'14px 16px',marginBottom:16,boxShadow:t.shadow},[
-            this.e('div',{display:'flex',alignItems:'center',gap:10,marginBottom:10},[this.e('div',{width:38,height:38,borderRadius:12,background:t.soft,display:'flex',alignItems:'center',justifyContent:'center'},this.ic('shield',19,{color:t.text})),this.e('div',{flex:1},[this.e('div',{fontSize:14,fontWeight:800,color:t.text},'Connected health records'),this.e('div',{fontSize:12,color:t.muted},'Apple Health '+(S.ahealth?'on':'off')+' · MyChart '+(S.records==='MyChart'?'on':'off')+(S.ahealth?'':' · connect in the iOS app'))]),this.e('span',{fontSize:12,fontWeight:800,color:t.text,cursor:'pointer'},S.ahealth?'Sync now':'Connect',{onClick:()=>this.syncHealth()})]),
+            this.e('div',{display:'flex',alignItems:'center',gap:10,marginBottom:10},[this.e('div',{width:38,height:38,borderRadius:12,background:t.soft,display:'flex',alignItems:'center',justifyContent:'center'},this.ic('shield',19,{color:t.text})),this.e('div',{flex:1},[this.e('div',{fontSize:14,fontWeight:800,color:t.text},'Connected health records'),this.e('div',{fontSize:12,color:t.muted},'Apple Health '+(S.ahealth?'on':'off')+(S.ahealth?'':' · connect in the iOS app'))]),this.e('span',{fontSize:12,fontWeight:800,color:t.text,cursor:'pointer'},S.ahealth?'Sync now':'Connect',{onClick:()=>this.syncHealth()})]),
             this.e('div',{fontSize:11.5,color:t.faint},(S.ahealth?'Apple Health keeps steps, heart rate and sleep up to date on the iOS app.':'Add your conditions and medications below — they’re private to you and included in your export.'))
           ]),
           this.h('Conditions',this.e('span',{fontSize:12,fontWeight:800,color:t.text,cursor:'pointer'},S.condEdit!=null?'Close':'+ Add',{onClick:()=>this.setState({condEdit:this.state.condEdit!=null?null:'(new)',condDraft:''})})),
@@ -3295,27 +3343,28 @@ class Component extends DCLogic {
         ])
       ]);
 
-      case 'aiCoach': {const ph=S.coachPhase;const sum=(ids)=>ids.reduce((a,x)=>a+(this.RECIPES.find(r=>r.id===x)||{kcal:0}).kcal,0);
+      case 'aiCoach': {const ph=S.coachPhase;const ins=this.coachInsights();const plan=S.coachPlan||[];const dl=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];const kc=(id)=>((this.RECIPES.find(r=>r.id===id)||{}).kcal||0);const ttl=(id)=>((this.RECIPES.find(r=>r.id===id)||{}).title||'');
+        const wl=(S.wlogD&&S.wlogD.length)?S.wlogD[S.wlogD.length-1].w:(S.curW||0);const wg=(S.wGoal!==undefined)?S.wGoal:0;const gp=(wl&&wg)?Math.round((wl-wg)*10)/10:null;
         return this.e('div',{flex:1,minHeight:0,display:'flex',flexDirection:'column'},[
-          this.topbar('AI Health Coach'),
+          this.topbar('Health Coach'),
           this.wrap([
             this.e('div',{key:'hd',background:'#17191D',borderRadius:20,padding:'18px',marginBottom:16},[
-              this.e('div',{display:'inline-flex',alignItems:'center',gap:6,background:t.accent,color:'#17191D',fontSize:10.5,fontWeight:800,padding:'4px 9px',borderRadius:999,marginBottom:10},[this.ic('spark',12),'AI COACH']),
-              this.e('div',{color:'#fff',fontSize:19,fontWeight:800,lineHeight:1.2,marginBottom:8},'Your plan, tuned to you'),
-              this.e('div',{display:'flex',flexWrap:'wrap',gap:6},(()=>{const wl=(S.wextra&&S.wextra.length)?S.wextra[S.wextra.length-1]:(S.curW||71.2);const gp=Math.round((wl-((S.wGoal!==undefined)?S.wGoal:70))*10)/10;return (S.conds||[]).slice(0,2).concat([gp>0?('Goal −'+this.fmt(gp)+' kg'):'Goal reached ✓','1,900 kcal/day']);})().map(x=>this.e('span',{key:x,fontSize:11,fontWeight:700,color:'#E7E7E3',background:'#23262B',padding:'4px 10px',borderRadius:999},x)))
+              this.e('div',{display:'inline-flex',alignItems:'center',gap:6,background:t.accent,color:'#17191D',fontSize:10.5,fontWeight:800,padding:'4px 9px',borderRadius:999,marginBottom:10},[this.ic('spark',12),'YOUR COACH']),
+              this.e('div',{color:'#fff',fontSize:19,fontWeight:800,lineHeight:1.2,marginBottom:8},'Built from your own numbers'),
+              this.e('div',{display:'flex',flexWrap:'wrap',gap:6},(S.conds||[]).slice(0,2).concat([gp===null?'Set a goal weight in Settings':(gp>0?('Goal −'+this.fmt(gp)+' kg'):'Goal weight reached ✓'),(S.kcalGoal||1900).toLocaleString()+' kcal/day',(S.stepGoal||10000).toLocaleString()+' steps/day']).map(x=>this.e('span',{key:x,fontSize:11,fontWeight:700,color:'#E7E7E3',background:'#23262B',padding:'4px 10px',borderRadius:999},x)))
             ]),
-            this.h('This week’s insights'),
-            ...[['spark','Swapped white rice → brown in 4 meals','Lower glycemic load for steadier blood sugar'],['drop','Sodium 22% under your cap',(()=>{const bl=S.bpLog||[];const tr=bl.length>=2?(bl[bl.length-1].s<bl[0].s?'down':bl[bl.length-1].s>bl[0].s?'up':'steady'):'down';return tr==='down'?'Blood pressure trending down — keep it up':tr==='up'?'Blood pressure trending up — watch salty snacks':'Blood pressure steady — solid work';})()],['flame','Add 2 × 20-min zone-2 walks','Keeps you on track for −0.4 kg this week']].map(([icn,ti,sub])=>this.e('div',{key:ti,display:'flex',gap:12,padding:'12px 13px',background:t.card,border:'1px solid '+t.border,borderRadius:16,marginBottom:9,boxShadow:t.shadow},[this.e('div',{width:38,height:38,borderRadius:12,background:'rgba(52,211,153,.18)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic(icn,18,{color:t.text})),this.e('div',{},[this.e('div',{fontSize:13.5,fontWeight:800,color:t.text},ti),this.e('div',{fontSize:12,color:t.muted,marginTop:2},sub)])])),
-            ph===1?this.e('div',{key:'ld',display:'flex',alignItems:'center',gap:12,padding:'18px 0',justifyContent:'center'},[this.e('div',{width:26,height:26,borderRadius:999,border:'3px solid '+t.soft,borderTopColor:t.ink,animation:'spin 1s linear infinite'}),this.e('span',{fontSize:13.5,fontWeight:700,color:t.muted},'Building your week around your health data…')]):null,
-            ph===2?this.e('div',{key:'plan'},[
-              this.h('Your 7-day plan',this.e('span',{fontSize:11,fontWeight:800,color:t.accentText,background:t.accent,padding:'3px 9px',borderRadius:999},'FITS YOUR TARGETS')),
-              ...this.PLAN7.map(([d,b,l,dn])=>{const first=(this.RECIPES.find(r=>r.id===b)||{}).title;return this.e('div',{key:d,display:'flex',alignItems:'center',gap:12,padding:'11px 0',borderBottom:'1px solid '+t.border},[this.e('div',{width:38,fontSize:12,fontWeight:800,color:t.muted},d),this.e('div',{flex:1},[this.e('div',{fontSize:13.5,fontWeight:700,color:t.text},first),this.e('div',{fontSize:11.5,color:t.muted},'+ 2 more mains & snacks')]),this.e('span',{fontSize:12.5,fontWeight:800,color:t.text},[sum([b,l,dn]).toLocaleString(),this.e('span',{fontSize:10.5,fontWeight:600,color:t.muted},' kcal mains')])]);}),
-              this.e('div',{key:'planNote',fontSize:11.5,color:t.faint,marginTop:10,lineHeight:1.45},'Mains average ~1,270 kcal — your 500–700 kcal snack & sides budget tops each day up to the 1,900 kcal target.')
+            this.h('Today’s insights',this.e('span',{fontSize:11,color:t.faint,fontWeight:600},this.isNative()?'from Apple Health + your logs':'from what you log')),
+            ...(ins.length?ins.map(x=>this.e('div',{key:x.t,display:'flex',gap:12,padding:'12px 13px',background:t.card,border:'1px solid '+t.border,borderRadius:16,marginBottom:9,boxShadow:t.shadow},[this.e('div',{width:38,height:38,borderRadius:12,background:'rgba(52,211,153,.18)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0},this.ic(x.icn,18,{color:t.text})),this.e('div',{flex:1},[this.e('div',{fontSize:13.5,fontWeight:800,color:t.text},x.t),this.e('div',{fontSize:12,color:t.muted,marginTop:2,lineHeight:1.4},x.s)])])):[this.e('div',{key:'none',style:{padding:'16px',borderRadius:14,border:'2px dashed '+t.border,textAlign:'center',color:t.muted,fontSize:13,lineHeight:1.5}},this.isNative()?'Wear your Apple Watch tonight and insights fill in by themselves.':'Log a night’s sleep, your steps or a weigh-in and insights appear here. In the iPhone app your Apple Watch does it for you.')]),
+            ph===1?this.e('div',{key:'ld',display:'flex',alignItems:'center',gap:12,padding:'18px 0',justifyContent:'center'},[this.e('div',{width:26,height:26,borderRadius:999,border:'3px solid '+t.soft,borderTopColor:t.ink,animation:'spin 1s linear infinite'}),this.e('span',{fontSize:13.5,fontWeight:700,color:t.muted},'Building your week from your library…')]):null,
+            (ph===2&&plan.length)?this.e('div',{key:'plan'},[
+              this.h('Your 7-day plan',this.e('span',{fontSize:11,fontWeight:800,color:t.accentText,background:t.accent,padding:'3px 9px',borderRadius:999},'FROM YOUR LIBRARY')),
+              ...plan.map(p=>{const tot=kc(p.b)+kc(p.l)+kc(p.dn)+kc(p.s);return this.e('div',{key:p.d,display:'flex',alignItems:'center',gap:12,padding:'11px 0',borderBottom:'1px solid '+t.border,cursor:'pointer'},[this.e('div',{width:38,fontSize:12,fontWeight:800,color:t.muted},dl[p.d]),this.e('div',{flex:1,minWidth:0},[this.e('div',{fontSize:13.5,fontWeight:700,color:t.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'},ttl(p.dn)),this.e('div',{fontSize:11.5,color:t.muted,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'},ttl(p.b)+' · '+ttl(p.l)+' · '+ttl(p.s))]),this.e('span',{fontSize:12.5,fontWeight:800,color:tot<=(S.kcalGoal||1900)?t.text:'#E8722E'},tot.toLocaleString()+' kcal')],{onClick:()=>{this.setState({recId:p.dn});this.nav('recipeDetail');}});}),
+              this.e('div',{key:'planNote',fontSize:11.5,color:t.faint,marginTop:10,lineHeight:1.45},'Four meals a day from recipes you already have, matched to your dietary filters. Tap a day to open its dinner; swap anything from the Meal Plan page.')
             ]):null
           ]),
           this.e('div',{key:'f',padding:'12px 18px 22px',borderTop:'1px solid '+t.border},
-            ph===2?this.btn('Apply to Meal Plan',()=>{this.showToast('Plan applied to your week');this.jump('mealPlan');},{icon:'check'})
-                  :this.btn(ph===1?'Building your plan…':'Generate my weekly plan',ph===1?()=>{}:this.runCoach,{icon:'spark'}))
+            (ph===2&&plan.length)?this.btn('Add to my Meal Plan',()=>this.applyCoachPlan(),{icon:'check'})
+                  :this.btn(ph===1?'Building your plan…':'Plan my week from my library',ph===1?()=>{}:this.runCoach,{icon:'calendar'}))
         ]);
       }
 
@@ -3385,7 +3434,7 @@ class Component extends DCLogic {
       case 'weight': {const demoOff=!!S.wDemoOff;const wlogD=S.wlogD||[];
         const LOGALL=(demoOff?[]:this.WLOG).concat(S.wextra||[]);
         const has=LOGALL.length>0;const sample=this.wRealPts().length<2;
-        const wlast=has?LOGALL[LOGALL.length-1]:((S.curW!==undefined)?S.curW:71.2);
+        const wlast=has?LOGALL[LOGALL.length-1]:(S.curW||0);
         const wg=(S.wGoal!==undefined)?S.wGoal:70;
         const start=has?LOGALL[0]:wlast;const losing=wg<=start;
         const tot=Math.round((wlast-start)*10)/10;
@@ -3459,7 +3508,7 @@ class Component extends DCLogic {
           const area='0,'+H+' '+vals.map((v,i)=>X(i)+','+Y(v)).join(' ')+' '+W+','+H;
           const gY=Y(wg);const sel=(S.wSel!=null&&S.wSel<vals.length&&S.wSel>=0)?S.wSel:null;
           const dfmt=(ms)=>new Date(ms).toLocaleDateString('en',{day:'numeric',month:'short'});
-          chart=chartBox((sample?'Sample preview · ':'')+'Your weight · '+rangeLbl+' · '+this.fmt(first)+' → '+this.fmt(last)+' kg',
+          chart=chartBox('Your weight · '+rangeLbl+' · '+this.fmt(first)+' → '+this.fmt(last)+' kg',
             this.e('div',{style:{position:'relative',paddingBottom:'18px'}},[
               this.e('div',{key:'yhi',style:{position:'absolute',left:0,top:-2,fontSize:9.5,fontWeight:700,color:t.faint}},this.fmt(Math.round(hi*10)/10)),
               this.e('div',{key:'ylo',style:{position:'absolute',left:0,bottom:22,fontSize:9.5,fontWeight:700,color:t.faint}},this.fmt(Math.round(lo*10)/10)),
@@ -3479,7 +3528,7 @@ class Component extends DCLogic {
             ]),
             null);
         }
-        const doLog=()=>{const w=Math.round((this.state.curW!==undefined?this.state.curW:wlast)*10)/10;const now=new Date();
+        const doLog=()=>{const w=Math.round((this.state.curW||wlast)*10)/10;if(!(w>20)){this.showToast('Set your weight with − and + first');return;}const now=new Date();
           const prevBest=(this.state.wlogD||[]).reduce((a,e2)=>losing?Math.min(a,e2.w):Math.max(a,e2.w),losing?1e9:-1e9);
           const crossed=losing?(w<=wg&&wlast>wg):(w>=wg&&wlast<wg);
           const newBest=(this.state.wlogD||[]).length>0&&(losing?w<prevBest:w>prevBest);
@@ -3493,7 +3542,7 @@ class Component extends DCLogic {
           this.wrap([
             (wlogD.length>0&&!loggedToday)?this.e('div',{key:'remind',display:'flex',alignItems:'center',gap:10,background:'rgba(236,72,153,.13)',border:'1px solid '+t.accent,borderRadius:14,padding:'11px 13px',marginBottom:12},[this.e('span',{fontSize:18},'🔔'),this.e('div',{flex:1,fontSize:12.5,color:t.text,lineHeight:1.4},[this.e('b',{},'Today’s weigh-in is waiting. '),'10 seconds now keeps your streak'+(streak>1?' of '+streak+' days':'')+' alive.'])]):null,
             this.e('div',{key:'hero',textAlign:'center',padding:'4px 0 12px'},[
-              this.e('div',{fontSize:44,fontWeight:800,color:t.text,letterSpacing:'-.03em'},[this.fmt(wlast),this.e('span',{fontSize:16,color:t.muted,fontWeight:700},' kg')]),
+              this.e('div',{fontSize:44,fontWeight:800,color:t.text,letterSpacing:'-.03em'},[wlast?this.fmt(wlast):'—',this.e('span',{fontSize:16,color:t.muted,fontWeight:700},' kg')]),
               has?this.e('div',{fontSize:12.5,color:t.muted,marginTop:3},(tot<0?'▼ ':(tot>0?'▲ ':''))+this.fmt(Math.abs(tot))+' kg since you started ('+this.fmt(start)+' kg) · goal '+this.fmt(wg)+' kg'):this.e('div',{fontSize:12.5,color:t.muted,marginTop:3},'Set your starting point with your first log · goal '+this.fmt(wg)+' kg'),
               this.e('div',{key:'chips2',display:'flex',gap:8,justifyContent:'center',marginTop:8},[
                 streak>=2?this.e('span',{fontSize:11,fontWeight:800,background:t.accent,color:t.accentText,borderRadius:999,padding:'4px 10px'},'🔥 '+streak+'-day streak'):null,
@@ -3504,16 +3553,16 @@ class Component extends DCLogic {
             this.e('div',{key:'log',background:t.card,border:'1.5px solid '+(loggedToday?t.border:t.accent),borderRadius:16,padding:'12px 14px',marginBottom:14,boxShadow:t.shadow},[
               this.e('div',{display:'flex',alignItems:'center',gap:12},[
                 this.e('div',{flex:1},[this.e('div',{fontSize:13,fontWeight:800,color:t.text},loggedToday?'Update today’s weigh-in':'Log today’s weigh-in'),lastLog?this.e('div',{fontSize:11,color:t.muted,marginTop:2},'Last: '+this.fmt(lastLog.w)+' kg · '+new Date(lastLog.ts).toLocaleString('en',{day:'numeric',month:'short'})+' '+new Date(lastLog.ts).toLocaleTimeString('en',{hour:'numeric',minute:'2-digit'})):this.e('div',{fontSize:11,color:t.muted,marginTop:2},'Weigh in at the same time each day for the truest trend')]),
-                this.e('button',{style:{width:36,height:36,borderRadius:999,border:'1px solid '+t.border,background:t.soft,cursor:'pointer',fontSize:17,color:t.text,lineHeight:1}},'−',{onClick:()=>this.setState({curW:Math.round(((this.state.curW!==undefined?this.state.curW:wlast)-0.1)*10)/10})}),
-                this.e('span',{fontSize:16,fontWeight:800,minWidth:56,textAlign:'center'},this.fmt((S.curW!==undefined)?S.curW:wlast)+' kg'),
-                this.e('button',{style:{width:36,height:36,borderRadius:999,border:'1px solid '+t.border,background:t.soft,cursor:'pointer',fontSize:17,color:t.text,lineHeight:1}},'+',{onClick:()=>this.setState({curW:Math.round(((this.state.curW!==undefined?this.state.curW:wlast)+0.1)*10)/10})}),
+                this.e('button',{style:{width:36,height:36,borderRadius:999,border:'1px solid '+t.border,background:t.soft,cursor:'pointer',fontSize:17,color:t.text,lineHeight:1}},'−',{onClick:()=>this.setState({curW:Math.max(20,Math.round(((this.state.curW||wlast||70)-0.1)*10)/10)})}),
+                this.e('span',{fontSize:16,fontWeight:800,minWidth:56,textAlign:'center'},((S.curW||wlast)?this.fmt(S.curW||wlast):'—')+' kg'),
+                this.e('button',{style:{width:36,height:36,borderRadius:999,border:'1px solid '+t.border,background:t.soft,cursor:'pointer',fontSize:17,color:t.text,lineHeight:1}},'+',{onClick:()=>this.setState({curW:Math.min(400,Math.round(((this.state.curW||wlast||70)+0.1)*10)/10)})}),
                 this.btn(loggedToday?'Update':'Log',doLog,{sm:true,auto:true})
               ])
             ]),
-            this.e('div',{key:'gtabs',display:'flex',background:t.soft,borderRadius:999,padding:3,marginBottom:10},['Trend','Change','Future'].map(g2=>this.e('button',{key:g2,style:{flex:1,padding:'8px 0',borderRadius:999,border:'none',cursor:'pointer',fontSize:12,fontWeight:800,background:gt===g2?t.ink:'transparent',color:gt===g2?t.inkText:t.muted}},g2==='Future'?'Future 🔮':g2,{onClick:()=>this.setState({wGraph:g2,wSel:null})}))),
-            gt!=='Future'?this.e('div',{key:'chips',display:'flex',gap:8,marginBottom:12,justifyContent:'center'},['W','M','3M','6M','1Y','All'].map(r2=>this.chip(r2,wr===r2,()=>this.setState({weightRange:r2,wSel:null}),{sm:true}))):null,
-            chart,
-            (has||sample)?this.e('div',{key:'stats',display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:0,background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'13px 8px',marginBottom:14,opacity:sample?0.75:1},[[((winChg>0?'+':'')+this.fmt(winChg)),rangeLbl+' change',winChg===0?t.text:((losing?winChg<0:winChg>0)?'#3d6b42':t.heart)],[((perWk>0?'+':'')+this.fmt(perWk)),'per week',t.text],[this.fmt(wMin),'lowest',t.text],[this.fmt(wMax),'highest',t.text]].map(([v,l,col],i)=>this.e('div',{key:l,style:{textAlign:'center',borderRight:i<3?'1px solid '+t.border:'none'}},[this.e('div',{fontSize:15.5,fontWeight:800,color:col||t.text},v),this.e('div',{fontSize:9.5,color:t.muted,marginTop:2},l)]))):null,
+            sample?null:this.e('div',{key:'gtabs',display:'flex',background:t.soft,borderRadius:999,padding:3,marginBottom:10},['Trend','Change','Future'].map(g2=>this.e('button',{key:g2,style:{flex:1,padding:'8px 0',borderRadius:999,border:'none',cursor:'pointer',fontSize:12,fontWeight:800,background:gt===g2?t.ink:'transparent',color:gt===g2?t.inkText:t.muted}},g2==='Future'?'Future 🔮':g2,{onClick:()=>this.setState({wGraph:g2,wSel:null})}))),
+            (gt!=='Future'&&!sample)?this.e('div',{key:'chips',display:'flex',gap:8,marginBottom:12,justifyContent:'center'},['W','M','3M','6M','1Y','All'].map(r2=>this.chip(r2,wr===r2,()=>this.setState({weightRange:r2,wSel:null}),{sm:true}))):null,
+            sample?this.e('div',{key:'chart',style:{padding:'22px 16px',borderRadius:18,border:'2px dashed '+t.border,textAlign:'center',color:t.muted,fontSize:13,lineHeight:1.5,marginBottom:14}},(has?'One weigh-in logged. ':'Log your first weigh-in below. ')+'Your trend, weekly rate and goal forecast appear after two readings.'):chart,
+            (has&&!sample)?this.e('div',{key:'stats',display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:0,background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'13px 8px',marginBottom:14,opacity:sample?0.75:1},[[((winChg>0?'+':'')+this.fmt(winChg)),rangeLbl+' change',winChg===0?t.text:((losing?winChg<0:winChg>0)?'#3d6b42':t.heart)],[((perWk>0?'+':'')+this.fmt(perWk)),'per week',t.text],[this.fmt(wMin),'lowest',t.text],[this.fmt(wMax),'highest',t.text]].map(([v,l,col],i)=>this.e('div',{key:l,style:{textAlign:'center',borderRight:i<3?'1px solid '+t.border:'none'}},[this.e('div',{fontSize:15.5,fontWeight:800,color:col||t.text},v),this.e('div',{fontSize:9.5,color:t.muted,marginTop:2},l)]))):null,
             this.e('div',{key:'goalrow',display:'flex',alignItems:'center',gap:12,background:t.card,border:'1px solid '+t.border,borderRadius:16,padding:'12px 14px',marginBottom:14},[
               this.e('span',{fontSize:13,fontWeight:800,color:t.text,flex:1},'Goal weight'),
               this.e('button',{style:{width:36,height:36,borderRadius:999,border:'1px solid '+t.border,background:t.soft,cursor:'pointer',fontSize:17,color:t.text,lineHeight:1}},'−',{onClick:()=>this.setState({wGoal:Math.max(40,Math.round((((this.state.wGoal!==undefined)?this.state.wGoal:70)-0.5)*10)/10)})}),
@@ -3521,7 +3570,7 @@ class Component extends DCLogic {
               this.e('button',{style:{width:36,height:36,borderRadius:999,border:'1px solid '+t.border,background:t.soft,cursor:'pointer',fontSize:17,color:t.text,lineHeight:1}},'+',{onClick:()=>this.setState({wGoal:Math.min(150,Math.round((((this.state.wGoal!==undefined)?this.state.wGoal:70)+0.5)*10)/10)})})
             ]),
             this.h('Milestones'),
-            ...(()=>{const prog=losing?(start-wlast):(wlast-start);const total=Math.abs(start-wg);const half=total/2;
+            ...(()=>{if(!wlast)return [];const prog=losing?(start-wlast):(wlast-start);const total=Math.abs(start-wg);const half=total/2;
               const fmtK=(v)=>this.fmt(Math.round(v*10)/10)+' kg';
               return [
                 ['Started tracking','Baseline '+fmtK(start)+' · '+(LOGALL.length+((demoOff)?wlogD.length:0))+' check-ins so far',has||wlogD.length>0],
