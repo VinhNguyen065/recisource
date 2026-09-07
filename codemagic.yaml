@@ -162,34 +162,33 @@ workflows:
           # build WITHOUT the extension rather than failing the whole build.
           set +e
           KEY=/tmp/dist_key.pem; OK=0
-          openssl version
-          # 1) the identity is already in the (unlocked) build keychain - try exporting its private key
-          KC=$(security default-keychain 2>/dev/null | tr -d ' "')
-          echo "default keychain: ${KC:-none}"
-          if [ -n "$KC" ]; then
-            security export -k "$KC" -t privKeys -f pkcs12 -P "cmtmp" -o /tmp/ident.p12 2>/tmp/sec.err
-            echo "security export status $? ($(wc -c < /tmp/ident.p12 2>/dev/null || echo 0) bytes)"; head -c 300 /tmp/sec.err
-            if [ -s /tmp/ident.p12 ]; then
-              openssl pkcs12 -in /tmp/ident.p12 -nocerts -nodes -passin pass:cmtmp -out "$KEY" 2>/tmp/ossl.err && [ -s "$KEY" ] && OK=1
-              [ "$OK" = "1" ] || { openssl pkcs12 -legacy -in /tmp/ident.p12 -nocerts -nodes -passin pass:cmtmp -out "$KEY" 2>>/tmp/ossl.err && [ -s "$KEY" ] && OK=1; }
-              [ "$OK" = "1" ] || head -c 300 /tmp/ossl.err
+          P12=$(ls "$HOME/Library/MobileDevice/Certificates/"* 2>/dev/null | head -1)
+          echo "certificate file: ${P12:-none}"
+          if [ -n "$P12" ]; then
+            file "$P12"; head -c 40 "$P12" | od -c | head -3
+            # a) PEM bundle that already contains the private key
+            if grep -q "PRIVATE KEY" "$P12"; then
+              sed -n '/-----BEGIN [A-Z ]*PRIVATE KEY-----/,/-----END [A-Z ]*PRIVATE KEY-----/p' "$P12" > "$KEY"
+              [ -s "$KEY" ] && OK=1
+            fi
+            # b) PKCS12 with an empty/known password
+            if [ "$OK" = "0" ]; then
+              for pw in "" "codemagic" "password"; do
+                openssl pkcs12 -in "$P12" -nocerts -nodes -passin "pass:$pw" -out "$KEY" 2>/dev/null && [ -s "$KEY" ] && OK=1 && break
+                openssl pkcs12 -legacy -in "$P12" -nocerts -nodes -passin "pass:$pw" -out "$KEY" 2>/dev/null && [ -s "$KEY" ] && OK=1 && break
+              done
+            fi
+            # c) DER-encoded PKCS8/RSA key
+            if [ "$OK" = "0" ]; then
+              openssl pkey -inform DER -in "$P12" -out "$KEY" 2>/dev/null && [ -s "$KEY" ] && OK=1
             fi
           fi
-          # 2) the p12 Codemagic saved on disk (may be password protected)
-          P12=$(ls "$HOME/Library/MobileDevice/Certificates/"*.p12 2>/dev/null | head -1)
-          if [ "$OK" = "0" ] && [ -n "$P12" ]; then
-            for pw in "" "codemagic" "password"; do
-              openssl pkcs12 -in "$P12" -nocerts -nodes -passin "pass:$pw" -out "$KEY" 2>/tmp/ossl2.err && [ -s "$KEY" ] && OK=1 && break
-              openssl pkcs12 -legacy -in "$P12" -nocerts -nodes -passin "pass:$pw" -out "$KEY" 2>>/tmp/ossl2.err && [ -s "$KEY" ] && OK=1 && break
-            done
-            [ "$OK" = "1" ] || head -c 300 /tmp/ossl2.err
-          fi
-          echo "certificate key extracted: $OK (p12: ${P12:-none})"
+          echo "certificate key extracted: $OK"
           if [ "$OK" = "1" ]; then
             app-store-connect fetch-signing-files "com.recisource.app.share" --type IOS_APP_STORE --create \
               --certificate-key="@file:$KEY" --profiles-dir "$HOME/Library/MobileDevice/Provisioning Profiles" && OK=2
           fi
-          : > "$KEY"; : > /tmp/ident.p12
+          : > "$KEY"
           if [ "$OK" = "2" ]; then
             set -e
             ruby ios-extras/add_share_extension.rb
