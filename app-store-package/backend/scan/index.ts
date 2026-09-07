@@ -1,4 +1,6 @@
-// 21 backend — Supabase Edge Function (Deno) — v23
+// 21 backend — Supabase Edge Function (Deno) — v24
+// v24: modes "subs" (ingredient substitutions that respect allergens/diet) and "autotag"
+//      (tags, allergens, diet suitability, per-serving nutrition, meal, time) for recipes.
 // v23: several photos per scan (images[] — one meal from different angles, several plates,
 //      or the pages of one recipe), a fast vision model for calorie/label scans, tighter
 //      token budgets, an upstream timeout, and latency logged to scan_debug.resp.
@@ -11,7 +13,7 @@ const RL = new Map<string, { n: number; t: number }>();
 function rateLimited(ip: string, mode: string): boolean {
   const now = Date.now();
   const windowMs = 60_000;
-  const caps: Record<string, number> = { signup: 4, resend: 4, url: 20, text: 20, calories: 30, barcode: 30, recipe: 30, chat: 40, delete_account: 5 };
+  const caps: Record<string, number> = { signup: 4, resend: 4, url: 20, text: 20, calories: 30, barcode: 30, recipe: 30, chat: 40, subs: 30, autotag: 30, delete_account: 5 };
   const cap = caps[mode] ?? 30;
   const key = ip + ':' + mode;
   const cur = RL.get(key);
@@ -22,12 +24,12 @@ function rateLimited(ip: string, mode: string): boolean {
 // Daily AI allowance. Signed-in members get a generous cap keyed by user id; guests a
 // small one keyed by IP. Counted in Postgres so every function instance agrees.
 const AI_CAP_USER = 150, AI_CAP_GUEST = 10;
-const AI_MODES = ['calories', 'barcode', 'recipe', 'url', 'text', 'chat'];
+const AI_MODES = ['calories', 'barcode', 'recipe', 'url', 'text', 'chat', 'subs', 'autotag'];
 // Model per job: the calorie/label scans need a fast, accurate vision model; recipes need the
 // strongest model because Thermomix settings must be exactly right.
-const MODEL: Record<string, string> = { calories: 'claude-sonnet-5', barcode: 'claude-sonnet-5' };
+const MODEL: Record<string, string> = { calories: 'claude-sonnet-5', barcode: 'claude-sonnet-5', subs: 'claude-sonnet-5', autotag: 'claude-sonnet-5' };
 const DEFAULT_MODEL = 'claude-fable-5';
-const MAX_TOKENS: Record<string, number> = { calories: 1200, barcode: 900 };
+const MAX_TOKENS: Record<string, number> = { calories: 1200, barcode: 900, subs: 900, autotag: 700 };
 const UPSTREAM_TIMEOUT_MS = 85_000;
 async function quotaCheck(req: Request, ip: string): Promise<{ ok: boolean; signed: boolean }> {
   const su = Deno.env.get('SUPABASE_URL')!, srk = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, anon = Deno.env.get('SUPABASE_ANON_KEY') || '';
@@ -74,6 +76,8 @@ const SYS: Record<string, string> = {
   url: 'You extract a recipe from web page content (recipe sites, blogs, YouTube/TikTok/Instagram video pages — the recipe is often in the video description or JSON-LD). Return ONLY JSON, no prose: ' + RECIPE_JSON + '. Capture the COMPLETE recipe: include EVERY ingredient with its exact quantity and unit — the main dish AND every sauce, dressing, marinade, spice mix, side dish, garnish and topping. Do not omit, merge, or summarise components. If a sauce or side has its own ingredient list, include all of those too. List up to 30 ingredients. Write the FULL method as clear ordered steps (up to 20), keeping each step complete with its own temperatures, times and quantities; include steps for making any sauces and sides. Adapt method steps to Thermomix style where sensible. Write ALL text in English. If the page content contains no full recipe but a dish IS clearly named (e.g. a video titled after a dish), write a sensible standard recipe for that named dish and add "estimated" to tags. Only if no dish is identifiable at all, return {"error":"no_recipe"}.' + TM_GUIDE,
   text: 'You turn pasted free-form recipe text (any language, any mess) into a structured Thermomix recipe. Return ONLY JSON, no prose: ' + RECIPE_JSON + '. Capture the COMPLETE recipe: include EVERY ingredient with its exact quantity and unit — the main dish AND every sauce, dressing, marinade, spice mix, side dish, garnish and topping. Do not omit, merge, or summarise components. If a sauce or side has its own ingredient list, include all of those too. List up to 30 ingredients. Write the FULL method as clear ordered steps (up to 20), keeping each step complete with its own temperatures, times and quantities; include steps for making any sauces and sides. Write ALL text in English. If the text contains no recipe at all, return {"error":"no_recipe"}.' + TM_GUIDE,
   chat: 'You are the cooking & nutrition assistant inside "21again", a food and wellness app. Answer briefly (2-5 sentences), practically and warmly: recipes, substitutions, techniques, portioning, macros, meal ideas. You provide general wellness information only — no medical diagnosis or treatment advice; suggest a professional for medical questions. Return ONLY JSON: {"reply":string}. Reply in English.',
+  subs: 'You are a practical home-cook assistant. The user is missing one ingredient for a recipe. Suggest 3 substitutions that a normal home kitchen or supermarket would have, best first. Respect every listed allergen and diet constraint absolutely (never suggest an ingredient that contains a listed allergen). Return ONLY JSON: {"swaps":[{"item":string,"swap":string,"ratio":string,"why":string}]} where item is the missing ingredient, swap the replacement, ratio like "1:1" or "use half", why one short sentence on taste/texture. Write in English.',
+  autotag: 'You are a nutrition and recipe cataloguing assistant. Given a recipe (title, ingredients with quantities, steps, servings), return ONLY JSON: {"tags":[string],"diet":[string],"allergens":[string],"kcal_per_serving":int,"p":int,"f":int,"c":int,"meal":string,"time":int}. tags: 2 to 5 from exactly this list: Healthy, Quick, One-pot, Meal prep, Family, Kids, Budget, High-protein, Low-carb, Comfort, Dessert, Soup, Salad, Rice, Pasta, Chicken, Beef, Pork, Lamb, Fish, Seafood, Vegetarian, Vegan, Baking, Breakfast, Snack, Drinks. diet: any of vegetarian, vegan, gluten-free, dairy-free, nut-free, egg-free, low-carb, high-protein that the recipe genuinely satisfies. allergens: any of gluten, dairy, eggs, tree nuts, peanuts, shellfish, soy, sesame, fish present in the ingredients. kcal_per_serving and p/f/c grams per serving, realistic estimates from the quantities divided by servings. meal: one of Breakfast, Lunch, Dinner, Snack. time: total minutes. Write in English.',
   signup: 'internal',
   resend: 'internal',
 };
@@ -117,7 +121,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   let mode = '', imageLen = 0;
   try {
-    const { mode: m2, image, images, url, text: pasted, messages, email, password, access_token } = await req.json();
+    const { mode: m2, image, images, url, text: pasted, messages, email, password, access_token, recipe, missing, diet, avoid } = await req.json();
     mode = m2; imageLen = image ? image.length : 0;
     if (mode !== 'delete_account' && !SYS[mode]) return new Response(JSON.stringify({ error: 'bad request' }), { status: 400, headers: cors });
     const ip = (req.headers.get('x-forwarded-for') || 'anon').split(',')[0].trim();
@@ -235,6 +239,14 @@ Deno.serve(async (req) => {
       }
       userContent = [{ type: 'text', text: extra + pageDigest(html.slice(0, 600000), url) + '\n\nExtract the recipe. JSON only.' }];
       imageLen = html.length;
+    } else if (mode === 'subs' || mode === 'autotag') {
+      const rec = recipe && typeof recipe === 'object' ? recipe : null;
+      if (!rec || !rec.title) return new Response(JSON.stringify({ error: 'bad request' }), { status: 400, headers: cors });
+      const payload: Record<string, unknown> = { recipe: { title: String(rec.title).slice(0, 200), servings: rec.servings || 4, ingredients: (Array.isArray(rec.ingredients) ? rec.ingredients : []).slice(0, 40).map((s: unknown) => String(s).slice(0, 120)), steps: (Array.isArray(rec.steps) ? rec.steps : []).slice(0, 20).map((s: unknown) => String(s).slice(0, 300)) } };
+      if (mode === 'subs') { payload.missing = String(missing || '').slice(0, 80); payload.diet = (Array.isArray(diet) ? diet : []).slice(0, 10).map((s: unknown) => String(s).slice(0, 40)); payload.avoid_allergens = (Array.isArray(avoid) ? avoid : []).slice(0, 12).map((s: unknown) => String(s).slice(0, 40)); if (!payload.missing) return new Response(JSON.stringify({ error: 'bad request' }), { status: 400, headers: cors }); }
+      const txt = JSON.stringify(payload);
+      userContent = [{ type: 'text', text: txt + '\n\nJSON only.' }];
+      imageLen = txt.length;
     } else if (mode === 'text') {
       if (!pasted || !pasted.trim()) return new Response(JSON.stringify({ error: 'bad request' }), { status: 400, headers: cors });
       userContent = [{ type: 'text', text: pasted.slice(0, 20000) + '\n\nExtract the recipe. JSON only.' }];

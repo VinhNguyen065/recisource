@@ -37,7 +37,9 @@ workflows:
       cocoapods: default
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.recisource.app
+        bundle_identifier:
+          - com.recisource.app
+          - com.recisource.app.share
     integrations:
       app_store_connect: APP_STORE_CONNECT
     scripts:
@@ -104,6 +106,13 @@ workflows:
           # Export compliance: the app uses only standard HTTPS/TLS, so TestFlight must not wait for a manual answer.
           /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" "$PLIST"
           /usr/libexec/PlistBuddy -c "Print :ITSAppUsesNonExemptEncryption" "$PLIST"
+          # URL scheme used by the Share Extension (and any "open in 21again" link)
+          /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0 dict" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLName string com.recisource.app" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string twentyone" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Print :CFBundleURLTypes" "$PLIST"
           /usr/libexec/PlistBuddy -c "Print :NSHealthShareUsageDescription" "$PLIST"
       - name: Inject the HealthKit entitlement
         script: |
@@ -147,6 +156,16 @@ workflows:
           VER=$(node -p "require('../../package.json').version")
           agvtool new-marketing-version "$VER" || true
           agvtool new-version -all "$PROJECT_BUILD_NUMBER" || true
+      - name: Add the Share Extension (share links from Facebook, TikTok, YouTube straight into 21again)
+        script: |
+          ruby ios-extras/add_share_extension.rb
+          APLIST="ios/App/App/Info.plist"; EPLIST="ios/App/ShareExtension/Info.plist"
+          V=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APLIST")
+          B=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APLIST")
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $V" "$EPLIST"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $B" "$EPLIST"
+          echo "extension version $V ($B)"
+          ls ios/App/ShareExtension
       - name: Install CocoaPods
         script: |
           cd ios/App && pod install
