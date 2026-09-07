@@ -156,14 +156,39 @@ workflows:
           agvtool new-version -all "$PROJECT_BUILD_NUMBER" || true
       - name: Add the Share Extension (share links from Facebook, TikTok, YouTube straight into 21again)
         script: |
-          ruby ios-extras/add_share_extension.rb
-          APLIST="ios/App/App/Info.plist"; EPLIST="ios/App/ShareExtension/Info.plist"
-          V=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APLIST")
-          B=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APLIST")
-          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $V" "$EPLIST"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $B" "$EPLIST"
-          echo "extension version $V ($B)"
-          ls ios/App/ShareExtension
+          # The automatic signing step only fetches a profile for the main bundle id. Reuse its
+          # distribution certificate (saved as a p12) to create/fetch a profile for the extension's
+          # bundle id via the App Store Connect API, then add the extension target. If anything
+          # in that chain fails, build WITHOUT the extension rather than failing the whole build.
+          set +e
+          P12=$(ls "$HOME/Library/MobileDevice/Certificates/"*.p12 2>/dev/null | head -1)
+          KEY=/tmp/dist_key.pem; OK=0
+          if [ -n "$P12" ]; then
+            for pw in "" "codemagic" "password"; do
+              openssl pkcs12 -in "$P12" -nocerts -nodes -passin "pass:$pw" -out "$KEY" 2>/dev/null && [ -s "$KEY" ] && OK=1 && break
+              openssl pkcs12 -legacy -in "$P12" -nocerts -nodes -passin "pass:$pw" -out "$KEY" 2>/dev/null && [ -s "$KEY" ] && OK=1 && break
+            done
+          fi
+          echo "certificate key extracted: $OK (p12: ${P12:-none})"
+          if [ "$OK" = "1" ]; then
+            app-store-connect fetch-signing-files "com.recisource.app.share" --type IOS_APP_STORE --create \
+              --certificate-key="@file:$KEY" --profiles-dir "$HOME/Library/MobileDevice/Provisioning Profiles" && OK=2
+          fi
+          : > "$KEY"
+          if [ "$OK" = "2" ]; then
+            set -e
+            ruby ios-extras/add_share_extension.rb
+            APLIST="ios/App/App/Info.plist"; EPLIST="ios/App/ShareExtension/Info.plist"
+            V=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APLIST")
+            B=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APLIST")
+            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $V" "$EPLIST"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $B" "$EPLIST"
+            echo "Share Extension added, version $V ($B)"
+            ls "$HOME/Library/MobileDevice/Provisioning Profiles"
+          else
+            echo "WARNING: no provisioning profile for com.recisource.app.share - building WITHOUT the Share Extension this time."
+          fi
+
       - name: Install CocoaPods
         script: |
           cd ios/App && pod install
