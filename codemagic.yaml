@@ -55,6 +55,39 @@ workflows:
           grep -qi "healthkit" ios/App/Podfile \
             || { echo "ERROR: HealthKit pod missing from ios/App/Podfile - check package.json"; exit 1; }
           echo "HealthKit plugin is linked."
+      - name: Patch the HealthKit plugin (sleep stages + period tracking)
+        script: |
+          # The published plugin collapses every sleep sample to "Asleep" and has no
+          # menstrual-flow support. Patch its Swift source in node_modules before the
+          # pods are installed. Every anchor is asserted so a plugin update fails loudly
+          # here instead of silently shipping a build without stages or cycle import.
+          SW="node_modules/@perfood/capacitor-healthkit/ios/Plugin/CapacitorHealthkitPlugin.swift"
+          test -f "$SW" || { echo "ERROR: plugin Swift source not found at $SW"; exit 1; }
+          python3 - "$SW" <<'PY'
+          import io, sys
+          p = sys.argv[1]
+          s = io.open(p, encoding='utf-8').read()
+          def swap(old, new, label):
+              global s
+              n = s.count(old)
+              assert n == 1, 'anchor %s found %d times' % (label, n)
+              s = s.replace(old, new)
+              print('patched: ' + label)
+          swap('let sleepState = (sample.value == HKCategoryValueSleepAnalysis.inBed.rawValue) ? "InBed" : "Asleep"',
+               'let sleepNames = ["InBed", "Asleep", "Awake", "Core", "Deep", "REM"]\n                let sleepState = (sample.value >= 0 && sample.value < sleepNames.count) ? sleepNames[sample.value] : "Asleep"',
+               'sleep stages')
+          swap('        case "stepCount":',
+               '        case "menstrualFlow":\n            return HKObjectType.categoryType(forIdentifier: HKCategoryTypeIdentifier.menstrualFlow)!\n        case "stepCount":',
+               'menstrualFlow sample type')
+          swap('            case "steps":',
+               '            case "cycle":\n                types.insert(HKObjectType.categoryType(forIdentifier: HKCategoryTypeIdentifier.menstrualFlow)!)\n            case "steps":',
+               'cycle permission')
+          swap('            if sampleName == "sleepAnalysis" {',
+               '            if sampleName == "menstrualFlow" {\n                guard let sample = result as? HKCategorySample else {\n                    return nil\n                }\n                let flowNames = ["Unspecified", "Unspecified", "Light", "Medium", "Heavy", "None"]\n                let constructedSample: [String: Any] = [\n                    "uuid": sample.uuid.uuidString,\n                    "startDate": ISO8601DateFormatter().string(from: sample.startDate),\n                    "endDate": ISO8601DateFormatter().string(from: sample.endDate),\n                    "value": sample.value,\n                    "flow": (sample.value >= 0 && sample.value < flowNames.count) ? flowNames[sample.value] : "Unspecified",\n                    "source": sample.sourceRevision.source.name,\n                    "sourceBundleId": sample.sourceRevision.source.bundleIdentifier,\n                    "device": getDeviceInformation(device: sample.device),\n                ]\n                output.append(constructedSample)\n                continue\n            }\n            if sampleName == "sleepAnalysis" {',
+               'menstrualFlow output')
+          io.open(p, 'w', encoding='utf-8').write(s)
+          PY
+          grep -c "sleepNames\|menstrualFlow" "$SW"
       - name: Inject Info.plist usage descriptions (required - prevents launch crash)
         script: |
           PLIST="ios/App/App/Info.plist"

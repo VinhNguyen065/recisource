@@ -1,9 +1,12 @@
-// 21 backend — Supabase Edge Function (Deno) — v22
+// 21 backend — Supabase Edge Function (Deno) — v23
+// v23: several photos per scan (images[] — one meal from different angles, several plates,
+//      or the pages of one recipe), a fast vision model for calorie/label scans, tighter
+//      token budgets, an upstream timeout, and latency logged to scan_debug.resp.
 // v22: database-backed daily AI quotas (per signed-in user, or per IP for guests) via
 //      public.ai_quota_take — survives cold starts and scales horizontally. The v21
 //      in-memory limiter stays as a burst guard.
 // v21: SSRF host blocklist on url mode, sanitized client errors, mode:delete_account.
-// This file mirrors the live deployment (version 27) on project czbetvehfqqfhggqlqfp.
+// This file mirrors the live deployment on project czbetvehfqqfhggqlqfp.
 const RL = new Map<string, { n: number; t: number }>();
 function rateLimited(ip: string, mode: string): boolean {
   const now = Date.now();
@@ -20,6 +23,12 @@ function rateLimited(ip: string, mode: string): boolean {
 // small one keyed by IP. Counted in Postgres so every function instance agrees.
 const AI_CAP_USER = 150, AI_CAP_GUEST = 10;
 const AI_MODES = ['calories', 'barcode', 'recipe', 'url', 'text', 'chat'];
+// Model per job: the calorie/label scans need a fast, accurate vision model; recipes need the
+// strongest model because Thermomix settings must be exactly right.
+const MODEL: Record<string, string> = { calories: 'claude-sonnet-5', barcode: 'claude-sonnet-5' };
+const DEFAULT_MODEL = 'claude-fable-5';
+const MAX_TOKENS: Record<string, number> = { calories: 1200, barcode: 900 };
+const UPSTREAM_TIMEOUT_MS = 85_000;
 async function quotaCheck(req: Request, ip: string): Promise<{ ok: boolean; signed: boolean }> {
   const su = Deno.env.get('SUPABASE_URL')!, srk = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, anon = Deno.env.get('SUPABASE_ANON_KEY') || '';
   let key = 'ip:' + ip, signed = false;
@@ -59,7 +68,7 @@ const RECIPE_JSON ='{"title":string,"description":string,"kcal_per_serving":int,
 // Real, cookable Thermomix (TM5/TM6) settings — appended to every recipe-conversion prompt for accuracy.
 const TM_GUIDE = ' THERMOMIX ACCURACY — for every step fill s.temp, s.time, s.speed with REALISTIC settings a Thermomix can actually do; use "" for a field that does not apply. temp = a real Thermomix temperature in °C: one of 37,50,60,70,80,90,98,100,105,110,120 or "Varoma" (steaming); leave "" for room-temperature mixing/kneading/chopping. speed = "1"–"10" ("1"-"3" gentle stirring/sautéing, "4"-"7" mixing/emulsifying, "8"-"10" blending/pureeing/milling), OR "Reverse 1"/"Reverse 2" for stirring that must NOT chop (soups, chunky sauces, risotto, pasta, stews), OR "Knead" for bread/pizza/pasta dough, OR "Turbo" for short pulses. time = "M:SS" or "X min" / "X sec". Map cooking actions to settings: sauté onion/garlic → 120°C, 3-5 min, speed 1; simmer/reduce a sauce → 98-100°C, speed 1 or "Reverse 1"; chop onion/veg/herbs → speed 5, 3-5 sec; mince/puree/smooth sauce → speed 8-10; whip cream or egg whites → speed 3-4 with the butterfly whisk; knead dough → "Knead", 2 min; steam veg/fish/chicken → "Varoma", 15-30 min, speed 1; cook rice/grains → 100°C, speed 1 (Reverse for whole grains); melt chocolate/butter → 50-60°C, speed 2; grind spices/sugar/nuts/coffee → speed 10, 10-20 sec; grate hard cheese → speed 8, 8-10 sec; make stock/soup then blend → cook 100°C speed 1, then blend speed 8-10. Add a dedicated step "Insert the butterfly whisk" before whipping and "Fit the Varoma / simmering basket" before steaming, and remove the butterfly before blending. For a purely manual action (shaping, chilling, resting, plating, or OVEN baking — a Thermomix cannot bake), leave s = {} and say so in the text (e.g. "Bake in a conventional oven at 200°C for 20 min"). Give a Thermomix cook accurate settings they can dial in without guessing.';
 const SYS: Record<string, string> = {
-  calories: 'You are a nutrition analyst. From the meal photo, identify each food item with estimated portion. Return ONLY JSON: {"items":[{"n":string,"portion":string,"kcal":int,"p":int,"f":int,"c":int}],"confidence":0-100}. Be realistic; round kcal to 5. Write all item names in English. Judge portion size from visible scale cues (plate diameter, cutlery, hands, packaging); when torn between two sizes pick the moderate one and state the assumed weight in portion (e.g. "1 bowl (~350 g)"). Nutrition values must be for ONE typical serving the person would eat, not the whole dish: if the photo shows a multi-serving item (whole cake, whole pizza, family platter), give values per single serving and say so in portion (e.g. "1 slice (1/12 of cake)"). If you see ANY food or drink, list it — only return an empty items array when there is clearly no food in the photo.',
+  calories: 'You are a nutrition analyst. From the meal photo(s), identify each food item with estimated portion. Return ONLY JSON: {"items":[{"n":string,"portion":string,"kcal":int,"p":int,"f":int,"c":int}],"confidence":0-100}. Be realistic; round kcal to 5. Write all item names in English. Judge portion size from visible scale cues (plate diameter, cutlery, hands, packaging); when torn between two sizes pick the moderate one and state the assumed weight in portion (e.g. "1 bowl (~350 g)"). Nutrition values must be for ONE typical serving the person would eat, not the whole dish: if the photo shows a multi-serving item (whole cake, whole pizza, family platter), give values per single serving and say so in portion (e.g. "1 slice (1/12 of cake)"). Name each food specifically (e.g. "grilled chicken thigh", "jasmine rice") rather than generically, and do not invent foods that are not visible. If you see ANY food or drink, list it — only return an empty items array when there is clearly no food in the photo.',
   barcode: 'You identify packaged food from a photo of a barcode, nutrition label, or product package. Name the product (brand + name if visible) and give nutrition for one typical serving — use the printed nutrition label values when visible, otherwise realistic estimates for that product type. Return ONLY JSON: {"items":[{"n":string,"portion":string,"kcal":int,"p":int,"f":int,"c":int}],"confidence":0-100}. Write all text in English. Only return an empty items array if no packaged product is visible.',
   recipe: 'You turn a dish or cookbook-page photo into a structured Thermomix recipe. Return ONLY JSON, no prose: ' + RECIPE_JSON + '. Capture the COMPLETE recipe: include EVERY ingredient with its exact quantity and unit — the main dish AND every sauce, dressing, marinade, spice mix, side dish, garnish and topping. Do not omit, merge, or summarise components. If a sauce or side has its own ingredient list, include all of those too. List up to 30 ingredients. Write the FULL method as clear ordered steps (up to 20), keeping each step complete with its own temperatures, times and quantities; include steps for making any sauces and sides. Write ALL text (title, description, ingredients, steps, tags) in English.' + TM_GUIDE,
   url: 'You extract a recipe from web page content (recipe sites, blogs, YouTube/TikTok/Instagram video pages — the recipe is often in the video description or JSON-LD). Return ONLY JSON, no prose: ' + RECIPE_JSON + '. Capture the COMPLETE recipe: include EVERY ingredient with its exact quantity and unit — the main dish AND every sauce, dressing, marinade, spice mix, side dish, garnish and topping. Do not omit, merge, or summarise components. If a sauce or side has its own ingredient list, include all of those too. List up to 30 ingredients. Write the FULL method as clear ordered steps (up to 20), keeping each step complete with its own temperatures, times and quantities; include steps for making any sauces and sides. Adapt method steps to Thermomix style where sensible. Write ALL text in English. If the page content contains no full recipe but a dish IS clearly named (e.g. a video titled after a dish), write a sensible standard recipe for that named dish and add "estimated" to tags. Only if no dish is identifiable at all, return {"error":"no_recipe"}.' + TM_GUIDE,
@@ -108,7 +117,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   let mode = '', imageLen = 0;
   try {
-    const { mode: m2, image, url, text: pasted, messages, email, password, access_token } = await req.json();
+    const { mode: m2, image, images, url, text: pasted, messages, email, password, access_token } = await req.json();
     mode = m2; imageLen = image ? image.length : 0;
     if (mode !== 'delete_account' && !SYS[mode]) return new Response(JSON.stringify({ error: 'bad request' }), { status: 400, headers: cors });
     const ip = (req.headers.get('x-forwarded-for') || 'anon').split(',')[0].trim();
@@ -180,7 +189,7 @@ Deno.serve(async (req) => {
       const r0 = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'x-api-key': km0 ? km0[0] : raw0.trim(), 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-        body: JSON.stringify({ model: 'claude-fable-5', max_tokens: 700, system: SYS.chat, messages: msgs }),
+        body: JSON.stringify({ model: DEFAULT_MODEL, max_tokens: 700, system: SYS.chat, messages: msgs }),
       });
       const j0 = await r0.json();
       if (j0.error) { await dbg({ mode, err: 'api: ' + JSON.stringify(j0.error).slice(0, 500) }); return new Response(JSON.stringify({ error: j0.error.message }), { status: 502, headers: cors }); }
@@ -191,6 +200,7 @@ Deno.serve(async (req) => {
     }
     let userContent: unknown[];
     let imgUrl = '';
+    let shots = 0;
     if (mode === 'url') {
       if (!url || !/^https?:\/\//i.test(url)) return new Response(JSON.stringify({ error: 'bad url' }), { status: 400, headers: cors });
       try { const uu = new URL(url); if (hostBlocked(uu.hostname)) return new Response(JSON.stringify({ error: 'that link can’t be imported' }), { status: 400, headers: cors }); } catch (_e) { return new Response(JSON.stringify({ error: 'bad url' }), { status: 400, headers: cors }); }
@@ -230,24 +240,48 @@ Deno.serve(async (req) => {
       userContent = [{ type: 'text', text: pasted.slice(0, 20000) + '\n\nExtract the recipe. JSON only.' }];
       imageLen = pasted.length;
     } else {
-      if (!image) return new Response(JSON.stringify({ error: 'bad request' }), { status: 400, headers: cors });
-      userContent = [{ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } }, { type: 'text', text: 'Analyse this photo. JSON only.' }];
+      // One photo, or up to four: the same meal from other angles, several plates eaten together,
+      // or the pages of one recipe. Base64 JPEG, downscaled to 900 px by the client.
+      const list: string[] = (Array.isArray(images) ? images : []).filter((x: unknown) => typeof x === 'string' && x.length > 100).slice(0, 4);
+      if (!list.length && typeof image === 'string' && image.length > 100) list.push(image);
+      if (!list.length) return new Response(JSON.stringify({ error: 'bad request' }), { status: 400, headers: cors });
+      shots = list.length;
+      imageLen = list.reduce((a, s) => a + s.length, 0);
+      const blocks = list.map((data) => ({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data } }));
+      const note = shots > 1
+        ? (mode === 'recipe'
+          ? 'These ' + shots + ' photos are pages or parts of ONE recipe — combine them into a single complete recipe. '
+          : 'These ' + shots + ' photos show one meal from different angles, or several plates eaten together. List every distinct food ONCE with the portion totalled across the photos; never count the same item twice because it appears in two photos. ')
+        : '';
+      userContent = [...blocks, { type: 'text', text: note + 'Analyse ' + (shots > 1 ? 'these photos' : 'this photo') + '. JSON only.' }];
     }
     const raw = Deno.env.get('ANTHROPIC_API_KEY') || '';
     const km = raw.match(/sk-ant-[A-Za-z0-9_\-]+/);
     const key = km ? km[0] : raw.trim();
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-fable-5', max_tokens: 4000, system: SYS[mode], messages: [{ role: 'user', content: userContent }] }),
-    });
+    const model = MODEL[mode] || DEFAULT_MODEL;
+    const started = Date.now();
+    const ac = new AbortController();
+    const at = setTimeout(() => ac.abort(), UPSTREAM_TIMEOUT_MS);
+    let r: Response;
+    try {
+      r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({ model, max_tokens: MAX_TOKENS[mode] || 4000, system: SYS[mode], messages: [{ role: 'user', content: userContent }] }),
+        signal: ac.signal,
+      });
+    } catch (e) {
+      await dbg({ mode, image_len: imageLen, err: 'upstream: ' + String(e).slice(0, 200), resp: 'ms=' + (Date.now() - started) + ' model=' + model + ' n=' + shots });
+      return new Response(JSON.stringify({ error: 'The AI took too long — please try again.' }), { status: 504, headers: cors });
+    } finally { clearTimeout(at); }
     const j = await r.json();
-    if (j.error) { await dbg({ mode, image_len: imageLen, err: 'api: ' + JSON.stringify(j.error).slice(0, 500) }); return new Response(JSON.stringify({ error: 'The AI service is busy — please try again.' }), { status: 502, headers: cors }); }
+    const ms = Date.now() - started;
+    if (j.error) { await dbg({ mode, image_len: imageLen, err: 'api: ' + JSON.stringify(j.error).slice(0, 500), resp: 'ms=' + ms + ' model=' + model }); return new Response(JSON.stringify({ error: 'The AI service is busy — please try again.' }), { status: 502, headers: cors }); }
     const blk = (j.content || []).find((c: { type: string }) => c.type === 'text');
     const text = blk?.text ?? '{}';
-    let parsed; try { parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch (_e) { await dbg({ mode, err: 'parse fail: ' + text.slice(0,200) }); return new Response(JSON.stringify({ error: 'Could not read a result — please try again.' }), { status: 502, headers: cors }); }
+    let parsed; try { parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch (_e) { await dbg({ mode, err: 'parse fail: ' + text.slice(0,200), resp: 'ms=' + ms + ' model=' + model }); return new Response(JSON.stringify({ error: 'Could not read a result — please try again.' }), { status: 502, headers: cors }); }
     if (imgUrl && !parsed.error) { try { const iu = new URL(imgUrl); if (!hostBlocked(iu.hostname) && (iu.protocol === 'http:' || iu.protocol === 'https:')) parsed.image_url = imgUrl; } catch (_e) {} }
-    await dbg({ mode, image_len: imageLen, stop_reason: j.stop_reason });
+    await dbg({ mode, image_len: imageLen, stop_reason: j.stop_reason, resp: 'ms=' + ms + ' model=' + model + ' n=' + shots + ' items=' + (Array.isArray(parsed.items) ? parsed.items.length : '-') });
     return new Response(JSON.stringify(parsed), { headers: { ...cors, 'content-type': 'application/json' } });
   } catch (e) {
     await dbg({ mode, image_len: imageLen, err: String(e).slice(0, 500) });
