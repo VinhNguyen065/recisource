@@ -722,7 +722,7 @@ class Component extends DCLogic {
   cancelHR=()=>{try{clearInterval(this._hrIv);}catch(e){}this.setState({hrMeas:null,hrResult:null,hrWave:[]});};
 
   // ---- Accounts & cloud sync (Supabase Auth + user_state table, RLS-isolated) ----
-  VERSION='20260908.0035';
+  VERSION='20260908.0109';
   checkUpdate=async()=>{try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();
     if(j&&j.v&&this.VERSION!=='__BUILD'+'_TS__'&&j.v!==this.VERSION){
       if(!this.state.lsOn){this.showToast('Updating to the latest version…');setTimeout(()=>{try{location.replace(location.pathname+'?v='+encodeURIComponent(j.v));}catch(e){location.reload();}},900);}
@@ -730,7 +730,7 @@ class Component extends DCLogic {
     }}catch(e){}};
   AUTH_URL='https://czbetvehfqqfhggqlqfp.supabase.co/auth/v1';
   REST_URL='https://czbetvehfqqfhggqlqfp.supabase.co/rest/v1';
-  SYNC_KEYS=['favs','water','servings','curW','noteBy','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog','planFilter','planTier','hhMembers','myTpls','wlogD','wDemoOff','autoSteps','demo','following','likes','cookCount','aisleOrd','grocCombine','grocStaples','grocLayout','reminders','remFired','remAck','checkins','moodLog','checkinBest','freezes','frozen','recSort','cookAt','grocGroup','theme','routes','commSaved','commMine','commHidden','lang','onb','restHr','restHrSrc','restEnergy','activeEnergy','sleepLast','hkDev','hkExtra','restHrLog','hkDaily','cycleLog','cycleSym','cycleOn','tagOv','badges','storyNotif'];
+  SYNC_KEYS=['favs','water','servings','curW','noteBy','diet','plan','unit','aiPrefs','gchecked','wextra','dlog','dhide','hr','sleepH','sleepM','stepsToday','stepGoal','sleepLog','stepsLog','bpLog','wGoal','conds','meds','notif','appearance','ahealth','records','gExtra','userName','scanRec','recipeLive','planX','myRecs','kcalGoal','wlog','hrLog','totSteps','totMins','totKcalBurn','stepsHist','stepsDate','waterDate','gItems','chatLog','planFilter','planTier','hhMembers','myTpls','wlogD','wDemoOff','autoSteps','demo','following','likes','cookCount','aisleOrd','grocCombine','grocStaples','grocLayout','reminders','remFired','remAck','checkins','moodLog','checkinBest','freezes','frozen','recSort','cookAt','grocGroup','theme','routes','commSaved','commMine','commHidden','lang','onb','restHr','restHrSrc','restEnergy','activeEnergy','sleepLast','hkDev','hkExtra','restHrLog','hkDaily','cycleLog','cycleSym','cycleOn','tagOv','badges','storyNotif','cuisines'];
   snapshotState=()=>{const S=this.state;const o={_ts:Date.now()};this.SYNC_KEYS.forEach(k=>{o[k]=S[k];});return o;};
   loadSess=()=>{try{return JSON.parse(localStorage.getItem('recisource_auth')||'null');}catch(e){return null;}};
   saveSess=(s)=>{try{if(s)localStorage.setItem('recisource_auth',JSON.stringify(s));else localStorage.removeItem('recisource_auth');}catch(e){}};
@@ -1083,7 +1083,7 @@ class Component extends DCLogic {
     return this.RECIPES.filter(r=>r.id!==999).map(r=>{const ings=this.recIng(r).map(g=>String(g.item||'').toLowerCase());const n=have.filter(h=>ings.some(i=>i.indexOf(h)>=0||h.indexOf(i.split(',')[0])>=0)).length;return {r,n};}).filter(x=>x.n>0).sort((a,b)=>b.n-a.n||a.r.time-b.r.time).slice(0,4);};
   aiGenerate=()=>{const have=(this.state.aiHave||[]);if(!have.length){this.showToast('Add a few ingredients first');return;}
     const prefs=Object.keys(this.state.aiPrefs||{}).filter(k=>this.state.aiPrefs[k]&&k.indexOf('no-')!==0);const avoid=Object.keys(this.state.aiPrefs||{}).filter(k=>this.state.aiPrefs[k]&&k.indexOf('no-')===0).map(k=>k.slice(3));
-    const prompt='Create one healthy, family-friendly Thermomix recipe that uses mainly these ingredients I already have: '+have.join(', ')+'. Common pantry staples (oil, salt, pepper, stock, basic spices) are fine. Preferences: '+(prefs.length?prefs.join(', '):'none')+'. Must avoid: '+(avoid.length?avoid.join(', '):'nothing')+'. Give it an appealing title, realistic per-serving calories, exact quantities for 4 servings, and full Thermomix settings for every step.';
+    const prompt='Create one healthy, family-friendly Thermomix recipe that uses mainly these ingredients I already have: '+have.join(', ')+'. Common pantry staples (oil, salt, pepper, stock, basic spices) are fine. Preferences: '+(prefs.length?prefs.join(', '):'none')+(Object.keys(this.state.cuisines||{}).length?(' (favourite cuisines: '+Object.keys(this.state.cuisines).join(', ')+')'):'')+'. Must avoid: '+(avoid.length?avoid.join(', '):'nothing')+'. Give it an appealing title, realistic per-serving calories, exact quantities for 4 servings, and full Thermomix settings for every step.';
     this.runImport('text',prompt);};
   // --- Cycle tracking: period days logged by hand or imported from Apple Health; predictions are plain averages of the user's own cycles ---
   fmtDk=(k)=>new Date(k+'T12:00:00').toLocaleDateString('en',{weekday:'short',day:'numeric',month:'short'});
@@ -2475,7 +2475,7 @@ class Component extends DCLogic {
         this.h('Minimum rating'),
         this.e('div',{key:'r',display:'flex',gap:8},[[4.5,'4.5\u2605'],[4.0,'4.0\u2605'],[0,'Any']].map(([v,l])=>this.chip(l,f.minRating===v,()=>this.setState({filters:{...f,minRating:v}}),{sm:true}))),
         this.h('Cuisine'),
-        this.e('div',{key:'c',display:'flex',flexWrap:'wrap',gap:8},['Mediterranean','Asian','Mexican','Indian','Middle Eastern'].map(c=>this.chip(c,false,()=>{},{sm:true})))
+        this.e('div',{key:'c',display:'flex',flexWrap:'wrap',gap:8},['Mediterranean','Asian','Mexican','Indian','Middle Eastern'].map(c=>this.chip(c,!!(S.cuisines||{})[c],()=>{const cu={...(this.state.cuisines||{})};if(cu[c])delete cu[c];else cu[c]=true;this.setState({cuisines:cu});this.showToast(Object.keys(cu).length?('The AI chef will favour '+Object.keys(cu).join(', ')):'No cuisine preference');},{sm:true})))
       ],{footer:this.e('div',{style:{display:'flex',gap:10,paddingTop:14,marginTop:4,borderTop:'1px solid '+t.border}},[this.btn('Reset',this.resetF,{variant:'secondary'}),this.btn('Show '+count+' recipe'+(count===1?'':'s'),this.back)])});}
 
       case 'aiGenerator': {const have=S.aiHave||[];const sugg=this.aiSuggest();return this.e('div',{flex:1,minHeight:0,display:'flex',flexDirection:'column'},[
