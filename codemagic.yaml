@@ -37,9 +37,7 @@ workflows:
       cocoapods: default
       ios_signing:
         distribution_type: app_store
-        bundle_identifier:
-          - com.recisource.app
-          - com.recisource.app.share
+        bundle_identifier: com.recisource.app
     integrations:
       app_store_connect: APP_STORE_CONNECT
     scripts:
