@@ -1,4 +1,8 @@
-// 21 backend — Supabase Edge Function (Deno) — v25
+// 21 backend — Supabase Edge Function (Deno) — v26
+// v26: mode "foodtext" (typed or spoken description → items); barcode mode reads the EAN and looks the
+//      product up on Open Food Facts (no key) or accepts a typed EAN with no photo; USDA lookup falls back
+//      to DEMO_KEY when USDA_API_KEY is unset and also returns fibre, sugar and sodium; database-matched
+//      items carry verified:true and src.
 // v25: calorie scans return grams and a per-item confidence; every scan item is checked against the
 //      Atwater identity (4p+9f+4c ≈ kcal) server-side; optional USDA FoodData Central lookup when
 //      USDA_API_KEY is set (off otherwise) replaces model guesses with database values.
@@ -16,7 +20,7 @@ const RL = new Map<string, { n: number; t: number }>();
 function rateLimited(ip: string, mode: string): boolean {
   const now = Date.now();
   const windowMs = 60_000;
-  const caps: Record<string, number> = { signup: 4, resend: 4, url: 20, text: 20, calories: 30, barcode: 30, recipe: 30, chat: 40, subs: 30, autotag: 30, delete_account: 5 };
+  const caps: Record<string, number> = { signup: 4, resend: 4, url: 20, text: 20, calories: 30, barcode: 30, foodtext: 30, recipe: 30, chat: 40, subs: 30, autotag: 30, delete_account: 5 };
   const cap = caps[mode] ?? 30;
   const key = ip + ':' + mode;
   const cur = RL.get(key);
@@ -27,12 +31,12 @@ function rateLimited(ip: string, mode: string): boolean {
 // Daily AI allowance. Signed-in members get a generous cap keyed by user id; guests a
 // small one keyed by IP. Counted in Postgres so every function instance agrees.
 const AI_CAP_USER = 150, AI_CAP_GUEST = 10;
-const AI_MODES = ['calories', 'barcode', 'recipe', 'url', 'text', 'chat', 'subs', 'autotag'];
+const AI_MODES = ['calories', 'barcode', 'foodtext', 'recipe', 'url', 'text', 'chat', 'subs', 'autotag'];
 // Model per job: the calorie/label scans need a fast, accurate vision model; recipes need the
 // strongest model because Thermomix settings must be exactly right.
-const MODEL: Record<string, string> = { calories: 'claude-sonnet-5', barcode: 'claude-sonnet-5', subs: 'claude-sonnet-5', autotag: 'claude-sonnet-5' };
+const MODEL: Record<string, string> = { calories: 'claude-sonnet-5', barcode: 'claude-sonnet-5', foodtext: 'claude-sonnet-5', subs: 'claude-sonnet-5', autotag: 'claude-sonnet-5' };
 const DEFAULT_MODEL = 'claude-fable-5';
-const MAX_TOKENS: Record<string, number> = { calories: 1200, barcode: 900, subs: 900, autotag: 700 };
+const MAX_TOKENS: Record<string, number> = { calories: 1200, barcode: 900, foodtext: 900, subs: 900, autotag: 700 };
 const UPSTREAM_TIMEOUT_MS = 85_000;
 async function quotaCheck(req: Request, ip: string): Promise<{ ok: boolean; signed: boolean }> {
   const su = Deno.env.get('SUPABASE_URL')!, srk = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, anon = Deno.env.get('SUPABASE_ANON_KEY') || '';
@@ -74,7 +78,8 @@ const RECIPE_JSON ='{"title":string,"description":string,"kcal_per_serving":int,
 const TM_GUIDE = ' THERMOMIX ACCURACY — for every step fill s.temp, s.time, s.speed with REALISTIC settings a Thermomix can actually do; use "" for a field that does not apply. temp = a real Thermomix temperature in °C: one of 37,50,60,70,80,90,98,100,105,110,120 or "Varoma" (steaming); leave "" for room-temperature mixing/kneading/chopping. speed = "1"–"10" ("1"-"3" gentle stirring/sautéing, "4"-"7" mixing/emulsifying, "8"-"10" blending/pureeing/milling), OR "Reverse 1"/"Reverse 2" for stirring that must NOT chop (soups, chunky sauces, risotto, pasta, stews), OR "Knead" for bread/pizza/pasta dough, OR "Turbo" for short pulses. time = "M:SS" or "X min" / "X sec". Map cooking actions to settings: sauté onion/garlic → 120°C, 3-5 min, speed 1; simmer/reduce a sauce → 98-100°C, speed 1 or "Reverse 1"; chop onion/veg/herbs → speed 5, 3-5 sec; mince/puree/smooth sauce → speed 8-10; whip cream or egg whites → speed 3-4 with the butterfly whisk; knead dough → "Knead", 2 min; steam veg/fish/chicken → "Varoma", 15-30 min, speed 1; cook rice/grains → 100°C, speed 1 (Reverse for whole grains); melt chocolate/butter → 50-60°C, speed 2; grind spices/sugar/nuts/coffee → speed 10, 10-20 sec; grate hard cheese → speed 8, 8-10 sec; make stock/soup then blend → cook 100°C speed 1, then blend speed 8-10. Add a dedicated step "Insert the butterfly whisk" before whipping and "Fit the Varoma / simmering basket" before steaming, and remove the butterfly before blending. For a purely manual action (shaping, chilling, resting, plating, or OVEN baking — a Thermomix cannot bake), leave s = {} and say so in the text (e.g. "Bake in a conventional oven at 200°C for 20 min"). Give a Thermomix cook accurate settings they can dial in without guessing.';
 const SYS: Record<string, string> = {
   calories: 'You are a nutrition analyst. From the meal photo(s), identify each food item with estimated portion. Return ONLY JSON: {"items":[{"n":string,"portion":string,"g":int,"kcal":int,"p":int,"f":int,"c":int,"conf":0-100}],"confidence":0-100}. g = estimated edible weight of that item in grams; conf = how sure you are of BOTH the identification and the portion (under 60 when the portion is hidden, stacked, sauced or partly out of frame). Make kcal consistent with the macros: kcal should be close to 4×p + 9×f + 4×c. Be realistic; round kcal to 5. Write all item names in English. Judge portion size from visible scale cues (plate diameter, cutlery, hands, packaging); when torn between two sizes pick the moderate one and state the assumed weight in portion (e.g. "1 bowl (~350 g)"). Nutrition values must be for ONE typical serving the person would eat, not the whole dish: if the photo shows a multi-serving item (whole cake, whole pizza, family platter), give values per single serving and say so in portion (e.g. "1 slice (1/12 of cake)"). Name each food specifically (e.g. "grilled chicken thigh", "jasmine rice") rather than generically, and do not invent foods that are not visible. If you see ANY food or drink, list it — only return an empty items array when there is clearly no food in the photo.',
-  barcode: 'You identify packaged food from a photo of a barcode, nutrition label, or product package. Name the product (brand + name if visible) and give nutrition for one typical serving — use the printed nutrition label values when visible, otherwise realistic estimates for that product type. Return ONLY JSON: {"items":[{"n":string,"portion":string,"kcal":int,"p":int,"f":int,"c":int}],"confidence":0-100}. Write all text in English. Only return an empty items array if no packaged product is visible.',
+  barcode: 'You identify packaged food from a photo of a barcode, nutrition label, or product package. Name the product (brand + name if visible) and give nutrition for one typical serving — use the printed nutrition label values when visible, otherwise realistic estimates for that product type. Return ONLY JSON: {"items":[{"n":string,"portion":string,"g":int,"kcal":int,"p":int,"f":int,"c":int,"conf":0-100}],"ean":string,"confidence":0-100}. ean = the barcode digits (EAN-13, EAN-8 or UPC) exactly as printed under the bars when legible, otherwise "". g = grams in one serving. Write all text in English. Only return an empty items array if no packaged product is visible.',
+  foodtext: 'You turn a short description of what someone ate — typed or spoken, any language — into food items with realistic portions. Return ONLY JSON: {"items":[{"n":string,"portion":string,"g":int,"kcal":int,"p":int,"f":int,"c":int,"conf":0-100}],"confidence":0-100}. Use the quantities the person gives; when a quantity is missing assume one typical serving and say so in portion. Make kcal consistent with the macros (close to 4×p + 9×f + 4×c). Write item names in English. Return an empty items array only if the text contains no food or drink at all.',
   recipe: 'You turn a dish or cookbook-page photo into a structured Thermomix recipe. Return ONLY JSON, no prose: ' + RECIPE_JSON + '. Capture the COMPLETE recipe: include EVERY ingredient with its exact quantity and unit — the main dish AND every sauce, dressing, marinade, spice mix, side dish, garnish and topping. Do not omit, merge, or summarise components. If a sauce or side has its own ingredient list, include all of those too. List up to 30 ingredients. Write the FULL method as clear ordered steps (up to 20), keeping each step complete with its own temperatures, times and quantities; include steps for making any sauces and sides. Write ALL text (title, description, ingredients, steps, tags) in English.' + TM_GUIDE,
   url: 'You extract a recipe from web page content (recipe sites, blogs, YouTube/TikTok/Instagram video pages — the recipe is often in the video description or JSON-LD). Return ONLY JSON, no prose: ' + RECIPE_JSON + '. Capture the COMPLETE recipe: include EVERY ingredient with its exact quantity and unit — the main dish AND every sauce, dressing, marinade, spice mix, side dish, garnish and topping. Do not omit, merge, or summarise components. If a sauce or side has its own ingredient list, include all of those too. List up to 30 ingredients. Write the FULL method as clear ordered steps (up to 20), keeping each step complete with its own temperatures, times and quantities; include steps for making any sauces and sides. Adapt method steps to Thermomix style where sensible. Write ALL text in English. If the page content contains no full recipe but a dish IS clearly named (e.g. a video titled after a dish), write a sensible standard recipe for that named dish and add "estimated" to tags. Only if no dish is identifiable at all, return {"error":"no_recipe"}.' + TM_GUIDE,
   text: 'You turn pasted free-form recipe text (any language, any mess) into a structured Thermomix recipe. Return ONLY JSON, no prose: ' + RECIPE_JSON + '. Capture the COMPLETE recipe: include EVERY ingredient with its exact quantity and unit — the main dish AND every sauce, dressing, marinade, spice mix, side dish, garnish and topping. Do not omit, merge, or summarise components. If a sauce or side has its own ingredient list, include all of those too. List up to 30 ingredients. Write the FULL method as clear ordered steps (up to 20), keeping each step complete with its own temperatures, times and quantities; include steps for making any sauces and sides. Write ALL text in English. If the text contains no recipe at all, return {"error":"no_recipe"}.' + TM_GUIDE,
@@ -98,10 +103,24 @@ async function usdaEnrich(items: Record<string, unknown>[], key: string): Promis
       const nv = (id: number) => { const n = food.foodNutrients.find((x: { nutrientId: number }) => x.nutrientId === id); return n ? Number(n.value) || 0 : 0; };
       const kc = nv(1008), p = nv(1003), fa = nv(1004), c = nv(1005); if (!kc && !p && !fa && !c) return it;
       const s = g / 100;
-      return { ...it, kcal: Math.max(5, Math.round(kc * s / 5) * 5), p: Math.round(p * s), f: Math.round(fa * s), c: Math.round(c * s), src: 'usda', usda: String(food.description || '').slice(0, 80) };
+      return { ...it, kcal: Math.max(5, Math.round(kc * s / 5) * 5), p: Math.round(p * s), f: Math.round(fa * s), c: Math.round(c * s), fib: Math.round(nv(1079) * s), sug: Math.round(nv(2000) * s), sod: Math.round(nv(1093) * s), verified: true, src: 'usda', usda: String(food.description || '').slice(0, 80) };
     } catch (_e) { return it; } finally { clearTimeout(tm); }
   };
   return await Promise.all(items.slice(0, 8).map(one)).then(a => a.concat(items.slice(8)));
+}
+// Open Food Facts product lookup (no key). Nutrition per serving when the label has one, else per the estimated grams.
+async function offLookup(ean: string, grams: number): Promise<Record<string, unknown> | null> {
+  const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 4000);
+  try {
+    const r = await fetch('https://world.openfoodfacts.org/api/v2/product/' + encodeURIComponent(ean) + '.json?fields=product_name,brands,serving_size,serving_quantity,nutriments', { signal: ctl.signal, headers: { 'user-agent': '21again/1.1 (contact: www.vinhnguyen@gmail.com)' } });
+    if (!r.ok) return null;
+    const j = await r.json(); const p = j && j.product; if (!p || !p.nutriments) return null;
+    const nm = p.nutriments; const per100 = (k: string) => Number(nm[k + '_100g']) || 0;
+    const kc100 = per100('energy-kcal') || (per100('energy') / 4.184); if (!kc100 && !per100('proteins') && !per100('fat') && !per100('carbohydrates')) return null;
+    const serve = Number(p.serving_quantity) || grams || 100; const s = serve / 100;
+    const name = [p.brands ? String(p.brands).split(',')[0].trim() : '', p.product_name || ''].filter(Boolean).join(' ').slice(0, 80) || ('Product ' + ean);
+    return { n: name, portion: p.serving_size ? String(p.serving_size).slice(0, 40) : (Math.round(serve) + ' g'), g: Math.round(serve), kcal: Math.max(5, Math.round(kc100 * s / 5) * 5), p: Math.round(per100('proteins') * s), f: Math.round(per100('fat') * s), c: Math.round(per100('carbohydrates') * s), fib: Math.round(per100('fiber') * s), sug: Math.round(per100('sugars') * s), sod: Math.round(per100('sodium') * s * 1000), conf: 95, verified: true, src: 'off', ean };
+  } catch (_e) { return null; } finally { clearTimeout(tm); }
 }
 async function dbg(row: Record<string, unknown>) {
   try {
@@ -143,7 +162,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   let mode = '', imageLen = 0;
   try {
-    const { mode: m2, image, images, url, text: pasted, messages, email, password, access_token, recipe, missing, diet, avoid } = await req.json();
+    const { mode: m2, image, images, url, text: pasted, messages, email, password, access_token, recipe, missing, diet, avoid, ean } = await req.json();
     mode = m2; imageLen = image ? image.length : 0;
     if (mode !== 'delete_account' && !SYS[mode]) return new Response(JSON.stringify({ error: 'bad request' }), { status: 400, headers: cors });
     const ip = (req.headers.get('x-forwarded-for') || 'anon').split(',')[0].trim();
@@ -269,10 +288,20 @@ Deno.serve(async (req) => {
       const txt = JSON.stringify(payload);
       userContent = [{ type: 'text', text: txt + '\n\nJSON only.' }];
       imageLen = txt.length;
+    } else if (mode === 'foodtext') {
+      if (!pasted || !String(pasted).trim()) return new Response(JSON.stringify({ error: 'bad request' }), { status: 400, headers: cors });
+      userContent = [{ type: 'text', text: 'What I ate: ' + String(pasted).slice(0, 600) + '\n\nJSON only.' }];
+      imageLen = String(pasted).length;
     } else if (mode === 'text') {
       if (!pasted || !pasted.trim()) return new Response(JSON.stringify({ error: 'bad request' }), { status: 400, headers: cors });
       userContent = [{ type: 'text', text: pasted.slice(0, 20000) + '\n\nExtract the recipe. JSON only.' }];
       imageLen = pasted.length;
+    } else if (mode === 'barcode' && typeof ean === 'string' && /^\d{8,14}$/.test(ean) && !image && !(Array.isArray(images) && images.length)) {
+      // Typed barcode: no AI call, straight to Open Food Facts.
+      const it = await offLookup(ean, 0);
+      if (!it) return new Response(JSON.stringify({ error: 'That barcode is not in Open Food Facts yet — scan the label instead.' }), { status: 404, headers: cors });
+      await dbg({ mode, resp: 'off ean=' + ean });
+      return new Response(JSON.stringify({ items: [it], ean, confidence: 100 }), { headers: { ...cors, 'content-type': 'application/json' } });
     } else {
       // One photo, or up to four: the same meal from other angles, several plates eaten together,
       // or the pages of one recipe. Base64 JPEG, downscaled to 900 px by the client.
@@ -314,11 +343,12 @@ Deno.serve(async (req) => {
     const blk = (j.content || []).find((c: { type: string }) => c.type === 'text');
     const text = blk?.text ?? '{}';
     let parsed; try { parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch (_e) { await dbg({ mode, err: 'parse fail: ' + text.slice(0,200), resp: 'ms=' + ms + ' model=' + model }); return new Response(JSON.stringify({ error: 'Could not read a result — please try again.' }), { status: 502, headers: cors }); }
-    if ((mode === 'calories' || mode === 'barcode') && Array.isArray(parsed.items)) {
+    if ((mode === 'calories' || mode === 'barcode' || mode === 'foodtext') && Array.isArray(parsed.items)) {
       // Atwater check: 4 kcal/g protein & carbohydrate, 9 kcal/g fat. Outside 15 % the calories are rebuilt from the macros.
       parsed.items = parsed.items.slice(0, 12).map((it: Record<string, unknown>) => { const p = Number(it.p) || 0, fa = Number(it.f) || 0, c = Number(it.c) || 0, k = Number(it.kcal) || 0; const est = 4 * p + 9 * fa + 4 * c; if (k > 0 && est > 0 && Math.abs(est - k) / k > 0.15) return { ...it, kcal: Math.max(5, Math.round(est / 5) * 5), kcal0: k, checked: true }; return it; });
-      const usdaKey = Deno.env.get('USDA_API_KEY') || '';
-      if (usdaKey && mode === 'calories') parsed.items = await usdaEnrich(parsed.items as Record<string, unknown>[], usdaKey);
+      if (mode === 'barcode' && typeof parsed.ean === 'string' && /^\d{8,14}$/.test(parsed.ean) && parsed.items.length) { const it = await offLookup(parsed.ean, Number(parsed.items[0].g) || 0); if (it) parsed.items = [it].concat(parsed.items.slice(1)); }
+      const usdaKey = Deno.env.get('USDA_API_KEY') || 'DEMO_KEY';
+      if (mode === 'calories' || mode === 'foodtext') parsed.items = await usdaEnrich(parsed.items as Record<string, unknown>[], usdaKey);
     }
     if (imgUrl && !parsed.error) { try { const iu = new URL(imgUrl); if (!hostBlocked(iu.hostname) && (iu.protocol === 'http:' || iu.protocol === 'https:')) parsed.image_url = imgUrl; } catch (_e) {} }
     await dbg({ mode, image_len: imageLen, stop_reason: j.stop_reason, resp: 'ms=' + ms + ' model=' + model + ' n=' + shots + ' items=' + (Array.isArray(parsed.items) ? parsed.items.length : '-') });
