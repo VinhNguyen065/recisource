@@ -1,4 +1,7 @@
-// 21 backend — Supabase Edge Function (Deno) — v24
+// 21 backend — Supabase Edge Function (Deno) — v25
+// v25: calorie scans return grams and a per-item confidence; every scan item is checked against the
+//      Atwater identity (4p+9f+4c ≈ kcal) server-side; optional USDA FoodData Central lookup when
+//      USDA_API_KEY is set (off otherwise) replaces model guesses with database values.
 // v24: modes "subs" (ingredient substitutions that respect allergens/diet) and "autotag"
 //      (tags, allergens, diet suitability, per-serving nutrition, meal, time) for recipes.
 // v23: several photos per scan (images[] — one meal from different angles, several plates,
@@ -70,7 +73,7 @@ const RECIPE_JSON ='{"title":string,"description":string,"kcal_per_serving":int,
 // Real, cookable Thermomix (TM5/TM6) settings — appended to every recipe-conversion prompt for accuracy.
 const TM_GUIDE = ' THERMOMIX ACCURACY — for every step fill s.temp, s.time, s.speed with REALISTIC settings a Thermomix can actually do; use "" for a field that does not apply. temp = a real Thermomix temperature in °C: one of 37,50,60,70,80,90,98,100,105,110,120 or "Varoma" (steaming); leave "" for room-temperature mixing/kneading/chopping. speed = "1"–"10" ("1"-"3" gentle stirring/sautéing, "4"-"7" mixing/emulsifying, "8"-"10" blending/pureeing/milling), OR "Reverse 1"/"Reverse 2" for stirring that must NOT chop (soups, chunky sauces, risotto, pasta, stews), OR "Knead" for bread/pizza/pasta dough, OR "Turbo" for short pulses. time = "M:SS" or "X min" / "X sec". Map cooking actions to settings: sauté onion/garlic → 120°C, 3-5 min, speed 1; simmer/reduce a sauce → 98-100°C, speed 1 or "Reverse 1"; chop onion/veg/herbs → speed 5, 3-5 sec; mince/puree/smooth sauce → speed 8-10; whip cream or egg whites → speed 3-4 with the butterfly whisk; knead dough → "Knead", 2 min; steam veg/fish/chicken → "Varoma", 15-30 min, speed 1; cook rice/grains → 100°C, speed 1 (Reverse for whole grains); melt chocolate/butter → 50-60°C, speed 2; grind spices/sugar/nuts/coffee → speed 10, 10-20 sec; grate hard cheese → speed 8, 8-10 sec; make stock/soup then blend → cook 100°C speed 1, then blend speed 8-10. Add a dedicated step "Insert the butterfly whisk" before whipping and "Fit the Varoma / simmering basket" before steaming, and remove the butterfly before blending. For a purely manual action (shaping, chilling, resting, plating, or OVEN baking — a Thermomix cannot bake), leave s = {} and say so in the text (e.g. "Bake in a conventional oven at 200°C for 20 min"). Give a Thermomix cook accurate settings they can dial in without guessing.';
 const SYS: Record<string, string> = {
-  calories: 'You are a nutrition analyst. From the meal photo(s), identify each food item with estimated portion. Return ONLY JSON: {"items":[{"n":string,"portion":string,"kcal":int,"p":int,"f":int,"c":int}],"confidence":0-100}. Be realistic; round kcal to 5. Write all item names in English. Judge portion size from visible scale cues (plate diameter, cutlery, hands, packaging); when torn between two sizes pick the moderate one and state the assumed weight in portion (e.g. "1 bowl (~350 g)"). Nutrition values must be for ONE typical serving the person would eat, not the whole dish: if the photo shows a multi-serving item (whole cake, whole pizza, family platter), give values per single serving and say so in portion (e.g. "1 slice (1/12 of cake)"). Name each food specifically (e.g. "grilled chicken thigh", "jasmine rice") rather than generically, and do not invent foods that are not visible. If you see ANY food or drink, list it — only return an empty items array when there is clearly no food in the photo.',
+  calories: 'You are a nutrition analyst. From the meal photo(s), identify each food item with estimated portion. Return ONLY JSON: {"items":[{"n":string,"portion":string,"g":int,"kcal":int,"p":int,"f":int,"c":int,"conf":0-100}],"confidence":0-100}. g = estimated edible weight of that item in grams; conf = how sure you are of BOTH the identification and the portion (under 60 when the portion is hidden, stacked, sauced or partly out of frame). Make kcal consistent with the macros: kcal should be close to 4×p + 9×f + 4×c. Be realistic; round kcal to 5. Write all item names in English. Judge portion size from visible scale cues (plate diameter, cutlery, hands, packaging); when torn between two sizes pick the moderate one and state the assumed weight in portion (e.g. "1 bowl (~350 g)"). Nutrition values must be for ONE typical serving the person would eat, not the whole dish: if the photo shows a multi-serving item (whole cake, whole pizza, family platter), give values per single serving and say so in portion (e.g. "1 slice (1/12 of cake)"). Name each food specifically (e.g. "grilled chicken thigh", "jasmine rice") rather than generically, and do not invent foods that are not visible. If you see ANY food or drink, list it — only return an empty items array when there is clearly no food in the photo.',
   barcode: 'You identify packaged food from a photo of a barcode, nutrition label, or product package. Name the product (brand + name if visible) and give nutrition for one typical serving — use the printed nutrition label values when visible, otherwise realistic estimates for that product type. Return ONLY JSON: {"items":[{"n":string,"portion":string,"kcal":int,"p":int,"f":int,"c":int}],"confidence":0-100}. Write all text in English. Only return an empty items array if no packaged product is visible.',
   recipe: 'You turn a dish or cookbook-page photo into a structured Thermomix recipe. Return ONLY JSON, no prose: ' + RECIPE_JSON + '. Capture the COMPLETE recipe: include EVERY ingredient with its exact quantity and unit — the main dish AND every sauce, dressing, marinade, spice mix, side dish, garnish and topping. Do not omit, merge, or summarise components. If a sauce or side has its own ingredient list, include all of those too. List up to 30 ingredients. Write the FULL method as clear ordered steps (up to 20), keeping each step complete with its own temperatures, times and quantities; include steps for making any sauces and sides. Write ALL text (title, description, ingredients, steps, tags) in English.' + TM_GUIDE,
   url: 'You extract a recipe from web page content (recipe sites, blogs, YouTube/TikTok/Instagram video pages — the recipe is often in the video description or JSON-LD). Return ONLY JSON, no prose: ' + RECIPE_JSON + '. Capture the COMPLETE recipe: include EVERY ingredient with its exact quantity and unit — the main dish AND every sauce, dressing, marinade, spice mix, side dish, garnish and topping. Do not omit, merge, or summarise components. If a sauce or side has its own ingredient list, include all of those too. List up to 30 ingredients. Write the FULL method as clear ordered steps (up to 20), keeping each step complete with its own temperatures, times and quantities; include steps for making any sauces and sides. Adapt method steps to Thermomix style where sensible. Write ALL text in English. If the page content contains no full recipe but a dish IS clearly named (e.g. a video titled after a dish), write a sensible standard recipe for that named dish and add "estimated" to tags. Only if no dish is identifiable at all, return {"error":"no_recipe"}.' + TM_GUIDE,
@@ -81,6 +84,25 @@ const SYS: Record<string, string> = {
   signup: 'internal',
   resend: 'internal',
 };
+// Optional: replace model nutrition guesses with USDA FoodData Central values per 100 g, scaled by the estimated grams.
+// Only runs when USDA_API_KEY is configured; every failure leaves the model estimate in place.
+async function usdaEnrich(items: Record<string, unknown>[], key: string): Promise<Record<string, unknown>[]> {
+  const one = async (it: Record<string, unknown>) => {
+    const g = Number(it.g) || 0; const name = String(it.n || '').slice(0, 80);
+    if (!g || !name) return it;
+    const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 3500);
+    try {
+      const r = await fetch('https://api.nal.usda.gov/fdc/v1/foods/search?api_key=' + encodeURIComponent(key) + '&query=' + encodeURIComponent(name) + '&pageSize=1&dataType=Foundation,SR%20Legacy', { signal: ctl.signal });
+      if (!r.ok) return it;
+      const j = await r.json(); const food = j && j.foods && j.foods[0]; if (!food || !Array.isArray(food.foodNutrients)) return it;
+      const nv = (id: number) => { const n = food.foodNutrients.find((x: { nutrientId: number }) => x.nutrientId === id); return n ? Number(n.value) || 0 : 0; };
+      const kc = nv(1008), p = nv(1003), fa = nv(1004), c = nv(1005); if (!kc && !p && !fa && !c) return it;
+      const s = g / 100;
+      return { ...it, kcal: Math.max(5, Math.round(kc * s / 5) * 5), p: Math.round(p * s), f: Math.round(fa * s), c: Math.round(c * s), src: 'usda', usda: String(food.description || '').slice(0, 80) };
+    } catch (_e) { return it; } finally { clearTimeout(tm); }
+  };
+  return await Promise.all(items.slice(0, 8).map(one)).then(a => a.concat(items.slice(8)));
+}
 async function dbg(row: Record<string, unknown>) {
   try {
     await fetch(Deno.env.get('SUPABASE_URL') + '/rest/v1/scan_debug', {
@@ -292,6 +314,12 @@ Deno.serve(async (req) => {
     const blk = (j.content || []).find((c: { type: string }) => c.type === 'text');
     const text = blk?.text ?? '{}';
     let parsed; try { parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); } catch (_e) { await dbg({ mode, err: 'parse fail: ' + text.slice(0,200), resp: 'ms=' + ms + ' model=' + model }); return new Response(JSON.stringify({ error: 'Could not read a result — please try again.' }), { status: 502, headers: cors }); }
+    if ((mode === 'calories' || mode === 'barcode') && Array.isArray(parsed.items)) {
+      // Atwater check: 4 kcal/g protein & carbohydrate, 9 kcal/g fat. Outside 15 % the calories are rebuilt from the macros.
+      parsed.items = parsed.items.slice(0, 12).map((it: Record<string, unknown>) => { const p = Number(it.p) || 0, fa = Number(it.f) || 0, c = Number(it.c) || 0, k = Number(it.kcal) || 0; const est = 4 * p + 9 * fa + 4 * c; if (k > 0 && est > 0 && Math.abs(est - k) / k > 0.15) return { ...it, kcal: Math.max(5, Math.round(est / 5) * 5), kcal0: k, checked: true }; return it; });
+      const usdaKey = Deno.env.get('USDA_API_KEY') || '';
+      if (usdaKey && mode === 'calories') parsed.items = await usdaEnrich(parsed.items as Record<string, unknown>[], usdaKey);
+    }
     if (imgUrl && !parsed.error) { try { const iu = new URL(imgUrl); if (!hostBlocked(iu.hostname) && (iu.protocol === 'http:' || iu.protocol === 'https:')) parsed.image_url = imgUrl; } catch (_e) {} }
     await dbg({ mode, image_len: imageLen, stop_reason: j.stop_reason, resp: 'ms=' + ms + ' model=' + model + ' n=' + shots + ' items=' + (Array.isArray(parsed.items) ? parsed.items.length : '-') });
     return new Response(JSON.stringify(parsed), { headers: { ...cors, 'content-type': 'application/json' } });
