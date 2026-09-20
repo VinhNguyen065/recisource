@@ -97,10 +97,19 @@ workflows:
           }
           set_key NSCameraUsageDescription "21again uses the camera to scan meals for calorie counting, to import recipes from photos, and to measure your pulse."
           set_key NSPhotoLibraryUsageDescription "21again lets you pick photos of meals or cookbook pages to analyse."
-          set_key NSMicrophoneUsageDescription "21again listens for claps and spoken commands to control hands-free workout timers."
+          set_key NSMicrophoneUsageDescription "21again listens for claps and spoken commands to control hands-free workout timers, and lets you say what you ate."
           set_key NSMotionUsageDescription "21again uses motion to count your steps automatically and to count reps during workouts."
-          set_key NSHealthShareUsageDescription "21again reads heart rate, sleep and steps from Apple Health to power your Today dashboard."
-          set_key NSHealthUpdateUsageDescription "21again saves workouts and nutrition you log back to Apple Health."
+          set_key NSHealthShareUsageDescription "21again reads steps, distance, flights climbed, exercise time, active and resting energy, heart rate, resting heart rate, respiratory rate, blood oxygen, sleep, weight and cycle data from Apple Health to fill in your Today dashboard. You choose which of these to share."
+          set_key NSHealthUpdateUsageDescription "21again only reads from Apple Health. It does not add to or change your Health data."
+          set_key NSLocationWhenInUseUsageDescription "21again uses your location during an outdoor workout to measure distance and pace. It is not used at any other time."
+          set_key NSSpeechRecognitionUsageDescription "21again uses speech recognition so you can say what you ate or control a workout hands-free."
+          # iPhone only, portrait only: the interface is designed for a phone held upright.
+          /usr/libexec/PlistBuddy -c "Delete :UISupportedInterfaceOrientations" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations array" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations:0 string UIInterfaceOrientationPortrait" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Delete :UISupportedInterfaceOrientations~ipad" "$PLIST" 2>/dev/null || true
+          sed -i "" -E "s/TARGETED_DEVICE_FAMILY = \"?1,2\"?;/TARGETED_DEVICE_FAMILY = 1;/g" ios/App/App.xcodeproj/project.pbxproj
+          grep -c "TARGETED_DEVICE_FAMILY = 1;" ios/App/App.xcodeproj/project.pbxproj || true
           # Export compliance: the app uses only standard HTTPS/TLS, so TestFlight must not wait for a manual answer.
           /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" "$PLIST"
           /usr/libexec/PlistBuddy -c "Print :ITSAppUsesNonExemptEncryption" "$PLIST"
